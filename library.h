@@ -1,0 +1,6 @@
+#ifndef IISDKCORE_LIBRARY_H
+#define IISDKCORE_LIBRARY_H
+
+void hello();
+
+#endif //IISDKCORE_LIBRARY_H

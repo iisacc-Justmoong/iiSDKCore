@@ -1,0 +1,414 @@
+# AGENT.md — iiSDKCore
+
+## 0. iiSDK란
+iiSDK는 iisacc이 일관된 애플리케이션을 개발하기 위한 도구로, Qt에서 벗어나 독립적인 애플리케이션 개발 플랫폼을 구축하여 외부 의존성을 제거하기 위해 고안되었다.
+크로스플랫폼 애플리케이션을 단일 코드베이스 프로젝트로 빌드하고 사용할 수 있게 만드는 것을 목표로 한다.
+매 제품마다 Qt나 별도의 게임 엔진 같은 상위 프레임워크에 제품 아키텍처를 종속시키는 대신, 장기적으로 windowing, input, concurrency, I/O, graphics, audio, resource management 같은 공통 기반을 자체적으로 소유하고 그 위에 application과 world에 특화된 상위 framework를 구성하려는 것이다. 목적은 NIH(Not Invented Here)가 아니라 제품 수가 늘어날수록 공통 기반에 대한 투자를 재사용하는 데 있다.
+iiSDK를 사용함으로써 궁극적으로 개발자가 단일 코드로 데스크탑, 모바일을 전부 포함하는 크로스플랫폼 GUI앱을 작성할 수 있게 한다.
+모티브는 Qt, Swift, SwiftUI, Cargo, Unreal Engine, Flutter이다. 그러나 이들을 모방하는 구조는 채택하지 않는다.
+
+## 1. 프로젝트 정의
+
+iiSDKCore는 iiSDK의 최하위 기반 모듈이다.
+
+iiSDKCore의 목적은 특정 종류의 애플리케이션, UI 프레임워크, 게임 엔진 또는 제품을 구현하는 것이 아니다. iiSDK의 여러 상위 모듈과 이를 사용하는 소프트웨어가 공통으로 필요로 하는 최소한의 기반 기능을 제공하는 것이 목적이다.
+
+iiSDKCore는 장기간 유지될 기반 계층이므로 기능의 양보다 작은 책임 범위, 명확한 의존성 방향, 변경 가능성, 플랫폼 독립성을 우선한다.
+
+현재 프로젝트는 초기 단계이다. 현재의 구조와 API를 완성된 설계로 간주하지 않는다.
+
+
+## 2. 핵심 원칙
+
+### 2.1 변경 가능성을 우선한다
+
+미래의 요구사항을 정확하게 예측하려 하지 않는다.
+
+현재 요구사항을 충족하는 가장 단순한 구조를 우선하며, 이후 요구사항이 변경되었을 때 구현을 교체하거나 확장하기 쉬운 구조를 지향한다.
+
+성능, 범용성, 확장성을 추측하여 불필요한 복잡성을 미리 추가하지 않는다.
+
+확실한 것은 구현하되, 불확실한 것은 가능한 한 고정하지 않는다.
+
+
+### 2.2 iiSDKCore를 작게 유지한다
+
+어떤 기능이 유용하다는 이유만으로 iiSDKCore에 추가하지 않는다.
+
+Core에 포함되는 기능은 여러 상위 계층에서 공통으로 필요하며, 특정 도메인에 종속되지 않는 기반 기능이어야 한다.
+
+기능의 소속이 불분명하다면 우선 Core 밖에 두는 것을 선호한다.
+
+실제 사용 과정에서 공통성이 확인된 후 Core로 이동할 수 있다.
+
+
+### 2.3 추상화를 추측하지 않는다
+
+실제 소비자가 존재하지 않는 추상화를 미래를 예상하여 만들지 않는다.
+
+interface, adapter, factory, wrapper 등의 추가는 그 자체로 좋은 설계가 아니다. 이들은 실제로 변경 경계를 형성하거나 플랫폼 차이를 격리하거나 여러 구현을 수용할 필요가 있을 때 도입한다.
+
+한 번만 사용되는 구현을 미래에 여러 구현이 생길 것이라는 추측만으로 일반화하지 않는다.
+
+
+## 3. C++ 정책
+
+C++는 iiSDKCore의 주 구현 언어이다.
+
+현대적인 C++를 적극적으로 활용하되, 새로운 언어 기능을 사용하는 것 자체를 목적으로 삼지 않는다.
+
+C++ 표준 라이브러리가 문제를 충분히 해결한다면 자체 구현보다 표준 라이브러리를 우선한다.
+
+예를 들어 특별한 이유가 없다면 다음과 같은 표준 기능을 다시 구현하지 않는다.
+
+- 표준 컨테이너
+- smart pointer
+- string 및 string view
+- span
+- chrono
+- filesystem
+- thread 및 synchronization primitive
+- type traits
+- 일반적인 algorithm
+
+`iiString`, `iiVector`, `iiSharedPtr` 등의 타입을 단순히 iiSDK 고유 타입을 만들기 위한 목적으로 추가하지 않는다.
+
+자체 타입은 iiSDK에 필요한 별도의 의미론, 기능 또는 플랫폼 추상화가 존재할 때만 도입한다.
+
+
+## 4. Qt 독립성
+
+iiSDKCore는 Qt로부터 완전히 독립적이어야 한다.
+
+Qt는 iiSDKCore의 dependency가 될 수 없다.
+
+다음을 포함한 Qt 타입과 시스템을 iiSDKCore의 public API 또는 implementation dependency로 사용하지 않는다.
+
+- QObject
+- QString
+- QByteArray
+- QVariant
+- Qt container
+- signal / slot
+- Qt event system
+- Qt filesystem abstraction
+- Qt threading abstraction
+- 기타 Qt 모듈
+
+기존 iisacc 프로젝트가 Qt를 사용한다는 사실은 iiSDKCore의 설계 근거가 되지 않는다.
+
+Qt 소스코드는 크로스플랫폼 프레임워크가 해결해야 했던 문제, 플랫폼별 edge case, 아키텍처 선택을 연구하기 위한 참고 자료로 사용할 수 있다.
+
+그러나 Qt의 API, class hierarchy, naming, architecture 또는 implementation을 iiSDKCore의 명세로 취급하지 않는다.
+
+Qt의 구현을 분석할 때는 다음 순서를 따른다.
+
+1. Qt가 해결하려는 실제 문제를 파악한다.
+2. 플랫폼 또는 애플리케이션의 근본적인 요구사항을 추출한다.
+3. Qt의 해결 방법과 요구사항을 분리한다.
+4. iiSDKCore의 조건에서 문제를 다시 설계한다.
+
+Qt와 다른 구조를 만드는 것 자체도 목표가 아니다. 독립적인 분석 결과 동일하거나 유사한 구조가 합리적이라면 사용할 수 있다.
+
+
+## 5. 플랫폼 정책
+
+iiSDKCore는 크로스플랫폼 사용을 전제로 한다.
+
+주요 대상 플랫폼은 다음과 같다.
+
+- macOS
+- Windows
+- Linux
+- iOS
+- Android
+
+공통 public API에 특정 운영체제의 API 또는 타입이 불필요하게 노출되어서는 안 된다.
+
+플랫폼별 구현은 내부적으로 native user-space API를 직접 사용할 수 있다.
+
+예:
+
+- macOS native APIs
+- Windows native APIs
+- Linux/POSIX 및 필요한 user-space platform APIs
+
+운영체제 API를 무조건 1:1 wrapper로 변환하지 않는다.
+
+iiSDK에서 실제로 필요한 의미론을 먼저 정의하고, 각 플랫폼 backend가 이를 구현하는 방식을 선호한다.
+
+단, C++ 표준 라이브러리만으로 충분히 이식 가능한 기능은 불필요하게 플랫폼별로 다시 구현하지 않는다.
+
+
+## 6. 의존성 규칙
+
+iiSDKCore는 iiSDK dependency graph의 최하위 계층이다.
+
+상위 iiSDK 모듈은 iiSDKCore에 의존할 수 있다.
+
+iiSDKCore는 상위 iiSDK 모듈에 의존해서는 안 된다.
+
+개념적으로 다음 방향을 유지한다.
+
+    Applications
+         ↓
+    Higher iiSDK Modules
+         ↓
+      iiSDKCore
+         ↓
+    C++ Standard Library
+         +
+    Native Platform APIs
+
+순환 dependency를 만들지 않는다.
+
+Core의 편의를 위해 상위 모듈의 개념을 Core로 역수입하지 않는다.
+
+
+## 7. iiSDKCore가 기본적으로 책임지지 않는 영역
+
+다음 영역은 명확한 필요성이 확인되기 전까지 iiSDKCore의 책임으로 간주하지 않는다.
+
+- View
+- Widget
+- UI layout
+- .ihtml
+- Windowing
+- Application lifecycle
+- GPU rendering
+- 2D/3D graphics
+- Shader
+- Image processing
+- Font rendering 및 text shaping
+- Audio
+- MIDI
+- Game world
+- ECS
+- Physics
+- Asset pipeline
+- 특정 network protocol
+- 특정 document model
+- 제품별 business logic
+
+이 목록은 영구적인 금지 목록이 아니다.
+
+향후 아키텍처가 발전하면서 공통 primitive가 발견될 경우 적절한 검토 후 Core의 책임이 변경될 수 있다.
+
+
+## 8. API 설계
+
+Public API는 명시적이고 예측 가능해야 한다.
+
+가능한 한 다음 특성을 지향한다.
+
+- ownership이 명확하다.
+- lifetime이 추론 가능하다.
+- side effect가 예상 가능하다.
+- 오류가 숨겨지지 않는다.
+- 타입을 통해 잘못된 사용을 가능한 한 방지한다.
+- 전역 mutable state를 최소화한다.
+- 암묵적인 초기화 순서에 의존하지 않는다.
+- 구현 세부사항이 public API로 누출되지 않는다.
+
+API의 간결함을 위해 중요한 의미론을 숨기지 않는다.
+
+편리함과 제어 가능성이 충돌한다면 고수준 편의 API와 저수준 접근 방법을 분리하는 것을 고려한다.
+
+C++ 사용자가 필요한 경우 추상화 아래의 기능을 사용할 수 있는 escape hatch를 남길 수 있다.
+
+
+## 9. 성능 정책
+
+iiSDKCore는 기반 소프트웨어이므로 성능을 중요하게 취급한다.
+
+그러나 측정되지 않은 성능 문제를 해결하기 위해 복잡성을 추가하지 않는다.
+
+다음을 피한다.
+
+- 근거 없는 micro-optimization
+- 필요성이 검증되지 않은 lock-free 구조
+- 불필요한 custom allocator
+- 추측에 기반한 cache optimization
+- 유지보수성을 크게 희생하는 최적화
+- profiler 없이 이루어지는 대규모 성능 재설계
+
+초기 구현은 올바름과 단순성을 우선한다.
+
+실제 workload에서 병목이 확인되면 benchmark와 profiler를 근거로 최적화한다.
+
+다만 나중에 최적화할 수 없게 만드는 불필요한 구조적 제약 역시 피한다.
+
+
+## 10. 메모리와 자원
+
+소유권과 lifetime은 명시적으로 설계한다.
+
+가능하면 RAII를 기본 자원 관리 방식으로 사용한다.
+
+raw pointer의 존재 자체를 금지하지 않는다. pointer의 의미가 ownership인지 observation인지 명확하게 유지한다.
+
+불필요한 heap allocation을 피하되 zero-allocation을 보편적인 목표로 강제하지 않는다.
+
+플랫폼 자원은 가능한 한 안전한 C++ lifetime model 안에 포함한다.
+
+
+## 11. 오류 처리
+
+오류를 무시하거나 정상 상태처럼 위장하지 않는다.
+
+programming error와 runtime failure를 구분한다.
+
+assertion, exception, error value 등의 사용 방식은 각 문제의 성격을 고려하여 결정한다.
+
+모든 오류를 하나의 처리 방식으로 강제하지 않는다.
+
+오류 메시지는 인간뿐 아니라 코딩 에이전트가 원인을 파악할 수 있도록 구체적으로 작성한다.
+
+가능하다면 다음 정보를 보존한다.
+
+- 실패한 operation
+- 오류 category
+- 관련 resource 또는 argument
+- platform error가 존재한다면 그 원인
+- 호출자가 취할 수 있는 조치
+
+
+## 12. 에이전틱 코딩
+
+iiSDKCore는 처음부터 인간과 코딩 에이전트가 함께 개발하는 코드베이스를 전제로 한다.
+
+에이전트가 코드를 탐색하고 변경하기 쉽도록 다음을 지향한다.
+
+- 일관된 directory structure
+- 일관된 naming
+- 작은 translation unit
+- 명확한 module boundary
+- 명시적인 dependency
+- 자동화된 build
+- 자동화된 test
+- 결정적인 test result
+- 구체적인 compiler diagnostic
+- 필요한 곳의 간결한 architecture documentation
+
+코드의 중요한 동작을 에이전트가 추론하기 어려운 암묵적인 convention에만 의존시키지 않는다.
+
+반복적으로 필요한 프로젝트 지식은 문서화한다.
+
+에이전트에게 전체 코드베이스를 읽어야만 이해할 수 있는 구조를 가능한 한 만들지 않는다.
+
+
+## 13. 에이전트의 작업 규칙
+
+코드를 수정하기 전에 관련 코드와 dependency를 먼저 확인한다.
+
+기존 architecture를 이해하지 않은 상태에서 대규모 구조 변경을 수행하지 않는다.
+
+새 dependency를 추가하기 전에 기존 C++ 표준 기능 또는 현재 dependency로 해결할 수 있는지 확인한다.
+
+새 abstraction을 추가할 때는 실제 소비자가 존재하는지 확인한다.
+
+기존 public API를 변경할 때는 영향을 받는 사용처를 확인한다.
+
+플랫폼별 코드를 수정할 때는 다른 지원 플랫폼의 의미론이 달라지지 않는지 고려한다.
+
+변경 후 가능한 범위에서 build와 관련 test를 수행한다.
+
+test를 통과시키기 위해 제품 요구사항이나 assertion을 임의로 약화하지 않는다.
+
+문제를 숨기기 위한 fallback을 임의로 추가하지 않는다.
+
+불확실한 architecture decision이 필요한 경우 임의로 거대한 시스템을 확정하기보다 작은 변경 가능한 구현을 우선한다.
+
+
+## 14. 테스트
+
+Core 기능은 가능한 한 자동 테스트가 가능하도록 설계한다.
+
+특히 다음 종류의 기능은 테스트를 중요하게 취급한다.
+
+- lifetime
+- ownership
+- concurrency
+- error propagation
+- platform abstraction
+- serialization이 존재하는 경우 format stability
+- public API의 핵심 invariant
+
+플랫폼 독립 API는 가능한 경우 동일한 test suite를 각 지원 플랫폼에서 실행한다.
+
+플랫폼별 동작 차이가 의도된 경우 이를 명시적으로 기록한다.
+
+
+## 15. 호환성
+
+iiSDKCore는 현재 초기 개발 단계이다.
+
+1.0 이전에는 좋은 구조를 얻기 위해 breaking change를 허용한다.
+
+잘못된 초기 API를 보존하기 위해 장기적인 기술 부채를 만들지 않는다.
+
+그러나 breaking change 자체를 가볍게 취급하지 않는다. 변경에는 명확한 기술적 이유가 있어야 한다.
+
+ABI 안정성, 장기 source compatibility 및 deprecation 정책은 실제 배포 요구사항이 구체화되기 전에 과도하게 고정하지 않는다.
+
+
+## 16. 문서화
+
+코드는 가능한 한 자체적으로 이해 가능해야 하지만, architecture와 invariant는 코드만으로 전달하려 하지 않는다.
+
+문서에는 주로 다음을 기록한다.
+
+- 왜 이 abstraction이 존재하는가
+- 어떤 책임을 가지는가
+- 무엇을 의도적으로 책임지지 않는가
+- ownership과 lifetime 규칙
+- dependency 방향
+- 플랫폼별 의미 차이
+- 쉽게 깨질 수 있는 invariant
+- 설계 결정의 중요한 이유
+
+코드를 그대로 설명하는 주석은 최소화한다.
+
+"What"보다 "Why"를 기록한다.
+
+
+## 17. 설계 판단 기준
+
+새로운 기능이나 abstraction을 추가하기 전에 다음을 검토한다.
+
+1. 현재 실제 사용처가 존재하는가?
+2. 이것은 정말 Core의 책임인가?
+3. C++ 표준 라이브러리로 충분하지 않은가?
+4. 특정 제품이나 상위 모듈의 요구사항이 Core로 누출되고 있지 않은가?
+5. 특정 운영체제의 개념을 공통 API로 잘못 일반화하고 있지 않은가?
+6. 구현을 나중에 교체할 수 있는가?
+7. 지금 필요한 것보다 지나치게 일반화하고 있지 않은가?
+8. 성능 최적화라면 실제 측정 근거가 있는가?
+9. 에이전트와 인간이 API의 의미를 쉽게 파악할 수 있는가?
+10. 이 코드가 없어도 현재 요구사항을 만족할 수 있는가?
+
+10번의 답이 "그렇다"라면 추가하지 않는 것을 우선 고려한다.
+
+
+## 18. 현재의 최우선 목표
+
+iiSDKCore의 초기 목표는 거대한 범용 프레임워크를 완성하는 것이 아니다.
+
+작고 신뢰할 수 있으며 Qt에 의존하지 않는 기반을 만들고, 실제 iiSDK 상위 모듈과 iisacc 소프트웨어가 사용하면서 필요한 기능을 발견하는 것이다.
+
+iiSDKCore는 실제 사용처와 함께 성장한다.
+
+미래의 iiSDK 전체 구조를 현재 시점에서 완벽하게 예측하려 하지 않는다.
+
+
+## 19. 최종 원칙
+
+iiSDKCore의 좋은 설계는 처음부터 모든 요구사항을 해결하는 설계가 아니다.
+
+새로운 요구사항이 등장했을 때 기존 시스템 전체를 파괴하지 않고 변화할 수 있는 설계이다.
+
+선행 프레임워크에서는 문제와 경험을 배우되, 추상화와 구현은 iiSDKCore의 실제 요구사항에서 다시 도출한다.
+
+확실한 것은 구현한다.
+불확실한 것은 고정하지 않는다.
+필요하지 않은 것은 만들지 않는다.
