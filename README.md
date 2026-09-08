@@ -7,10 +7,27 @@ iiSDK의 최하위 기반 모듈을 위한 초기 C++ 프로젝트이다. 현재
 CMake 3.31 이상과 C++20 컴파일러가 필요하다. 생성 파일은 `build/`에 둔다.
 
 ```sh
-cmake -S . -B build
-cmake --build build
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
+  -DCMAKE_INSTALL_PREFIX="$HOME/.local/SDK/iiSDKCore"
+cmake --build build --clean-first
+ctest --test-dir build --output-on-failure
+cmake --install build
 ```
 
-현재 등록된 자동 테스트는 없다. 초기 등록 시 macOS에서 공유 라이브러리 빌드와 별도 소비자 프로그램의 `hello()` 호출을 확인했다.
+설치는 공유 라이브러리, 공개 헤더와 CMake 패키지를 제공한다. 소비자는
+`find_package(iiSDKCore 0.1 CONFIG REQUIRED)`와 `iiSDKCore::iiSDKCore` 타깃으로
+연결한다. 헤더는 다른 SDK의 같은 파일명과 충돌하지 않도록 `<iiSDKCore/library.h>`로
+포함한다. 기존 `<library.h>` 경로도 유지한다. CMake 표준 설치 도구만
+사용하므로 Qt나 새로운 외부 의존성은 추가하지 않는다.
+
+공개 함수 호출 테스트와 다음 별도 설치 소비자로 패키지 검색, 헤더 사용, 링크 및
+실제 공유 라이브러리 로딩을 검증한다.
+
+```sh
+cmake -S tests/consumer -B build/consumer/build \
+  -DCMAKE_PREFIX_PATH="$HOME/.local/SDK/iiSDKCore"
+cmake --build build/consumer/build
+ctest --test-dir build/consumer/build --output-on-failure
+```
 
 IDE 설정, 빌드 산출물 및 비어 있는 설계 디렉터리는 저장소에 포함하지 않는다.
