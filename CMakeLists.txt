@@ -5,12 +5,13 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 include(CTest)
 
-add_library(iiSDKCore SHARED library.cpp)
+configure_file(src/library.h "${CMAKE_CURRENT_BINARY_DIR}/include/iiSDKCore/library.h" COPYONLY)
+add_library(iiSDKCore SHARED src/library.cpp)
 add_library(iiSDKCore::iiSDKCore ALIAS iiSDKCore)
 target_compile_features(iiSDKCore PUBLIC cxx_std_20)
 target_include_directories(iiSDKCore PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/iiSDKCore>)
 set_target_properties(iiSDKCore PROPERTIES
@@ -23,7 +24,7 @@ install(TARGETS iiSDKCore EXPORT iiSDKCoreTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(FILES library.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSDKCore)
+install(FILES src/library.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSDKCore)
 install(EXPORT iiSDKCoreTargets NAMESPACE iiSDKCore:: DESTINATION ${_package_dir})
 configure_package_config_file(cmake/iiSDKCoreConfig.cmake.in
     "${CMAKE_CURRENT_BINARY_DIR}/iiSDKCoreConfig.cmake"

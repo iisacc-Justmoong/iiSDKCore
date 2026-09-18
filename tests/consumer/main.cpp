@@ -1,4 +1,5 @@
 #include <iiSDKCore/library.h>
+#include <library.h>
 
 int main()
 {
