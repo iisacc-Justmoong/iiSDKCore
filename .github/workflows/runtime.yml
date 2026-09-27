@@ -1,0 +1,73 @@
+name: Runtime contracts
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022, macos-14]
+        shared: ["ON", "OFF"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'cmake>=3.31,<5'
+      - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=${{ matrix.shared }}
+      - run: cmake --build build --config Release --parallel 4
+      - run: ctest --test-dir build -C Release --output-on-failure
+      - run: cmake --install build --config Release --prefix "${{ github.workspace }}/build/stage"
+      - run: cmake -S tests/consumer -B build/consumer/build -DCMAKE_PREFIX_PATH="${{ github.workspace }}/build/stage"
+      - run: cmake --build build/consumer/build --config Release
+      - name: Installed consumer
+        shell: bash
+        run: |
+          export PATH="$GITHUB_WORKSPACE/build/stage/bin:$PATH"
+          ctest --test-dir build/consumer/build -C Release --output-on-failure
+  ios:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 -m pip install 'cmake>=3.31,<5'
+      - run: >-
+          cmake -S . -B build -DCMAKE_SYSTEM_NAME=iOS
+          -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DBUILD_TESTING=OFF
+          -DIISDKCORE_BUILD_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build --parallel 4
+  android:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        abi: [arm64-v8a, armeabi-v7a, x86_64, x86]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 -m pip install 'cmake>=3.31,<5'
+      - run: >-
+          cmake -S . -B build
+          -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake"
+          -DANDROID_ABI=${{ matrix.abi }} -DANDROID_PLATFORM=android-26
+          -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build --parallel 4
+  wasm:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        threads: ["OFF", "ON"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 -m pip install 'cmake>=3.31,<5'
+      - run: sudo apt-get update && sudo apt-get install -y emscripten
+      - run: emcmake cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DIISDKCORE_WASM_THREADS=${{ matrix.threads }}
+      - run: cmake --build build --parallel 4
+      - run: ctest --test-dir build --output-on-failure

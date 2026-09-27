@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>@IISDKCORE_BROWSER_CONTRACT_TITLE@</title>
+<h1>@IISDKCORE_BROWSER_CONTRACT_TITLE@</h1>
+<pre id="output"></pre>
+<script>
+const output = document.getElementById('output');
+const report = text => { output.textContent += text + '\n'; };
+report('crossOriginIsolated=' + crossOriginIsolated);
+var Module = {
+    print: report,
+    printErr: text => report('stderr: ' + text),
+    onAbort: text => report('ABORT: ' + text),
+    onExit: code => report('exit=' + code)
+};
+</script>
+<script src="@IISDKCORE_BROWSER_CONTRACT_SCRIPT@"></script>
+</html>
