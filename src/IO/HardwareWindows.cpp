@@ -1,5 +1,7 @@
 #include "HardwareInternal.h"
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 // clang-format off
 #include <windows.h>
 #include <hidsdi.h>
@@ -8,9 +10,11 @@
 #include <audioclient.h>
 #include <cfgmgr32.h>
 #include <cstring>
+#include <propkeydef.h>
 #include <functiondiscoverykeys_devpkey.h>
 #include <mmdeviceapi.h>
 #include <setupapi.h>
+#include <initguid.h>
 #include <usbiodef.h>
 #include <winrt/Windows.Devices.Bluetooth.Advertisement.h>
 #include <winrt/Windows.Devices.Bluetooth.GenericAttributeProfile.h>

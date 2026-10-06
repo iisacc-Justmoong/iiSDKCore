@@ -73,6 +73,10 @@ int main() {
       if (list)
         std::cout << "device enumeration " << static_cast<int>(kind) << ": "
                   << list->size() << '\n';
+#if defined(_WIN32)
+      if (kind == DeviceKind::usb)
+        check(bool(list), "native Windows USB interface enumeration succeeds");
+#endif
     }
 #if defined(__APPLE__)
     auto outputs = devices.enumerate(DeviceKind::audio_output);

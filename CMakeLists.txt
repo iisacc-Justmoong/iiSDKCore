@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.31)
 project(iiSDKCore VERSION 0.10.0 LANGUAGES CXX)
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)

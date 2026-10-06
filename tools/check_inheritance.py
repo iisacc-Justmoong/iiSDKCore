@@ -210,6 +210,7 @@ def preprocess(config, source):
     outputs = []
     for architecture in config["architectures"] or [None]:
         result = subprocess.run(compiler_command(config, source, architecture=architecture), text=True,
+                                encoding="utf-8", errors="replace",
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if result.returncode:
             raise RuntimeError(f"{source}: inheritance preprocessing failed\n{result.stderr}")

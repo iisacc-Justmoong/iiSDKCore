@@ -66,6 +66,19 @@ class InheritancePolicyTests(unittest.TestCase):
         self.assertTrue(self.findings("#if 0\nstruct Bad : A,B {};\n#endif\n"))
 
     @unittest.skipUnless("--config" in sys.argv, "CMake compiler configuration required")
+    def test_utf8_compiler_output_retains_policy_records(self):
+        with tempfile.TemporaryDirectory(dir=BUILD) as temporary:
+            path = Path(temporary) / "utf8.cpp"
+            path.write_text('const char* text="한글"; struct A {}; struct B {}; struct Bad final : A,B {};\n', encoding="utf-8")
+            config = dict(CONFIG)
+            if config["msvc"]:
+                config["flags"] = [*config["flags"], "/utf-8"]
+            output = policy.preprocess(config, str(path))
+            self.assertIn("한글", output)
+            tokens, _ = policy.preprocessed_tokens(output, [path.parent])
+            self.assertTrue(policy.inspect_tokens(tokens))
+
+    @unittest.skipUnless("--config" in sys.argv, "CMake compiler configuration required")
     def test_macros_are_checked_after_expansion(self):
         for text in [
             "struct A {}; struct B {};\n#define BASES A,B\nstruct Child final : BASES {};",

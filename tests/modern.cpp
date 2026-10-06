@@ -24,9 +24,9 @@ void check(bool v, const char *m) {
 
 void containers() {
   std::array<std::byte, 4096> storage{};
-  std::pmr::monotonic_buffer_resource arena(storage.data(), storage.size(),
-                                            std::pmr::null_memory_resource());
   for (int iteration = 0; iteration < 1000; ++iteration) {
+    std::pmr::monotonic_buffer_resource arena(storage.data(), storage.size(),
+                                              std::pmr::null_memory_resource());
     {
       std::pmr::vector<int> values(&arena);
       values.reserve(64);
@@ -42,6 +42,8 @@ void containers() {
     }
     arena.release(); // only after every container has been destroyed
   }
+  std::pmr::monotonic_buffer_resource arena(storage.data(), storage.size(),
+                                            std::pmr::null_memory_resource());
   bool full = false;
   try {
     std::pmr::vector<int> over(&arena);
@@ -272,10 +274,15 @@ void files() {
 }
 int main() {
   try {
+    std::cout << "stage containers" << std::endl;
     containers();
+    std::cout << "stage values" << std::endl;
     values_and_animation();
+    std::cout << "stage removal" << std::endl;
     animation_removal();
+    std::cout << "stage parallel" << std::endl;
     parallel_and_events();
+    std::cout << "stage files" << std::endl;
     files();
     std::cout << "modern core contracts complete\n";
     return 0;
