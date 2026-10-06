@@ -9,7 +9,7 @@ struct Scene::Impl {
     Impl(runtime::SerialQueue& domain,std::size_t capacity) : queue(domain),graph(capacity),nodes(capacity) {}
     core::Result<void> check(graph::NodeId node) const {
         if (!queue.is_current()) return core::fail(core::ErrorCode::wrong_executor,"Scene belongs to another execution domain");
-        if (!graph.contains(node)) return core::fail(core::ErrorCode::not_found,"Scene node expired");
+        if (!graph.contains(node) || !nodes[node.slot].properties) return core::fail(core::ErrorCode::not_found,"Scene node expired");
         return {};
     }
 };
@@ -53,13 +53,18 @@ core::Result<void> Scene::erase(graph::NodeId subtree) {
     }
     std::vector<std::unique_ptr<runtime::ObjectProperties>> retired;
     retired.reserve(pending.size());
+    for (auto node:pending)
+        if (impl_->nodes[node.slot].properties->is_executing())
+            return core::fail(core::ErrorCode::busy,"Defer removal until the current property operation returns");
     for (auto i=pending.rbegin();i!=pending.rend();++i) {
+        if (impl_->nodes[i->slot].parent) (void)impl_->graph.disconnect(*impl_->nodes[i->slot].parent,*i);
         retired.push_back(std::move(impl_->nodes[i->slot].properties));
-        (void)impl_->graph.remove(*i);
         impl_->nodes[i->slot]={};
     }
-    // User-owned property values can run destructors. Expose a fully detached
-    // hierarchy before retiring them, so reentrant creation can reuse slots.
+    // Invalidate the whole subtree before user destructors run, but retain its
+    // capacity until properties, queued requests and their captures are gone.
+    retired.clear();
+    for (auto i=pending.rbegin();i!=pending.rend();++i) (void)impl_->graph.remove(*i);
     return {};
 }
 core::Result<std::reference_wrapper<runtime::ObjectProperties>> Scene::properties(graph::NodeId node) {

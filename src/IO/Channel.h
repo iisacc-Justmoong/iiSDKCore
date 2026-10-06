@@ -14,25 +14,26 @@ namespace ii::io {
 
 enum class ErrorCode { invalid_argument, not_found, permission_denied, already_exists,
     closed, unsupported, would_block, timed_out, cancelled, busy, system_error };
-struct Error { ErrorCode code; std::error_code native; };
+struct Error final { ErrorCode code; std::error_code native; };
 template<class T> using Result = std::expected<T, Error>;
 enum class Access { read, write, read_write };
 enum class Creation { existing, open_or_create, create_new, truncate };
-struct FileOptions { Access access = Access::read; Creation creation = Creation::existing; };
+struct FileOptions final { Access access = Access::read; Creation creation = Creation::existing; };
 // Raw binary 8N1, no software/hardware flow control.
-struct SerialOptions { unsigned baud_rate = 115200; };
-enum class ChannelKind { file, serial };
+struct SerialOptions final { unsigned baud_rate = 115200; };
+struct DeviceOptions final { Access access = Access::read; };
+enum class ChannelKind { file, serial, device };
 enum class Backend { posix, windows, wasm_virtual };
 enum class Interest { readable, writable };
 enum class SeekOrigin { begin, current, end };
-struct Capabilities {
+struct Capabilities final {
     ChannelKind kind = ChannelKind::file;
     Backend backend = Backend::posix;
     bool readable = false, writable = false, seekable = false, flushable = false;
 };
-struct PlatformCapabilities { Backend backend; bool files; bool serial; };
+struct PlatformCapabilities final { Backend backend; bool files; bool serial; bool devices = false; };
 [[nodiscard]] PlatformCapabilities platform_capabilities() noexcept;
-struct Transfer { std::size_t bytes = 0; bool eof = false; };
+struct Transfer final { std::size_t bytes = 0; bool eof = false; };
 
 // A minimal shared cancellation flag, including toolchains without stop_token.
 // No callbacks, thread ownership or allocation in token copies/checks.
@@ -54,6 +55,8 @@ private:
     std::shared_ptr<std::atomic<bool>> state_ = std::make_shared<std::atomic<bool>>(false);
 };
 
+namespace detail { class ReadinessPoller; }
+
 // A copy is another owning reference to the SAME endpoint and file cursor.
 // Operations are serialized internally; concurrent use returns busy. Closing
 // one reference closes all aliases. No native handle escapes this boundary.
@@ -72,14 +75,18 @@ public:
                                     CancellationToken stop = {}) const;
     [[nodiscard]] Result<void> close() const;
 private:
+    friend class detail::ReadinessPoller;
     struct State;
     std::shared_ptr<State> state_;
     explicit Channel(std::shared_ptr<State> state) : state_(std::move(state)) {}
     friend Result<Channel> open_file(const std::filesystem::path&, FileOptions);
     friend Result<Channel> open_serial(const std::filesystem::path&, SerialOptions);
+    friend Result<Channel> open_device(const std::filesystem::path&, DeviceOptions);
 };
 
 [[nodiscard]] Result<Channel> open_file(const std::filesystem::path& path, FileOptions options = {});
 [[nodiscard]] Result<Channel> open_serial(const std::filesystem::path& path, SerialOptions options = {});
+// Existing POSIX character devices and FIFOs; no protocol or driver setup.
+[[nodiscard]] Result<Channel> open_device(const std::filesystem::path& path, DeviceOptions options = {});
 
 } // namespace ii::io

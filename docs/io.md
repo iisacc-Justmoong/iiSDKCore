@@ -34,7 +34,7 @@ else {
 
 AsyncIO::queries()는 QueryPort<IOQuery, IOResult>이다. Read, Write, Seek, Flush, Close 요청을 해당 객체의 큐에서 순서대로 실행한다. 다른 AsyncIO 인스턴스는 병렬로 실행할 수 있다. 같은 Channel에 여러 AsyncIO를 만들면 큐 사이의 순서는 보장하지 않으며 겹친 직접 작업은 busy일 수 있다. 동일 채널은 하나의 AsyncIO 실행 영역에서 관리하는 것을 기본으로 한다.
 
-대기하는 I/O는 워커를 차지한다. CPU·프레임 작업과 격리할 필요가 있으면 별도 Runtime 인스턴스를 I/O 워커 집합으로 사용한다. OS의 IOCP/io_uring을 이용한 커널 비동기 실행이나 다중 채널 reactor를 구현한 것은 아니다. open_file/open_serial과 직접 Channel 호출은 동기 함수이므로 느릴 수 있는 열기 작업도 Runtime 작업 안에서 실행한다.
+AsyncIO에서 대기하는 I/O는 워커를 차지한다. CPU·프레임 작업과 격리할 필요가 있으면 별도 Runtime 인스턴스를 I/O 워커 집합으로 사용한다. 0.5.0부터는 [EventLoop의 I/O 경로](loop-io.md)가 여러 채널의 준비 상태를 같은 대기 집합에서 감지하고 read/write 완료를 직접 전달한다. AsyncIO는 별도 워커에서 동기 호출을 실행하는 경로로 유지하며 IOCP/io_uring은 사용하지 않는다. open_file/open_serial/open_device와 직접 Channel 호출은 동기 함수이므로 느릴 수 있는 열기 작업도 Runtime 작업 안에서 실행한다.
 
 ## 파일과 시리얼
 
@@ -66,7 +66,9 @@ Buffer는 한 번 확보한 고정 크기 바이트 배열의 소유 참조이�
 
 버퍼 내용은 자동 잠금하지 않는다. 접수 후 completion 전까지 호출자가 읽거나 수정하지 않으며 같은 저장소를 독립 작업에 중복 제출하지 않는다. 같은 FIFO 큐에서 이어지는 작업은 앞선 작업의 완료 이후 같은 버퍼를 재사용할 수 있다. 완료 후 같은 Buffer로 다음 요청을 제출한다. 다른 객체 큐로 결과를 넘겼으면 그 소비가 끝날 때까지 재사용하지 않는다.
 
-AsyncIO와 참조 캡처는 제출자 활동과 완료 처리가 끝날 때까지 유지한다. shutdown/drain은 신규 후속 제출을 막을 수 있으므로 비동기 체인이 완료된 뒤 join한다. 개별 작은 동기 read/seek와 재사용 Buffer 경로의 추가 operator new 호출을 tests/reuse.cpp에서 측정한다. std::function 캡처·쿼리 생성·플랫폼 내부 할당까지 무할당이라고 주장하지 않는다.
+AsyncIO::close와 소멸은 해당 큐의 접수를 닫고 대기 요청·버퍼·completion 캡처를 취소하며, 활성 I/O와 completion 및 슬롯 반환을 기다린 뒤 처리기의 Channel 소유 참조를 해제한다. 외부 Channel/Buffer 별칭이 없다면 마지막 소유 참조와 함께 메모리·OS 핸들을 해제한다. 외부 별칭이 남아 있다면 그 소유자는 계속 사용할 수 있다. AsyncIO 제거가 파일 자체를 삭제하거나 외부 별칭의 채널을 강제로 닫지는 않는다. 모든 별칭을 닫는 명령은 IOQuery의 Close 또는 Channel::close이다. 이미 시작한 OS 전송은 선점하지 않으므로 제거도 해당 전송 종료를 기다린다. 동일 큐의 콜백에서 제거하지 않고 외부 실행 영역에서 close한다. [제거 계약](cleanup.md)을 따른다.
+
+shutdown/drain은 신규 후속 제출을 막을 수 있으므로 비동기 체인이 완료된 뒤 join한다. 개별 작은 동기 read/seek와 재사용 Buffer 경로의 추가 operator new 호출을 tests/reuse.cpp에서 측정한다. std::function 캡처·쿼리 생성·플랫폼 내부 할당까지 무할당이라고 주장하지 않는다.
 
 ## 플랫폼 범위
 
@@ -81,3 +83,7 @@ AsyncIO와 참조 캡처는 제출자 활동과 완료 처리가 끝날 때까�
 platform_capabilities()는 컴파일된 백엔드 지원 범위이며 Channel::capabilities()는 해당 채널의 기능이다. WASM은 backend=wasm_virtual을 반환한다. 가상 파일 성공을 물리 저장장치 접근으로 간주하지 않는다. 영속 저장은 별도 호스트 마운트/동기화 구성이 필요하다. 브라우저 pthread 구성은 기존 COOP/COEP 계약을 따른다.
 
 구현 근거: [POSIX termios](https://man7.org/linux/man-pages/man3/termios.3.html), [poll](https://man7.org/linux/man-pages/man2/poll.2.html), [Windows COMMTIMEOUTS](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-commtimeouts). 실제 검증 범위는 [검증 기록](validation.md)에 구분한다.
+
+## Native device families (0.6.0)
+
+`IO/Hardware.h` provides enumeration, native topology notifications, USB/HID controls, Bluetooth LE GATT, PCM audio and MIDI UMP through the same EventLoop. `IO/Protocols.h` contains bounded standard parsers and encoders. This API owns endpoints and their cancellation boundary independently of Channel. See [hardware I/O](hardware.md) for the platform matrix, permissions, lifetime, and current verification limits.

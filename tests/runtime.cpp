@@ -88,7 +88,7 @@ void fairness_and_failures() {
     // Releasing user captures must not hold the queue lock.
     bool destroyed = false;
     bool destructor_posted = false;
-    EventLoop release_loop(1);
+    EventLoop release_loop(2); // reentrant work uses a different, already free slot
     auto capture = std::shared_ptr<int>(new int(1), [&](int* value) {
         delete value;
         destroyed = true;

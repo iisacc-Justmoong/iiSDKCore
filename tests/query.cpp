@@ -108,11 +108,12 @@ int main() {
         {
             QueryPort<ReadValue, int> temporary([](const ReadValue&) { return 10; });
             (void)temporary.post(loop, {}, [&](QueryReply<int> reply) {
-                expired = !reply && reply.error().code == QueryErrorCode::receiver_expired;
+                expired = true;
+                (void)reply;
             });
         }
         loop.poll({8, 1s});
-        check(expired, "expired receiver produces an explicit error");
+        check(!expired && loop.stats().pending==0, "removed receiver releases queued queries without late completions");
 
         QueryPort<ReadValue, int> failing([](const ReadValue&) -> int {
             throw std::runtime_error("receiver error");

@@ -2,6 +2,7 @@
 
 #include "EventLoop.h"
 #include "Runtime.h"
+#include "TaskScope.h"
 #include <concepts>
 #include <exception>
 #include <expected>
@@ -15,7 +16,7 @@
 namespace ii::runtime {
 
 enum class QueryErrorCode { receiver_expired, handler_failed, wrong_executor };
-struct QueryError {
+struct QueryError final {
     QueryErrorCode code;
     std::exception_ptr cause;
 };
@@ -32,9 +33,10 @@ public:
     using Handler = std::function<Response(const Request&)>;
     using Completion = std::function<void(QueryReply<Response>)>;
 
-    explicit QueryPort(Handler handler) {
-        if (!handler) throw std::invalid_argument("QueryPort requires a handler");
-        state_ = std::make_shared<State>(std::move(handler));
+    explicit QueryPort(Handler handler)
+        : state_(std::make_shared<State>(std::move(handler))),
+          lifetime_([state=state_]{state->handler=nullptr;}) {
+        if (!state_->handler) throw std::invalid_argument("QueryPort requires a handler");
     }
     QueryPort(SerialQueue& executor, Handler handler) : QueryPort(std::move(handler)) {
         executor_ = std::ref(executor);
@@ -43,13 +45,16 @@ public:
     QueryPort& operator=(const QueryPort&) = delete;
     QueryPort(QueryPort&&) = delete;
     QueryPort& operator=(QueryPort&&) = delete;
+    [[nodiscard]] ThreadResult close() const { return lifetime_.close(); }
+    [[nodiscard]] bool is_current() const noexcept { return lifetime_.is_current(); }
 
     // Process on the caller's thread, borrowing the request for this call.
     [[nodiscard]] QueryReply<Response> send(const Request& request) const {
         if (executor_ && !executor_->get().is_current())
             return std::unexpected(QueryError{QueryErrorCode::wrong_executor, {}});
-        const auto receiver = state_;
-        return invoke(*receiver, request);
+        QueryReply<Response> reply=std::unexpected(QueryError{QueryErrorCode::receiver_expired,{}});
+        (void)lifetime_.run([&]{reply=invoke(*state_,request);});
+        return reply;
     }
 
     // Admission is distinct from delivery. EventLoop cancellation and shutdown
@@ -66,7 +71,7 @@ public:
             } else return {{}, SubmitError::invalid};
         }
         if (!completion) return {{}, SubmitError::invalid};
-        return loop.post(
+        return lifetime_.post(loop,
             [receiver = std::weak_ptr<State>(state_), request = std::move(request),
              completion = std::move(completion)]() mutable {
                 if (const auto target = receiver.lock()) completion(invoke(*target, request));
@@ -84,9 +89,10 @@ public:
     }
 
 private:
-    struct State { Handler handler; };
+    struct State final { Handler handler; };
     std::shared_ptr<State> state_;
     std::optional<std::reference_wrapper<SerialQueue>> executor_;
+    TaskScope lifetime_; // closes before receiver state is released
 
     static QueryReply<Response> invoke(const State& receiver, const Request& request) {
         try {

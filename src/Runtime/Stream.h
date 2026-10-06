@@ -12,7 +12,7 @@
 namespace ii::runtime {
 
 enum class OverflowPolicy { reject, drop_oldest };
-struct StreamStats {
+struct StreamStats final {
     std::size_t capacity;
     std::size_t size;
     std::size_t high_watermark;

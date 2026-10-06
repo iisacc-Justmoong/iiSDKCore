@@ -4,14 +4,14 @@
 
 namespace ii::runtime {
 
-struct RuntimeOptions {
+struct RuntimeOptions final {
     // 0 selects 2..4 workers from the host's hardware concurrency hint.
     std::size_t workers = 0;
     std::size_t capacity = 1024;
 };
 enum class RuntimeState { running, draining, cancelling, stopped };
 enum class ShutdownMode { drain, cancel_pending };
-struct RuntimeStats {
+struct RuntimeStats final {
     std::size_t workers = 0, capacity = 0, pending = 0, active = 0, high_watermark = 0;
     std::uint64_t submitted = 0, executed = 0, cancelled = 0, rejected = 0, failed = 0;
     RuntimeState state = RuntimeState::running;
@@ -36,6 +36,7 @@ public:
     [[nodiscard]] ThreadResult join(); // closes admission, drains, joins all workers
     [[nodiscard]] ThreadResult wait_idle(); // keeps admission open; rejects own workers
     [[nodiscard]] RuntimeStats stats() const;
+    [[nodiscard]] static bool is_worker_thread() noexcept;
 
 private:
     friend class SerialQueue;
@@ -45,6 +46,8 @@ private:
     std::unique_ptr<Impl> impl_;
     static Submission submit(const std::shared_ptr<Shared>&, const std::shared_ptr<Lane>&,
                              Task, Priority);
+    static bool cancel_shared(void*, const TaskToken&);
+    static bool pending_shared(void*, const TaskToken&);
 };
 
 // One object's FIFO execution domain. It occupies a worker only while executing
@@ -59,6 +62,9 @@ public:
     SerialQueue& operator=(SerialQueue&&) = delete;
     [[nodiscard]] Submission post(Task task, Priority priority = Priority::normal) const;
     [[nodiscard]] bool is_current() const noexcept;
+    // Cancel this object's queued work and await active callbacks and captures.
+    void request_close() const;
+    [[nodiscard]] ThreadResult close() const;
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;

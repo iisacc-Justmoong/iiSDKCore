@@ -1,6 +1,7 @@
 #pragma once
 #include "../Result/Result.h"
 #include "../../Runtime/Runtime.h"
+#include "../../Runtime/TaskScope.h"
 #include <mutex>
 
 namespace ii::core {
@@ -21,7 +22,7 @@ public:
         std::shared_ptr<Ticket> ticket;
         try {
             ticket=std::make_shared<Ticket>(state);
-            auto submission=runtime_.post([state,ticket,task=std::move(task)]() mutable {
+            auto submission=lifetime_.post(runtime_,[state,ticket,task=std::move(task)]() mutable {
                 bool cancelled;
                 { std::lock_guard lock(state->mutex); cancelled=state->cancelled; }
                 std::exception_ptr error;
@@ -50,7 +51,7 @@ public:
         return Result<void>{};
     }
 private:
-    struct State {
+    struct State final {
         std::mutex mutex;
         std::size_t pending=0;
         bool closed=false,cancelled=false,discarded=false;
@@ -58,7 +59,7 @@ private:
     };
     // Runtime cancellation may destroy a queued callable without invoking it.
     // The last ticket owner settles that work, including after group destruction.
-    struct Ticket {
+    struct Ticket final {
         std::shared_ptr<State> state;
         bool finished=false;
         explicit Ticket(std::shared_ptr<State> value):state(std::move(value)) {}
@@ -74,5 +75,6 @@ private:
     };
     runtime::Runtime& runtime_;
     std::shared_ptr<State> state_;
+    runtime::TaskScope lifetime_;
 };
 } // namespace ii::core

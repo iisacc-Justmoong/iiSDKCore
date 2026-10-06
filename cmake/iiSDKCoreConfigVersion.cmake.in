@@ -1,0 +1,9 @@
+# Standard numeric/range compatibility is shared by both components.
+include("${CMAKE_CURRENT_LIST_DIR}/iiSDKCoreVersionPolicy.cmake")
+# Only the header-only Values component is independent of binary bitness.
+if(NOT iiSDKCore_FIND_COMPONENTS STREQUAL "Values")
+    if(NOT "${CMAKE_SIZEOF_VOID_P}" STREQUAL "" AND NOT CMAKE_SIZEOF_VOID_P STREQUAL "@CMAKE_SIZEOF_VOID_P@")
+        set(PACKAGE_VERSION_UNSUITABLE TRUE)
+        set(PACKAGE_VERSION "${PACKAGE_VERSION} (@IISDKCORE_PACKAGE_BITS@bit)")
+    endif()
+endif()

@@ -1,6 +1,15 @@
 @PACKAGE_INIT@
 
 include(CMakeFindDependencyMacro)
-find_dependency(Threads)
-include("${CMAKE_CURRENT_LIST_DIR}/iiSDKCoreTargets.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/iiSDKCoreValuesTargets.cmake")
+set(iiSDKCore_Values_FOUND TRUE)
+# Value-only consumers import neither the runtime target nor OS dependencies.
+if(NOT iiSDKCore_FIND_COMPONENTS STREQUAL "Values")
+    find_dependency(Threads)
+    if(@IISDKCORE_PACKAGE_LINUX_IO@)
+        find_dependency(PkgConfig)
+        pkg_check_modules(IISDKCORE_LINUX_IO REQUIRED IMPORTED_TARGET libudev dbus-1 alsa>=1.2.10)
+    endif()
+    include("${CMAKE_CURRENT_LIST_DIR}/iiSDKCoreTargets.cmake")
+endif()
 check_required_components(iiSDKCore)

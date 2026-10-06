@@ -6,7 +6,7 @@
 
 namespace ii::debug {
 enum class Level { trace, info, warning, error };
-struct Record { Level level=Level::info; runtime::Clock::time_point time{}; std::string message; std::source_location location{}; };
+struct Record final { Level level=Level::info; runtime::Clock::time_point time{}; std::string message; std::source_location location{}; };
 // Instance-owned bounded MPMC diagnostics. Reporting never writes a global log.
 class Diagnostics final {
 public:

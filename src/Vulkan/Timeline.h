@@ -23,7 +23,7 @@ public:
     }
     [[nodiscard]] core::Result<std::uint64_t> poll() {
         if (polling_.test_and_set(std::memory_order_acquire)) return core::fail(core::ErrorCode::busy,"Timeline polling already in progress");
-        struct PollGuard { std::atomic_flag& flag; ~PollGuard(){flag.clear(std::memory_order_release);} } guard{polling_};
+        struct PollGuard final { std::atomic_flag& flag; ~PollGuard(){flag.clear(std::memory_order_release);} } guard{polling_};
         core::Result<std::uint64_t> value;
         try { value=counter_(); }
         catch (...) { return core::fail(core::ErrorCode::failed,"Timeline backend failed",std::current_exception()); }

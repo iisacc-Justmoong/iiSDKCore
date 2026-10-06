@@ -12,7 +12,7 @@ enum class ThreadErrorCode {
     unsupported, invalid_work, busy, self_join, would_block,
     start_failed, join_failed, work_failed
 };
-struct ThreadError {
+struct ThreadError final {
     ThreadErrorCode code;
     std::exception_ptr cause;
 };

@@ -5,7 +5,7 @@
 애플리케이션의 기본 실행 모델은 [Runtime의 멀티스레드·병렬·비동기 처리](parallel-runtime.md)이다. 객체별 SerialQueue에 연결한 쿼리를 기본으로 사용한다. 이 문서의 EventLoop는 단일 실행 영역의 예약·프레임·호스트 이벤트 의미론을 정의하며, 전체 애플리케이션을 하나의 스레드로 제한하지 않는다.
 이번 요구사항에 따라 Core에 최소 실행·중단·재개·종료 의미론을 포함한다. `AGENT.md`의 application lifecycle 범위는 “명확한 필요성이 확인되기 전까지” 제외하는 원칙이므로, 제품 공통 실행 상태만 여기서 제공한다. UIKit/AppKit/Win32/Android의 전체 앱 생명주기를 재구현하지 않는다.
 
-의존 방향은 제품/상위 SDK → EventLoop·Stream → C++ 표준 라이브러리 및 OS이다. [Thread](thread.md)는 작업 스레드 수명을 소유하고 선택적으로 EventLoop를 구동하며, EventLoop는 Thread를 참조하지 않는다. Emscripten에서는 BrowserLoop와 스레드 호스트 검사가 브라우저 C ABI를 사용한다. Core가 상위 SDK, Qt, GUI, 그래픽스, 미디어 라이브러리를 참조하지 않는다.
+의존 방향은 제품/상위 SDK → EventLoop·Stream → Core/Time·C++ 표준 라이브러리 및 OS이다. [Thread](thread.md)는 작업 스레드 수명을 소유하고 선택적으로 EventLoop를 구동하며, EventLoop는 Thread를 참조하지 않는다. Core/Time은 Runtime을 참조하지 않는다. Emscripten에서는 BrowserLoop와 스레드 호스트 검사가 브라우저 C ABI를 사용한다. Core는 상위 SDK와 Qt를 참조하지 않으며, 하드웨어 계층은 공식 네이티브 장치·미디어 API를 사용한다.
 
 객체 간 통신은 [QueryPort](query.md)로 표현한다. QueryPort의 비동기 전달이 EventLoop의 실행 단위로 내려가며, EventLoop가 수신 객체나 쿼리 타입에 의존하지 않는다.
 
@@ -24,6 +24,8 @@
 
 ## 예약, 공정성, 예산
 
+0.7.0의 [시간 기반 런타임](realtime.md)은 주기·상대 마감·주기별 실행량·quantum으로 시간 작업을 예약한다. 준비된 예약은 절대 마감 순서로 실행하고, 동일 마감에서는 continuation을 순환시킨다. 아래의 기존 우선순위 정책은 실행 가능한 시간 예약이 없을 때 적용한다. TimeSlice의 종료 검사와 yield는 협력적 실행이며, 임의 콜백의 강제 선점은 아니다. LiveStream은 같은 예약 경로로 재생 시각과 지연 한도를 적용한다.
+
 `post`는 즉시 작업, `at`은 단조 시계 절대 시각, `after`는 상대 지연, `every`는 양수 주기이다. 과거 deadline과 0 이하 지연은 즉시 실행 가능하다. 비어 있는 콜백, 잘못된 우선순위, 0 이하 주기는 `SubmitError::invalid`이다. 표현 범위를 넘는 미래 시각은 최대 시각으로 포화시킨다.
 
 세 등급이 모두 준비되면 high:normal:background를 4:2:1로 서비스한다. 준비되지 않은 등급은 건너뛰고, 같은 등급 안에서는 제출 순서를 보존한다. 높은 우선순위 작업이 계속 들어와도 background가 굶지 않는다. 실행 중 새로 제출된 작업도 남은 예산 내에서 처리할 수 있다.
@@ -36,13 +38,13 @@
 
 ## 취소, 예외, 종료
 
-토큰은 루프 식별자·슬롯·세대를 가진 불투명 값이다. 다른 루프의 토큰과 재사용 전 슬롯 토큰은 무효이다. 예약된 작업 취소는 슬롯과 캡처를 즉시 해제한다. 이미 선택되어 실행 중인 콜백은 선점할 수 없으며 취소 시 다음 주기만 막는다. 실행 중 슬롯도 capacity에 포함하므로 capacity=1인 콜백이 새 작업을 넣으면 `full`일 수 있다.
+토큰은 루프 식별자·슬롯·세대를 가진 불투명 값이다. 다른 루프의 토큰과 재사용 전 슬롯 토큰은 무효이다. token.cancel()/pending()은 실행자 제거 후 안전하게 false를 반환한다. 예약된 작업 취소는 내부 잠금 밖에서 캡처를 파괴하고, 파괴 완료 후 슬롯을 해제한다. 이미 선택되어 실행 중인 콜백은 선점할 수 없으며 취소 시 다음 주기만 막는다. 실행과 캡처 파괴 중 슬롯도 capacity에 포함하므로 capacity=1인 콜백·소멸자가 새 작업을 넣으면 `full`일 수 있다.
 
 콜백 예외는 해당 작업을 해제한 뒤 `poll`/`run` 호출자에게 전달된다. 실패한 주기 작업은 재예약하지 않는다. 다른 작업은 유지되며 호출자가 재실행 또는 종료를 결정한다. BrowserLoop는 C 콜백 경계를 넘어 예외를 던지지 않고 예외를 저장하고 루프를 종료한다. 호스트는 `rethrow_if_failed()`로 확인한다.
 
 상태는 `ready → suspended → ready` 또는 `ready/suspended → stopped`이다. 중단은 큐를 보존하고 새 제출도 받지만 콜백을 실행하지 않는다. 진행 중 콜백은 끝까지 실행된다. 중단 중 시간은 계속 흐르므로 재개 시 만료된 주기 작업은 한 번 실행하고 놓친 tick을 건너뛴다.
 
-`request_stop()`은 최종 상태이다. 새 작업을 거절하고 대기 중 실행자를 깨우며, 이후 dispatch를 막는다. 진행 중 콜백은 끝까지 실행된다. 미실행 큐의 캡처는 명시적 취소 또는 객체 파괴 시 해제한다. 종료 후 재시작은 새 EventLoop 인스턴스로 한다.
+`request_stop()`은 최종 상태이다. 새 작업을 거절하고 대기 중 실행자를 깨우며, 이후 dispatch를 막는다. 미실행 작업과 타이머의 캡처를 즉시 취소·파괴하고 슬롯을 반환한다. 진행 중 콜백은 끝까지 실행되고 이후 캡처와 슬롯을 해제한다. 외부 실행 드라이버를 정지·join한 뒤 EventLoop를 파괴한다. 종료 후 재시작은 새 EventLoop 인스턴스로 한다. 객체별 작업만 제거할 때는 [TaskScope](cleanup.md)를 사용한다.
 
 ## 메모리 재사용과 스트림
 
@@ -72,7 +74,7 @@ BrowserLoop는 requestAnimationFrame으로 `poll()`을 호출한다. 객체는 m
 각 구성이 독립적인 `build/` 디렉터리를 갖도록 루트 `build/` 아래에 둔다.
 
 ```sh
-# Browser / Node
+# 브라우저 / Node
 emcmake cmake -S . -B build/wasm/build -DCMAKE_BUILD_TYPE=Release
 cmake --build build/wasm/build --parallel 4
 ctest --test-dir build/wasm/build --output-on-failure
@@ -80,14 +82,14 @@ python3 -m http.server 8765 --bind 127.0.0.1 --directory build/wasm/build
 # http://127.0.0.1:8765/iiSDKCoreLive.html
 # http://127.0.0.1:8765/iiSDKCoreBrowserTests.html
 
-# iOS device library
+# iOS 기기 라이브러리
 cmake -S . -B build/ios-arm64/build -DCMAKE_SYSTEM_NAME=iOS \
   -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64 \
   -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DBUILD_TESTING=OFF \
   -DIISDKCORE_BUILD_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release
 cmake --build build/ios-arm64/build --parallel 4
 
-# Android; ANDROID_NDK is the installed NDK directory
+# Android. ANDROID_NDK는 설치된 NDK 디렉터리이다.
 cmake -S . -B build/android-arm64/build \
   -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
   -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-26 \

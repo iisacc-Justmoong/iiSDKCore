@@ -3,7 +3,7 @@
 #include "../Runtime/Thread.h"
 
 namespace ii::sdl {
-struct HostHooks {
+struct HostHooks final {
     std::function<core::Result<void>()> initialize;
     std::function<core::Result<bool>()> pump; // false: native host requests exit
     std::function<core::Result<void>()> shutdown;

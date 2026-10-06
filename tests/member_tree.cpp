@@ -80,11 +80,12 @@ int main() {
         {
             Device temporary;
             (void)temporary.audio.output.set_level.post(loop, {1}, [&](QueryReply<void> result) {
-                expired = !result && result.error().code == QueryErrorCode::receiver_expired;
+                expired = true;
+                (void)result;
             });
         }
         loop.poll({8, 1s});
-        check(expired, "destroying a tree expires its descendant query ports");
+        check(!expired && loop.stats().pending==0, "destroying a tree releases descendant queries without late callbacks");
         std::cout << "member tree contracts passed on " << platform_name() << '\n';
     } catch (const std::exception& error) {
         std::cerr << error.what() << '\n';

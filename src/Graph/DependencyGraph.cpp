@@ -37,7 +37,8 @@ core::Result<void> DependencyGraph::remove(NodeId node) {
     std::lock_guard lock(impl_->mutex);
     if (!impl_->valid(node)) return core::fail(core::ErrorCode::not_found,"Invalid graph node");
     for (auto& slot:impl_->slots) std::erase(slot.outgoing,node.slot);
-    auto& slot=impl_->slots[node.slot]; slot.outgoing.clear(); slot.active=false;
+    auto& slot=impl_->slots[node.slot];
+    std::vector<std::size_t>{}.swap(slot.outgoing); slot.active=false;
     impl_->free.push_back(node.slot); return {};
 }
 core::Result<void> DependencyGraph::connect(NodeId from,NodeId to) {

@@ -19,6 +19,23 @@ constexpr std::array wheel{Priority::high, Priority::high, Priority::high,
     Priority::high, Priority::normal, Priority::normal, Priority::background};
 thread_local const void* current_runtime = nullptr;
 thread_local const void* current_lane = nullptr;
+struct Retirement {
+    const void* runtime;
+    const void* lane;
+    Retirement* previous;
+    static thread_local Retirement* current;
+    Retirement(const void* owner,const void* value):runtime(owner),lane(value),previous(current){current=this;}
+    ~Retirement(){current=previous;}
+    static bool contains(const void* value) {
+        for(auto* entry=current;entry;entry=entry->previous) if(value && entry->lane==value) return true;
+        return false;
+    }
+    static bool contains_runtime(const void* value) {
+        for(auto* entry=current;entry;entry=entry->previous) if(entry->runtime==value) return true;
+        return false;
+    }
+};
+thread_local Retirement* Retirement::current=nullptr;
 bool host_thread() {
 #if defined(__EMSCRIPTEN__)
     return emscripten_is_main_browser_thread();
@@ -34,10 +51,12 @@ ThreadResult failure(ThreadErrorCode code, std::exception_ptr cause = {}) {
 struct Runtime::Lane {
     std::size_t head = none, tail = none;
     bool active = false;
+    bool closed = false;
+    std::size_t pending = 0;
 };
 
 struct Runtime::Shared {
-    enum class Status { free, queued, executing };
+    enum class Status { free, queued, executing, retiring };
     struct Slot {
         Task task;
         std::shared_ptr<Lane> lane;
@@ -74,10 +93,13 @@ struct Runtime::Shared {
     }
     void release(std::size_t index) {
         auto& slot = slots[index];
+        if (slot.lane) --slot.lane->pending;
         slot.lane.reset();
         slot.status = Status::free;
+        slot.previous=slot.next=none; slot.sequence=0; slot.priority=Priority::normal;
         free.push_back(index);
-        if (--statistics.pending == 0) idle.notify_all();
+        --statistics.pending;
+        idle.notify_all();
     }
     std::size_t select() {
         for (std::size_t attempt = 0; attempt < wheel.size(); ++attempt) {
@@ -188,6 +210,7 @@ Submission Runtime::submit(const std::shared_ptr<Shared>& shared, const std::sha
     if (!task || (priority != Priority::high && priority != Priority::normal && priority != Priority::background))
         return reject(SubmitError::invalid);
     if (shared->statistics.state != RuntimeState::running) return reject(SubmitError::stopped);
+    if (lane && lane->closed) return reject(SubmitError::stopped);
     if (shared->free.empty()) return reject(SubmitError::full);
     const auto index = shared->free.back();
     shared->free.pop_back();
@@ -199,6 +222,7 @@ Submission Runtime::submit(const std::shared_ptr<Shared>& shared, const std::sha
     ++slot.generation;
     slot.status = Shared::Status::queued;
     if (lane) {
+        ++lane->pending;
         slot.previous = lane->tail;
         if (lane->tail != none) shared->slots[lane->tail].next = index;
         else lane->head = index;
@@ -211,13 +235,26 @@ Submission Runtime::submit(const std::shared_ptr<Shared>& shared, const std::sha
     token.owner_ = shared->owner;
     token.slot_ = index;
     token.generation_ = slot.generation;
+    token.executor_=shared;
+    token.cancel_=&Runtime::cancel_shared;
+    token.pending_=&Runtime::pending_shared;
     shared->changed.notify_one();
     return {token, SubmitError::none};
 }
 Submission Runtime::post(Task task, Priority priority) { return submit(impl_->shared, {}, std::move(task), priority); }
 bool Runtime::cancel(TaskToken token) {
+    return cancel_shared(impl_->shared.get(),token);
+}
+bool Runtime::pending_shared(void* owner,const TaskToken& token) {
+    auto* shared=static_cast<Shared*>(owner);
+    std::lock_guard lock(shared->mutex);
+    return token.owner_==shared->owner && token.slot_<shared->slots.size() &&
+        shared->slots[token.slot_].generation==token.generation_ && shared->slots[token.slot_].status!=Shared::Status::free;
+}
+bool Runtime::cancel_shared(void* owner,const TaskToken& token) {
     Task retired;
-    const auto& shared = impl_->shared;
+    auto* shared=static_cast<Shared*>(owner);
+    std::shared_ptr<Lane> lane;
     {
         std::lock_guard lock(shared->mutex);
         if (token.owner_ != shared->owner || token.slot_ >= shared->slots.size()) return false;
@@ -225,8 +262,17 @@ bool Runtime::cancel(TaskToken token) {
         if (slot.status != Shared::Status::queued || slot.generation != token.generation_) return false;
         shared->unlink(token.slot_);
         retired.swap(slot.task);
-        shared->release(token.slot_);
+        lane=slot.lane;
+        slot.status=Shared::Status::retiring;
         ++shared->statistics.cancelled;
+    }
+    {
+        Retirement retiring(shared,lane.get());
+        retired=nullptr;
+    }
+    {
+        std::lock_guard lock(shared->mutex);
+        shared->release(token.slot_);
     }
     shared->changed.notify_all();
     return true;
@@ -242,22 +288,20 @@ void Runtime::request_stop(ShutdownMode mode) {
     shared->changed.notify_all();
     if (mode == ShutdownMode::cancel_pending) {
         for (std::size_t i = 0; i < shared->slots.size(); ++i) {
-            Task retired;
+            TaskToken token;
             {
                 std::lock_guard lock(shared->mutex);
                 auto& slot = shared->slots[i];
                 if (slot.status != Shared::Status::queued) continue;
-                shared->unlink(i);
-                retired.swap(slot.task);
-                shared->release(i);
-                ++shared->statistics.cancelled;
+                token.owner_=shared->owner; token.slot_=i; token.generation_=slot.generation;
             }
+            (void)cancel(token);
         }
     }
 }
 ThreadResult Runtime::wait_idle() {
     const auto& shared = impl_->shared;
-    if (current_runtime == shared.get()) return failure(ThreadErrorCode::self_join);
+    if (current_runtime == shared.get() || Retirement::contains_runtime(shared.get())) return failure(ThreadErrorCode::self_join);
     if (host_thread()) return failure(ThreadErrorCode::would_block);
     std::unique_lock lock(shared->mutex);
     shared->idle.wait(lock, [&] { return shared->statistics.pending == 0; });
@@ -265,7 +309,7 @@ ThreadResult Runtime::wait_idle() {
 }
 ThreadResult Runtime::join() {
     const auto& shared = impl_->shared;
-    if (current_runtime == shared.get()) return failure(ThreadErrorCode::self_join);
+    if (current_runtime == shared.get() || Retirement::contains_runtime(shared.get())) return failure(ThreadErrorCode::self_join);
     if (host_thread()) return failure(ThreadErrorCode::would_block);
     std::unique_lock lifecycle(impl_->lifecycle);
     if (impl_->joining) return failure(ThreadErrorCode::busy);
@@ -290,6 +334,7 @@ ThreadResult Runtime::join() {
     return shared->result();
 }
 RuntimeStats Runtime::stats() const { std::lock_guard lock(impl_->shared->mutex); return impl_->shared->statistics; }
+bool Runtime::is_worker_thread() noexcept { return current_runtime!=nullptr; }
 
 struct SerialQueue::Impl {
     std::weak_ptr<Runtime::Shared> shared;
@@ -297,10 +342,42 @@ struct SerialQueue::Impl {
     explicit Impl(Runtime& runtime) : shared(runtime.impl_->shared) {}
 };
 SerialQueue::SerialQueue(Runtime& runtime) : impl_(std::make_unique<Impl>(runtime)) {}
-SerialQueue::~SerialQueue() = default;
+SerialQueue::~SerialQueue() {
+    const auto result=close();
+    if (!result) std::terminate();
+}
 Submission SerialQueue::post(Task task, Priority priority) const {
     return Runtime::submit(impl_->shared.lock(), impl_->lane, std::move(task), priority);
 }
 bool SerialQueue::is_current() const noexcept { return current_lane == impl_->lane.get(); }
+void SerialQueue::request_close() const {
+    const auto shared=impl_->shared.lock();
+    if (!shared) return;
+    {
+        std::lock_guard lock(shared->mutex);
+        impl_->lane->closed=true;
+    }
+    for(std::size_t i=0;i<shared->slots.size();++i) {
+        TaskToken token;
+        {
+            std::lock_guard lock(shared->mutex);
+            const auto& slot=shared->slots[i];
+            if(slot.status!=Runtime::Shared::Status::queued || slot.lane!=impl_->lane) continue;
+            token.owner_=shared->owner; token.slot_=i; token.generation_=slot.generation;
+        }
+        (void)Runtime::cancel_shared(shared.get(),token);
+    }
+}
+ThreadResult SerialQueue::close() const {
+    if(is_current() || Retirement::contains(impl_->lane.get())) return failure(ThreadErrorCode::self_join);
+    request_close();
+    const auto shared=impl_->shared.lock();
+    if(!shared) return {};
+    std::unique_lock lock(shared->mutex);
+    if(impl_->lane->pending && (host_thread() || current_runtime==shared.get()))
+        return failure(ThreadErrorCode::would_block);
+    shared->idle.wait(lock,[&]{return impl_->lane->pending==0;});
+    return {};
+}
 
 } // namespace ii::runtime

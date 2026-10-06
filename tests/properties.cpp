@@ -231,11 +231,12 @@ int main() {
         {
             ObjectProperties temporary(schema());
             (void)temporary.queries().post(loop, read_level(), [&](QueryReply<PropertyResult> reply) {
-                expired = !reply && reply.error().code == QueryErrorCode::receiver_expired;
+                expired = true;
+                (void)reply;
             });
         }
         loop.poll();
-        check(expired, "destroyed instance expires queued property queries");
+        check(!expired && loop.stats().pending==0, "destroyed instance releases queued property queries immediately");
         std::cout << "dynamic property contracts passed on " << platform_name() << '\n';
     } catch (const std::exception& error) {
         std::cerr << error.what() << '\n';

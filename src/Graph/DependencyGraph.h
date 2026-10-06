@@ -6,7 +6,7 @@
 #include <vector>
 
 namespace ii::graph {
-struct NodeId { std::uint64_t owner=0,generation=0; std::size_t slot=0; auto operator<=>(const NodeId&) const=default; };
+struct NodeId final { std::uint64_t owner=0,generation=0; std::size_t slot=0; auto operator<=>(const NodeId&) const=default; };
 // Fixed node slots with generation reuse; edges are a mutable acyclic graph.
 // All operations synchronize internally and return value snapshots.
 class DependencyGraph final {

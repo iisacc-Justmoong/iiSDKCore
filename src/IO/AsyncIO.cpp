@@ -1,30 +1,19 @@
 #include "AsyncIO.h"
+#include "Transfer.h"
 
 namespace ii::io {
 namespace {
 template<class Query> IOResult transfer(const Channel& channel, const Query& query) {
-    const auto bytes=query.buffer.bytes();
-    if (query.timeout.count() < 0 || query.offset > bytes.size() || (query.length != std::dynamic_extent && query.length > bytes.size()-query.offset))
+    if (!detail::valid_transfer(query))
         return std::unexpected(Error{ErrorCode::invalid_argument, {}});
-    const auto range=bytes.subspan(query.offset, query.length);
+    const auto range=query.buffer.bytes().subspan(query.offset, query.length);
     if (query.stop.cancelled()) return std::unexpected(Error{ErrorCode::cancelled, {}});
     constexpr bool reading=std::is_same_v<Query, Read>;
     // An empty operation does not wait for data, but still validates the channel.
     auto ready=channel.wait(reading ? Interest::readable : Interest::writable,
         range.empty() ? std::chrono::milliseconds(0) : query.timeout, query.stop);
     if (!ready && !(range.empty() && ready.error().code == ErrorCode::would_block)) return std::unexpected(ready.error());
-    if (query.stop.cancelled()) return std::unexpected(Error{ErrorCode::cancelled, {}});
-    IOResponse response{query.buffer, {}, 0};
-    if constexpr (reading) {
-        auto result=channel.read(range);
-        if (!result) return std::unexpected(result.error());
-        response.transfer=*result;
-    } else {
-        auto result=channel.write(range);
-        if (!result) return std::unexpected(result.error());
-        response.transfer.bytes=*result;
-    }
-    return response;
+    return detail::transfer_now(channel,query);
 }
 IOResult execute(const Channel& channel, const IOQuery& query) {
     return std::visit([&](const auto& request) -> IOResult {
@@ -46,4 +35,13 @@ AsyncIO::AsyncIO(runtime::Runtime& runtime, Channel channel)
     : queue_(runtime), queries_(queue_, [channel=std::move(channel)](const IOQuery& query) {
         return execute(channel, query);
     }) {}
+AsyncIO::~AsyncIO() {
+    const auto result=close();
+    if (!result) std::terminate();
+}
+runtime::ThreadResult AsyncIO::close() {
+    auto result=queue_.close();
+    if (!result) return result;
+    return queries_.close();
+}
 } // namespace ii::io

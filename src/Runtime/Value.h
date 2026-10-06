@@ -12,7 +12,7 @@ namespace ii::runtime {
 // reference_wrapper values retain the standard any lifetime contract.
 using DynamicValue = std::any;
 enum class CastErrorCode { empty, type_mismatch, unsupported, invalid_text, out_of_range, precision_loss };
-struct CastError {
+struct CastError final {
     CastErrorCode code;
     std::type_index source{typeid(void)};
     std::type_index target{typeid(void)};

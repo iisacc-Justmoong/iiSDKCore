@@ -150,11 +150,12 @@ int main() {
         {
             QueryPort<int> temporary(first, [](const int&) {});
             check(bool(temporary.post(1, [&](QueryReply<void> reply) {
-                expired = !reply && reply.error().code == QueryErrorCode::receiver_expired;
+                expired = true;
+                (void)reply;
             })), "queue query before object destruction");
         }
         held.release();
-        check(bool(runtime.wait_idle()) && expired, "queued query preserves weak receiver lifetime");
+        check(bool(runtime.wait_idle()) && !expired, "removed query port leaves no pending completion");
 
         Runtime failures({.workers = 2, .capacity = 8});
         std::atomic<int> after_failure = 0;

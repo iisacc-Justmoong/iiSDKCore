@@ -14,7 +14,7 @@ namespace ii::runtime {
 using PropertyPath = std::vector<std::string>;
 enum class PropertyVisibility { public_member, private_member };
 enum class PropertyTyping { fixed, dynamic };
-struct PropertyPolicy {
+struct PropertyPolicy final {
     PropertyVisibility visibility = PropertyVisibility::public_member;
     bool queryable = true;
     bool designable = false;
@@ -24,7 +24,7 @@ struct PropertyPolicy {
 
 // Each instance owns its definitions. DynamicValue holds exactly the declared C++
 // type; references/whole objects are included only when explicitly registered.
-struct PropertyDefinition {
+struct PropertyDefinition final {
     std::string name;
     DynamicValue value;
     PropertyPolicy policy;
@@ -32,18 +32,18 @@ struct PropertyDefinition {
     std::function<DynamicValue(const DynamicValue&)> method;
     std::function<bool(const DynamicValue&)> validate;
 };
-struct PropertySelection {
+struct PropertySelection final {
     std::string name;
     bool include_value = true;
     std::vector<PropertySelection> children;
     std::optional<std::type_index> cast_to;
 };
-struct PropertySnapshot {
+struct PropertySnapshot final {
     std::string name;
     DynamicValue value;
     std::vector<PropertySnapshot> children;
 };
-struct PropertyDescriptor {
+struct PropertyDescriptor final {
     PropertyPolicy policy;
     std::type_index value_type{typeid(void)};
     bool callable = false;
@@ -51,13 +51,13 @@ struct PropertyDescriptor {
     std::vector<std::string> children;
 };
 
-struct PropertyRead { std::vector<PropertySelection> fields; };
-struct PropertyWrite { PropertyPath path; DynamicValue value; bool convert = false; };
-struct PropertyInvoke { PropertyPath path; DynamicValue argument; };
-struct PropertyDescribe { PropertyPath path; };
+struct PropertyRead final { std::vector<PropertySelection> fields; };
+struct PropertyWrite final { PropertyPath path; DynamicValue value; bool convert = false; };
+struct PropertyInvoke final { PropertyPath path; DynamicValue argument; };
+struct PropertyDescribe final { PropertyPath path; };
 // Define beneath parent; replacing an existing subtree requires explicit opt-in.
-struct PropertyDefine { PropertyPath parent; PropertyDefinition definition; bool replace = false; };
-struct PropertyErase { PropertyPath path; };
+struct PropertyDefine final { PropertyPath parent; PropertyDefinition definition; bool replace = false; };
+struct PropertyErase final { PropertyPath path; };
 using PropertyQuery = std::variant<PropertyRead, PropertyWrite, PropertyInvoke,
                                    PropertyDescribe, PropertyDefine, PropertyErase>;
 
@@ -65,19 +65,19 @@ enum class PropertyErrorCode {
     not_found, access_denied, not_writable, type_mismatch, invalid_definition,
     already_exists, validation_failed, not_callable, reentrant, handler_failed, wrong_executor, cast_failed
 };
-struct PropertyError {
+struct PropertyError final {
     PropertyErrorCode code;
     PropertyPath path;
     std::exception_ptr cause;
     std::optional<CastError> cast_error;
 };
 enum class PropertyChangeKind { defined, replaced, written, erased };
-struct PropertyChange {
+struct PropertyChange final {
     PropertyChangeKind kind;
     PropertyPath path;
     std::uint64_t revision;
 };
-struct PropertyResponse {
+struct PropertyResponse final {
     std::vector<PropertySnapshot> fields;
     DynamicValue returned;
     std::optional<PropertyDescriptor> descriptor;
@@ -106,6 +106,8 @@ public:
     [[nodiscard]] PropertyResult apply(const PropertyQuery& query);
     [[nodiscard]] const QueryPort<PropertyQuery, PropertyResult>& queries() const noexcept;
     [[nodiscard]] std::uint64_t revision() const noexcept;
+    // Inspect only in the owning execution domain, including reentrant methods.
+    [[nodiscard]] bool is_executing() const noexcept;
 
 private:
     struct Impl;

@@ -58,7 +58,7 @@ RuntimeOptions는 workers와 capacity이다. workers=0은 기본 정책, 명시�
 
 생성 시 작업 슬롯·free-list·Thread 인스턴스를 확보하고 반복 사용한다. SerialQueue 생성은 실행 영역 상태를 한 번 확보한다. 실제 선택은 고정 슬롯을 순회하는 O(capacity) 검색이고 현재 구현은 단순한 mutex 기반이다. 준비된 큐 사이에서 high:normal:background 가중치 4:2:1로 선택하며, 같은 객체 큐에서는 우선순위와 관계없이 FIFO를 보존한다. 실행 중 작업을 선점하지 않는다.
 
-post의 Submission은 접수 결과이며 작업 완료 결과가 아니다. 취소 토큰은 실행자와 슬롯 세대를 구분하므로 EventLoop/다른 Runtime/재사용 전 슬롯에 쓸 수 없다. cancel은 대기 중인 작업만 제거하며 이미 실행 중인 작업에는 false이다. 취소한 쿼리의 처리기와 completion은 호출하지 않는다. 작업 캡처는 내부 잠금을 해제한 뒤 파괴하므로 소멸 중 새 작업을 제출할 수 있다.
+post의 Submission은 접수 결과이며 작업 완료 결과가 아니다. 취소 토큰은 실행자와 슬롯 세대를 구분하므로 EventLoop/다른 Runtime/재사용 전 슬롯에 쓸 수 없다. `token.cancel()`은 실행자 수명을 약하게 확인하므로 실행자 제거 후에도 안전하게 false를 반환한다. `token.pending()`은 대기·실행·캡처 파괴 중 슬롯 점유를 조회한다. cancel은 대기 중인 작업만 제거하며 이미 실행 중인 작업에는 false이다. 취소한 쿼리의 처리기와 completion은 호출하지 않는다. 작업 캡처는 내부 잠금을 해제한 뒤 파괴하고, 파괴 완료 후 슬롯을 반환한다. 소멸 중 제출은 이미 비어 있는 다른 슬롯을 사용해야 하며 가득 찼으면 full이다.
 
 준비된 Runtime/SerialQueue에 작은 빈 작업을 1만 회 제출·완료하는 tests/reuse.cpp 측정은 추가 operator new 호출이 0인지 검사한다. 임의 콜백, 쿼리 payload, 결과 복사, 동적 객체 스키마 또는 OS 메모리 할당 전체를 무할당이라고 주장하지 않는다.
 
@@ -76,9 +76,9 @@ join은 접수를 닫고 drain한 뒤 모든 워커를 join한다. 이미 cancel
 
 ## 수명
 
-SerialQueue는 Runtime을 약하게 참조한다. Runtime 소멸 후 제출하면 stopped이다. 이미 제출한 작업은 SerialQueue의 실행 영역 상태를 보유하므로 큐 핸들을 없앤다고 자동 취소되지는 않는다. 큐에 연결한 QueryPort/ObjectProperties는 큐 참조를 빌리므로 큐가 해당 포트와 실행 중 처리보다 오래 살아야 한다.
+SerialQueue는 Runtime을 약하게 참조한다. Runtime 소멸 후 제출하면 stopped이다. `request_close()`는 해당 큐의 새 접수를 막고 대기 작업·캡처를 취소한다. `close()`와 소멸은 추가로 실행 중 콜백과 자원 파괴·슬롯 반환을 기다린다. 다른 객체의 큐와 Runtime 전체를 종료하지 않는다. 큐에 연결한 QueryPort/ObjectProperties는 큐 참조를 빌리므로 큐가 해당 포트와 실행 중 처리보다 오래 살아야 한다.
 
-QueryPort의 대기 작업은 기존 약한 수신자 계약을 유지한다. 아직 실행하지 않은 수신 포트가 사라지면 receiver_expired이다. 실행 중 객체의 소멸이나 사용자 참조 캡처까지 자동 보호하지 않는다. 객체·큐·캡처를 파괴하기 전에 생산을 멈추고 Runtime의 작업 완료/종료를 보장한다. Runtime을 먼저 생성했어도 단순한 역순 소멸만으로 나중에 생성한 객체의 작업 수명이 보장되지는 않는다.
+QueryPort는 자신의 TaskScope를 통해 제거 시 대기 쿼리를 취소하고 실행 중 send·처리기·completion을 기다려 처리기를 해제한다. 제거된 포트의 지연 completion은 호출하지 않는다. 같은 큐 작업 안에서 그 큐 자신을 close하면 self_join이다. Runtime 워커에서 같은 풀의 다른 활성 큐를 기다리면 would_block이므로 제거를 외부 실행 영역으로 넘긴다. 취소 캡처의 소멸자에서 자신의 Runtime을 wait_idle/join하는 것도 self_join이다. 일반 객체는 [TaskScope 제거 계약](cleanup.md)에 따라 상태보다 먼저 등록 작업을 정리하며, 등록하지 않은 참조 캡처·직접 호출은 호출자가 동기화한다.
 
 ## 플랫폼 기본값
 
@@ -87,3 +87,5 @@ QueryPort의 대기 작업은 기존 약한 수신자 계약을 유지한다. �
 IISDKCORE_WASM_THREADS=OFF는 명시적인 제한 빌드이다. Thread와 Runtime을 호출자 인라인 실행으로 흉내 내지 않는다. Runtime 생성은 거절하며 기존 EventLoop::poll과 BrowserLoop로 호스트 단일 스레드 기능을 사용할 수 있다. 이전 CMake 캐시의 OFF 값은 새 기본값으로 자동 덮어쓰지 않으므로 기존 빌드는 ON으로 재설정해야 한다.
 
 브라우저 검증은 tests/serve_wasm.py로 pthread 빌드 디렉터리를 제공한 뒤 `parallel-browser.html`과 `iiSDKCoreBrowserTests.html`을 연다. 전자는 실제 병렬·직렬 큐 계약, 후자는 브라우저 메인 스레드의 blocking 실행 거절과 프레임 루프 계약을 검사한다. Node CTest와 실제 브라우저 검증은 별도로 기록한다.
+
+`Core/Task/Parallel.h` supplies owned-input asynchronous transforms on these same workers, with bounded chunk admission, ordered standard futures, cancellation between elements, and discarded-task settlement. `Runtime/Animation.h` uses timed TaskScope one-shots for a separate serialized animation domain. See [modern core contracts](modern-core.md) for ownership and blocking restrictions.

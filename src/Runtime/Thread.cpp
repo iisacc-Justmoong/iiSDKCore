@@ -10,6 +10,18 @@
 
 namespace ii::runtime {
 namespace {
+struct Stopping {
+    const void* state;
+    Stopping* previous;
+    static thread_local Stopping* current;
+    explicit Stopping(const void* value):state(value),previous(current){current=this;}
+    ~Stopping(){current=previous;}
+    static bool contains(const void* value) {
+        for(auto* entry=current;entry;entry=entry->previous) if(entry->state==value) return true;
+        return false;
+    }
+};
+thread_local Stopping* Stopping::current=nullptr;
 ThreadResult failure(ThreadErrorCode code, std::exception_ptr cause = {}) {
     return std::unexpected(ThreadError{code, cause});
 }
@@ -26,6 +38,7 @@ struct ThreadContext::State {
     mutable std::mutex mutex;
     std::condition_variable changed;
     bool stop = false;
+    std::size_t stopping = 0;
     ThreadState status = ThreadState::idle;
     Thread::Id id;
     std::exception_ptr error;
@@ -71,11 +84,15 @@ struct Thread::Impl {
                 std::exception_ptr error;
                 try { task(context); } catch (...) { error = std::current_exception(); }
                 task = nullptr; // release captures before publishing completion
-                std::lock_guard finished(control.mutex);
-                if (error && control.loop) control.loop->get().request_stop();
-                control.error = error;
-                control.status = error ? ThreadState::failed : ThreadState::completed;
-                control.loop.reset();
+                std::optional<std::reference_wrapper<EventLoop>> failed_loop;
+                {
+                    std::lock_guard finished(control.mutex);
+                    if (error) failed_loop=control.loop;
+                    control.error = error;
+                    control.status = error ? ThreadState::failed : ThreadState::completed;
+                    control.loop.reset();
+                }
+                if (failed_loop) failed_loop->get().request_stop();
             });
         } catch (...) {
             // Captures are destroyed only after our locks have been released.
@@ -116,18 +133,26 @@ ThreadResult Thread::start(EventLoop& loop, PumpBudget budget) {
 }
 bool Thread::request_stop() {
     auto& control = impl_->control;
-    std::lock_guard lock(control.mutex);
+    std::unique_lock lock(control.mutex);
     if (control.stop || (control.status != ThreadState::running && control.status != ThreadState::stop_requested))
         return false;
     control.stop = true;
     control.status = ThreadState::stop_requested;
-    // Loop wake contains no user callback. Keeping this lock prevents join from
-    // completing while a concurrent stop still accesses the borrowed loop.
-    if (control.loop) control.loop->get().request_stop();
+    const auto loop=control.loop;
+    if (loop) ++control.stopping;
     control.changed.notify_all();
+    lock.unlock();
+    if (loop) {
+        Stopping retiring(&control);
+        loop->get().request_stop(); // can destroy user captures; no control lock
+        lock.lock();
+        --control.stopping;
+        control.changed.notify_all();
+    }
     return true;
 }
 ThreadResult Thread::join() {
+    if (Stopping::contains(&impl_->control)) return failure(ThreadErrorCode::self_join);
     std::unique_lock lock(impl_->owner);
     if (!impl_->has_worker) return impl_->result();
     if (id() == current_id()) return failure(ThreadErrorCode::self_join);
@@ -142,6 +167,10 @@ ThreadResult Thread::join() {
         lock.lock();
         impl_->joining = false;
         return failure(ThreadErrorCode::join_failed, std::current_exception());
+    }
+    {
+        std::unique_lock state(impl_->control.mutex);
+        impl_->control.changed.wait(state,[&]{return impl_->control.stopping==0;});
     }
     lock.lock();
     impl_->joining = false;

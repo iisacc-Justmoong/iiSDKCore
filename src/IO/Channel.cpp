@@ -1,9 +1,14 @@
 #include "Channel.h"
+#include "Poller.h"
 
 #include <algorithm>
+#include <array>
 #include <cerrno>
 #include <limits>
 #include <mutex>
+#include <condition_variable>
+#include <stdexcept>
+#include <vector>
 #if defined(_WIN32)
 #define NOMINMAX
 #include <windows.h>
@@ -17,6 +22,8 @@
 #endif
 #if !defined(__EMSCRIPTEN__)
 #include <termios.h>
+#include <pthread.h>
+#include <signal.h>
 #endif
 #endif
 
@@ -45,7 +52,7 @@ auto native_failure() {
     case EACCES: case EPERM: code=ErrorCode::permission_denied; break;
     case EEXIST: code=ErrorCode::already_exists; break;
     case EINVAL: case EOVERFLOW: code=ErrorCode::invalid_argument; break;
-    case EBADF: code=ErrorCode::closed; break;
+    case EBADF: case EPIPE: code=ErrorCode::closed; break;
     case EAGAIN: code=ErrorCode::would_block; break;
     case ENOTSUP: case ENOSYS: case ESPIPE: case ENOTTY: code=ErrorCode::unsupported; break;
     }
@@ -66,9 +73,9 @@ PlatformCapabilities platform_capabilities() noexcept {
 #elif defined(_WIN32)
     return {Backend::windows, true, true};
 #elif defined(__APPLE__) && TARGET_OS_IPHONE
-    return {Backend::posix, true, false};
+    return {Backend::posix, true, false, true};
 #else
-    return {Backend::posix, true, true};
+    return {Backend::posix, true, true, true};
 #endif
 }
 
@@ -175,6 +182,27 @@ Result<Channel> open_serial(const std::filesystem::path& path, SerialOptions opt
     return Channel(std::move(state));
 }
 
+Result<Channel> open_device(const std::filesystem::path& path, DeviceOptions options) {
+    if (!platform_capabilities().devices) return failure(ErrorCode::unsupported);
+    if (!valid_path(path) || (options.access!=Access::read && options.access!=Access::write &&
+        options.access!=Access::read_write)) return failure(ErrorCode::invalid_argument);
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+    auto state=std::make_shared<Channel::State>();
+    state->caps={ChannelKind::device,Backend::posix,options.access!=Access::write,
+        options.access!=Access::read,false,false};
+    const int mode=options.access==Access::read ? O_RDONLY : options.access==Access::write ? O_WRONLY : O_RDWR;
+    do { state->handle=::open(path.c_str(),mode|O_NONBLOCK|O_CLOEXEC|O_NOCTTY); }
+    while (!state->valid() && errno==EINTR);
+    if (!state->valid()) return native_failure();
+    struct stat info{};
+    if (fstat(state->handle,&info)!=0) return native_failure();
+    if (!S_ISCHR(info.st_mode) && !S_ISFIFO(info.st_mode)) return failure(ErrorCode::unsupported);
+    return Channel(std::move(state));
+#else
+    return failure(ErrorCode::unsupported);
+#endif
+}
+
 Capabilities Channel::capabilities() const noexcept { return state_ ? state_->caps : Capabilities{}; }
 Result<Transfer> Channel::read(std::span<std::byte> destination) const {
     if (!state_) return failure(ErrorCode::closed);
@@ -202,7 +230,35 @@ Result<std::size_t> Channel::write(std::span<const std::byte> source) const {
     if (!WriteFile(state_->handle, source.data(), static_cast<DWORD>(std::min<std::size_t>(source.size(), MAXDWORD)), &count, nullptr)) return native_failure();
 #else
     ssize_t count;
+#if !defined(__EMSCRIPTEN__)
+    // A disconnected FIFO must report EPIPE without terminating the host.
+    // Block/consume only this thread's newly generated SIGPIPE, preserving the
+    // host's process handler and any signal that was already pending.
+    sigset_t blocked{}, previous{}, pending{};
+    const bool device=state_->caps.kind==ChannelKind::device;
+    bool was_pending=false;
+    if (device) {
+        sigemptyset(&blocked); sigaddset(&blocked,SIGPIPE);
+        const int error=pthread_sigmask(SIG_BLOCK,&blocked,&previous);
+        if (error) { errno=error; return native_failure(); }
+        sigpending(&pending); was_pending=sigismember(&pending,SIGPIPE)==1;
+    }
+#endif
     do { count=::write(state_->handle, source.data(), std::min(source.size(), static_cast<std::size_t>(std::numeric_limits<ssize_t>::max()))); } while (count < 0 && errno == EINTR);
+#if !defined(__EMSCRIPTEN__)
+    const int error=errno;
+    if (device) {
+        if (count<0 && error==EPIPE && !was_pending) {
+            sigpending(&pending);
+            if (sigismember(&pending,SIGPIPE)==1) {
+                int signal=0, result;
+                do { result=sigwait(&blocked,&signal); } while (result==EINTR);
+            }
+        }
+        (void)pthread_sigmask(SIG_SETMASK,&previous,nullptr);
+    }
+    errno=error;
+#endif
     if (count < 0) return native_failure();
 #endif
     return static_cast<std::size_t>(count);
@@ -294,4 +350,135 @@ Result<void> Channel::wait(Interest interest, std::chrono::milliseconds timeout,
 #endif
     }
 }
+
+namespace detail {
+struct ReadinessPoller::Impl {
+    explicit Impl(std::size_t capacity) {
+#if defined(_WIN32)
+        (void)capacity;
+        event=CreateEventW(nullptr,FALSE,FALSE,nullptr);
+        if (!event) throw std::system_error(static_cast<int>(GetLastError()),std::system_category(),"I/O wake event");
+#elif !defined(__EMSCRIPTEN__)
+        leases.reserve(capacity); descriptors.reserve(capacity+1);
+        int pipe_handles[2];
+        if (::pipe(pipe_handles)!=0) throw std::system_error(errno,std::generic_category(),"I/O wake pipe");
+        wake_read=pipe_handles[0]; wake_write=pipe_handles[1];
+        if (fcntl(wake_read,F_SETFD,FD_CLOEXEC)<0 || fcntl(wake_write,F_SETFD,FD_CLOEXEC)<0 ||
+            fcntl(wake_read,F_SETFL,O_NONBLOCK)<0 || fcntl(wake_write,F_SETFL,O_NONBLOCK)<0) {
+            const int error=errno; ::close(wake_read); ::close(wake_write);
+            throw std::system_error(error,std::generic_category(),"I/O wake pipe flags");
+        }
+#else
+        (void)capacity;
+#endif
+    }
+    ~Impl() {
+#if defined(_WIN32)
+        if (event) CloseHandle(event);
+#elif !defined(__EMSCRIPTEN__)
+        ::close(wake_read); ::close(wake_write);
+#endif
+    }
+    void finish() {
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+        leases.clear(); // unlock handles and drop native owning references first
+        descriptors.clear();
+#endif
+        active.store(false,std::memory_order_release);
+        { std::lock_guard lock(mutex); finished=prepared; }
+        changed.notify_all();
+    }
+    std::mutex mutex;
+    std::condition_variable changed;
+    std::atomic<bool> active{false};
+    std::uint64_t prepared=0, finished=0;
+    std::chrono::milliseconds timeout{20};
+#if defined(_WIN32)
+    HANDLE event=nullptr;
+#elif !defined(__EMSCRIPTEN__)
+    struct Lease {
+        std::shared_ptr<Channel::State> state;
+        std::unique_lock<std::mutex> lock;
+    };
+    std::vector<Lease> leases;
+    std::vector<pollfd> descriptors;
+    int wake_read=-1,wake_write=-1;
+#else
+    bool signaled=false;
+#endif
+};
+ReadinessPoller::ReadinessPoller(std::size_t capacity) : impl_(std::make_unique<Impl>(capacity)) {}
+ReadinessPoller::~ReadinessPoller()=default;
+void ReadinessPoller::prepare(std::span<const WatchEntry> watches,std::chrono::milliseconds timeout) {
+    auto& impl=*impl_;
+    impl.timeout=std::clamp(timeout,std::chrono::milliseconds(0),std::chrono::milliseconds(20));
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+    impl.descriptors.clear(); impl.leases.clear();
+    impl.descriptors.push_back({impl.wake_read,POLLIN,0});
+    for (const auto& watch:watches) {
+        const auto state=watch.channel.state_;
+        if (!state) continue;
+        const short interest=watch.interest==Interest::readable ? POLLIN : POLLOUT;
+        const auto existing=std::find_if(impl.leases.begin(),impl.leases.end(),
+            [&](const auto& lease){return lease.state==state;});
+        if (existing!=impl.leases.end()) {
+            impl.descriptors[static_cast<std::size_t>(existing-impl.leases.begin())+1].events|=interest;
+            continue;
+        }
+        std::unique_lock held(state->mutex,std::try_to_lock);
+        if (!held || !state->valid()) continue;
+        impl.descriptors.push_back({state->handle,interest,0});
+        impl.leases.push_back({state,std::move(held)});
+    }
+#else
+    (void)watches;
+#endif
+    { std::lock_guard lock(impl.mutex); ++impl.prepared; }
+    impl.active.store(true,std::memory_order_release);
+}
+void ReadinessPoller::wait() {
+    auto& impl=*impl_;
+    try {
+#if defined(_WIN32)
+        if (WaitForSingleObject(impl.event,static_cast<DWORD>(impl.timeout.count()))==WAIT_FAILED)
+            throw std::system_error(static_cast<int>(GetLastError()),std::system_category(),"I/O event wait");
+#elif !defined(__EMSCRIPTEN__)
+        const auto result=::poll(impl.descriptors.data(),static_cast<nfds_t>(impl.descriptors.size()),
+            static_cast<int>(impl.timeout.count()));
+        if (result<0 && errno!=EINTR) throw std::system_error(errno,std::generic_category(),"I/O poll");
+        std::array<char,64> bytes{};
+        for (;;) {
+            const auto count=::read(impl.wake_read,bytes.data(),bytes.size());
+            if (count<0 && errno==EINTR) continue;
+            if (count<=0) break;
+        }
+#else
+        std::unique_lock lock(impl.mutex);
+        impl.changed.wait_for(lock,impl.timeout,[&]{return impl.signaled;});
+        impl.signaled=false;
+#endif
+    } catch (...) { impl.finish(); throw; }
+    impl.finish();
+}
+void ReadinessPoller::wake() noexcept {
+    auto& impl=*impl_;
+    if (!impl.active.load(std::memory_order_acquire)) return;
+#if defined(_WIN32)
+    (void)SetEvent(impl.event);
+#elif !defined(__EMSCRIPTEN__)
+    const char byte=1;
+    ssize_t count;
+    do { count=::write(impl.wake_write,&byte,1); } while (count<0 && errno==EINTR);
+#else
+    { std::lock_guard lock(impl.mutex); impl.signaled=true; }
+    impl.changed.notify_all();
+#endif
+}
+void ReadinessPoller::synchronize() {
+    auto& impl=*impl_;
+    std::unique_lock lock(impl.mutex);
+    const auto epoch=impl.prepared;
+    impl.changed.wait(lock,[&]{return impl.finished>=epoch;});
+}
+} // namespace detail
 } // namespace ii::io

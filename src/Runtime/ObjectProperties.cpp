@@ -79,6 +79,7 @@ struct ObjectProperties::Impl {
     Node root;
     std::atomic<std::uint64_t> revision{0};
     bool busy = false;
+    std::size_t executing = 0;
     std::optional<QueryPort<PropertyChange>> changed;
 
     Impl(const std::vector<PropertyDefinition>& definitions, PropertyPolicy policy, ChangeHandler handler) {
@@ -248,6 +249,11 @@ struct ObjectProperties::Impl {
     }
 
     PropertyResult execute(const PropertyQuery& query, bool owner) {
+        ++executing;
+        struct Finish {
+            std::size_t& count;
+            ~Finish() { --count; }
+        } finish{executing};
         if (busy) return failure(PropertyErrorCode::reentrant, {});
         EditGuard guard(busy);
         return std::visit([&](const auto& operation) { return run(operation, owner, guard); }, query);
@@ -258,7 +264,11 @@ ObjectProperties::ObjectProperties(std::vector<PropertyDefinition> definitions, 
                                    ChangeHandler on_change)
     : impl_(std::make_unique<Impl>(definitions, policy, std::move(on_change))),
       queries_([this](const PropertyQuery& query) { return impl_->execute(query, false); }) {}
-ObjectProperties::~ObjectProperties() = default;
+ObjectProperties::~ObjectProperties() {
+    if (impl_->executing) std::terminate();
+    const auto result=queries_.close();
+    if (!result) std::terminate();
+}
 ObjectProperties::ObjectProperties(SerialQueue& executor, std::vector<PropertyDefinition> definitions,
                                    PropertyPolicy policy, ChangeHandler on_change)
     : executor_(std::ref(executor)), impl_(std::make_unique<Impl>(definitions, policy, std::move(on_change))),
@@ -270,5 +280,6 @@ PropertyResult ObjectProperties::apply(const PropertyQuery& query) {
 }
 const QueryPort<PropertyQuery, PropertyResult>& ObjectProperties::queries() const noexcept { return queries_; }
 std::uint64_t ObjectProperties::revision() const noexcept { return impl_->revision; }
+bool ObjectProperties::is_executing() const noexcept { return impl_->executing || queries_.is_current(); }
 
 } // namespace ii::runtime

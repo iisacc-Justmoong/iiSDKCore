@@ -55,6 +55,8 @@ interface, adapter, factory, wrapper 등의 추가는 그 자체로 좋은 설�
 
 C++는 iiSDKCore의 주 구현 언어이다.
 
+다중 상속은 구조적으로 금지한다. 프로젝트가 정의한 class/struct의 직접 기반 클래스는 최대 하나이며, 기반 클래스 팩 확장도 금지한다. public 헤더의 완전한 class/struct 정의는 모두 final로 선언하여 SDK 타입을 상속의 기반으로 사용할 수 없게 한다. 값·행동·통신 기능의 결합은 인스턴스 조합으로 구현한다. 이 규칙은 테스트 비활성 빌드를 포함한 필수 iiSDKCoreArchitectureCheck에서 원본과 전처리 결과를 검사하여 강제한다. 검사 우회 옵션을 추가하지 않는다. 세부 계약과 검증은 `docs/inheritance.md`, `tests/architecture_policy.py`를 따른다.
+
 현대적인 C++를 적극적으로 활용하되, 새로운 언어 기능을 사용하는 것 자체를 목적으로 삼지 않는다.
 
 C++ 표준 라이브러리가 문제를 충분히 해결한다면 자체 구현보다 표준 라이브러리를 우선한다.
@@ -62,13 +64,13 @@ C++ 표준 라이브러리가 문제를 충분히 해결한다면 자체 구현�
 예를 들어 특별한 이유가 없다면 다음과 같은 표준 기능을 다시 구현하지 않는다.
 
 - 표준 컨테이너
-- smart pointer
+- 스마트 포인터
 - string 및 string view
-- span
-- chrono
-- filesystem
+- 스팬
+- 크로노
+- 파일 시스템
 - thread 및 synchronization primitive
-- type traits
+- 유형 특성
 - 일반적인 algorithm
 
 `iiString`, `iiVector`, `iiSharedPtr` 등의 타입을 단순히 iiSDK 고유 타입을 만들기 위한 목적으로 추가하지 않는다.
@@ -88,11 +90,11 @@ Qt는 iiSDKCore의 dependency가 될 수 없다.
 - QString
 - QByteArray
 - QVariant
-- Qt container
-- signal / slot
-- Qt event system
-- Qt filesystem abstraction
-- Qt threading abstraction
+- Qt 컨테이너
+- 신호/슬롯
+- Qt 이벤트 시스템
+- Qt 파일 시스템 추상화
+- Qt 스레딩 추상화
 - 기타 Qt 모듈
 
 기존 iisacc 프로젝트가 Qt를 사용한다는 사실은 iiSDKCore의 설계 근거가 되지 않는다.
@@ -129,8 +131,8 @@ iiSDKCore는 크로스플랫폼 사용을 전제로 한다.
 
 예:
 
-- macOS native APIs
-- Windows native APIs
+- macOS 네이티브 API
+- Windows 네이티브 API
 - Linux/POSIX 및 필요한 user-space platform APIs
 
 운영체제 API를 무조건 1:1 wrapper로 변환하지 않는다.
@@ -150,15 +152,15 @@ iiSDKCore는 상위 iiSDK 모듈에 의존해서는 안 된다.
 
 개념적으로 다음 방향을 유지한다.
 
-    Applications
+    응용
          ↓
-    Higher iiSDK Modules
+    상위 iiSDK 모듈
          ↓
       iiSDKCore
          ↓
-    C++ Standard Library
+    C++ 표준 라이브러리
          +
-    Native Platform APIs
+    네이티브 플랫폼 API
 
 순환 dependency를 만들지 않는다.
 
@@ -169,26 +171,28 @@ Core의 편의를 위해 상위 모듈의 개념을 Core로 역수입하지 않�
 
 다음 영역은 명확한 필요성이 확인되기 전까지 iiSDKCore의 책임으로 간주하지 않는다.
 
-- View
-- Widget
-- UI layout
+- 보기
+- 위젯
+- UI 레이아웃
 - .ihtml
-- Windowing
-- Application lifecycle
-- GPU rendering
-- 2D/3D graphics
-- Shader
-- Image processing
+- 윈도잉
+- 애플리케이션 수명주기
+- GPU 렌더링
+- 2D/3D 그래픽
+- 셰이더
+- 이미지 처리
 - Font rendering 및 text shaping
-- Audio
+- 오디오
 - MIDI
-- Game world
+- 게임 세계
 - ECS
-- Physics
-- Asset pipeline
+- 물리학
+- 자산 파이프라인
 - 특정 network protocol
 - 특정 document model
 - 제품별 business logic
+
+2026-10-06의 명시적인 하드웨어 I/O 요구로 USB/HID 열거·hotplug·표준 제어 전송, Bluetooth LE GATT, PCM 오디오 입출력, MIDI UMP 전송·해석은 Core의 공통 런타임 기반에 포함한다. 합성·효과·음악 편집·제품별 독점 프로토콜 의미론은 포함하지 않는다. public 계약은 C++23 값·조합이며 네이티브 API 브리지는 private 구현이다. Apple Objective-C++ 번역 단위도 필수 다중 상속 검사를 적용한다. 플랫폼별 지원·권한·수명 계약은 `docs/hardware.md`를 따른다.
 
 이 목록은 영구적인 금지 목록이 아니다.
 
@@ -205,6 +209,8 @@ iiSDK의 객체 간 통신 모델은 쿼리 전달이다. 객체는 다른 객�
 iiSDK 객체의 멤버는 중첩 인스턴스로 트리를 구성한다. 각 노드는 값, 일반 메서드, QueryPort 및 자식 노드를 함께 가질 수 있으며 public과 private 모두 동일한 구조를 지원한다. 각 계층의 C++ 접근 제어를 보존하고, private 조상 아래의 멤버를 외부에 자동 노출하지 않는다. 쿼리의 선택 조건과 응답도 필요한 중첩 구조를 보존하며 전체 객체를 평탄한 필드 목록으로 변환하도록 강제하지 않는다. 표준 C++ 구성으로 충분한 경우 이를 감싸는 별도 객체 베이스 클래스나 리플렉션 레지스트리를 추가하지 않는다. 상세 계약은 `docs/member-tree.md`에 정의한다.
 
 Public API는 명시적이고 예측 가능해야 한다.
+
+EventLoop는 Channel의 준비 상태를 감지하고 read/write 완료를 같은 dispatch 실행 영역에서 전달한다. 감시·전송은 일반 작업과 같은 bounded 슬롯·우선순위·취소 계약을 사용하며, 네이티브 대기의 핸들 참조와 콜백 자원을 정리한 뒤 슬롯을 반환한다. 느린 동기 드라이버·파일 호출의 워커 격리는 AsyncIO로 유지한다. 하드웨어 프로토콜·열거·권한·USB/Bluetooth 등 호스트 브리지를 구현 근거 없이 지원한다고 선언하지 않는다. 계약은 `docs/loop-io.md`에 정의한다.
 
 생성 이후 멤버 스키마와 동작을 인스턴스별로 확장·변경하는 요구에는 `ObjectProperties`를 조합한다. 등록한 동적 노드의 값·메서드·자식을 queryable/designable 정책으로 다루며, 소유자 권한과 외부 쿼리 포트 권한을 분리한다. private 또는 잠긴 자손의 접근 제한을 부모의 교체·삭제로 우회해서는 안 된다. 정적 C++ 객체의 메모리 배치나 모든 멤버의 자동 반사는 요구하지 않는다. 이 기능의 현재 계약은 `docs/object-properties.md`에 정의한다.
 
@@ -225,6 +231,8 @@ API의 간결함을 위해 중요한 의미론을 숨기지 않는다.
 
 C++ 사용자가 필요한 경우 추상화 아래의 기능을 사용할 수 있는 escape hatch를 남길 수 있다.
 
+
+시간 민감 작업은 Core/Time의 단조 시간축과 EventLoop의 주기·마감·예산·quantum 예약으로 실행한다. 임의 C++ 콜백을 강제 선점한다고 선언하지 않는다. 예산 초과·마감 누락·놓친 주기를 관측하고, 지연된 실행을 무제한 따라잡지 않는다. LiveStream은 재생 시각·지연 한도·제한된 저장소를 조합하며 제거 시 실행 전달과 payload를 정리한다. 계약은 `docs/realtime.md`를 따른다.
 
 ## 9. 성능 정책
 
@@ -255,6 +263,8 @@ iiSDKCore는 기반 소프트웨어이므로 성능을 중요하게 취급한다
 런타임의 작업 스레드는 플랫폼 독립적인 `Thread` 인스턴스로 관리한다. 작업 수명, 협력적 중단, 종료 대기와 실패 전달의 계약은 `docs/thread.md`를 따른다. 제품 코드에 OS 스레드 핸들·분리된 detach 스레드·상속 기반 실행자를 요구하지 않는다. 표준 스레드 구현은 이 클래스 내부에 두고, EventLoop와 참조로 조합한다. WASM 단일 스레드와 pthread 호스트의 지원 차이는 명시적으로 처리한다.
 
 소유권과 lifetime은 명시적으로 설계한다.
+
+객체 제거는 신규 작업 차단, 미실행 작업 취소, 활성 작업·완료 콜백 대기, 소유 자원 파괴, 할당량 반환 순서로 수행한다. 작업 캡처의 파괴가 끝나기 전에 슬롯을 다음 객체에 제공하지 않는다. 객체별 작업은 TaskScope·QueryPort·SerialQueue의 제거 경계에 등록하며, 상태를 사용하는 작업을 닫은 뒤 상태를 해제한다. 외부 공유 소유자와 영속 데이터는 해당 소유권 계약을 보존한다. 세부 계약과 회귀 검증은 `docs/cleanup.md`, `tests/cleanup.cpp`를 따른다.
 
 가능하면 RAII를 기본 자원 관리 방식으로 사용한다.
 
@@ -339,11 +349,11 @@ Core 기능은 가능한 한 자동 테스트가 가능하도록 설계한다.
 
 특히 다음 종류의 기능은 테스트를 중요하게 취급한다.
 
-- lifetime
-- ownership
-- concurrency
-- error propagation
-- platform abstraction
+- 평생
+- 소유권
+- 동시성
+- 오류 전파
+- 플랫폼 추상화
 - serialization이 존재하는 경우 format stability
 - public API의 핵심 invariant
 
@@ -425,3 +435,15 @@ iiSDKCore의 좋은 설계는 처음부터 모든 요구사항을 해결하는 �
 확실한 것은 구현한다.
 불확실한 것은 고정하지 않는다.
 필요하지 않은 것은 만들지 않는다.
+
+## 14. 공통 기능군 (0.8.0)
+
+애니메이션의 순차·병렬 트랙은 시간축 구성이고 CPU 병렬 작업은 Runtime에 제출한다. 표준 컨테이너·ranges·PMR·동기화·future는 직접 사용한다. 공유 값은 불변 스냅샷과 명시적 편집 커밋으로 처리하며 동시 수정 충돌을 숨기지 않는다. 플러그인은 버전이 있는 C ABI 함수 표와 인스턴스 조합을 사용하고, 실행 전달과 인스턴스를 제거한 뒤 모듈 참조를 해제한다. iOS/WASM은 정적 등록이다. 이벤트 필터는 QueryPort 알림 쿼리에 조합하며 별도 전역 버스를 만들지 않는다. AtomicFile은 임시 파일과 이름 교체로 저장하며 직접 덮어쓰기 fallback을 하지 않는다. 계약은 `docs/modern-core.md`를 따른다.
+
+## 데이터 타입 직렬화 (0.9.0)
+
+직렬화는 Core/Serialization의 표준 C++23 CBOR 프로파일과 명시적인 Codec<T>로 수행한다. 정적 직렬화는 Values 독립 타깃을 유지하고 Runtime을 참조하지 않는다. DynamicValue는 인스턴스별 안정적인 타입 ID·버전 등록을 사용하며 typeid 이름·주소·객체 메모리 배치를 wire format으로 만들지 않는다. 입력·출력·문자열·항목·깊이·요청 저장소 한도를 유지하고 실패한 입력은 기존 객체를 부분 변경하지 않는다. 사용자 코덱과 형식 변경에는 고정 바이트·범위·실패·소유권·설치 소비자 검사를 추가한다. 계약은 docs/serialization.md를 따른다.
+
+## 암시적 공유 (0.10.0)
+
+SharedValue의 복사·대입은 데이터 복사 없이 저장소를 공유하고 modify에서 자동 분리한다. 단독 소유의 미공개 저장소와 noexcept 편집에서만 제자리 재사용하며, 공개한 Snapshot 저장소는 weak_ptr 업그레이드도 보호하도록 불변으로 유지한다. use_count만으로 수정 권한을 판정하지 않는다. update의 기존 낙관적 커밋·충돌 계약은 보존한다. mutable 참조·iterator를 편집 범위 밖으로 유출하지 않는다. 수정에는 복사 횟수·실패 롤백·약한 참조·동시성·제거·설치 소비자 검증을 유지한다. 계약은 docs/implicit-sharing.md를 따른다.

@@ -7,7 +7,7 @@
 
 namespace ii::core {
 // Numeric SDK/API version. Prerelease/build identifiers are intentionally absent.
-struct Version {
+struct Version final {
     std::uint32_t major=0,minor=0,patch=0;
     auto operator<=>(const Version&) const = default;
     [[nodiscard]] std::string string() const { return std::to_string(major)+"."+std::to_string(minor)+"."+std::to_string(patch); }

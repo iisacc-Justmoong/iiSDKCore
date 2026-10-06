@@ -6,7 +6,7 @@
 #include <string_view>
 
 namespace ii::core {
-struct Violation { std::string_view message; std::source_location location; };
+struct Violation final { std::string_view message; std::source_location location; };
 // Per-instance reporting. An empty reporter throws; never disabled by NDEBUG.
 class Contract final {
 public:

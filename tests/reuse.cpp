@@ -1,5 +1,6 @@
 #include <iiSDKCore/Runtime/EventLoop.h>
 #include <iiSDKCore/Runtime/Stream.h>
+#include <iiSDKCore/Runtime/LiveStream.h>
 #include <iiSDKCore/Runtime/Runtime.h>
 #include <iiSDKCore/IO/AsyncIO.h>
 
@@ -60,5 +61,33 @@ int main() {
     }
     const auto io_added = allocations.load() - io_before;
     std::cout << "I/O buffer reuse: 10000 iterations, operator new calls=" << io_added << '\n';
-    return io_added == 0 ? 0 : 11;
+    if (io_added!=0) return 11;
+    int io_completed=0;
+    auto completion=[&io_completed](ii::io::IOResult reply) {
+        if (reply && reply->transfer.bytes==64) ++io_completed;
+        else io_completed=-1000000;
+    };
+    if (!source_file->seek(0) || !loop.read(*source_file,ii::io::Read{buffer},completion) ||
+        loop.poll({1,std::chrono::seconds(1)})!=1 || !source_file->seek(0)) return 12;
+    const auto loop_io_before=allocations.load();
+    for (int i=0;i<10000;++i) {
+        if (!loop.read(*source_file,ii::io::Read{buffer},completion) || loop.poll({1,std::chrono::seconds(1)})!=1 ||
+            !source_file->seek(0)) return 13;
+    }
+    const auto loop_io_added=allocations.load()-loop_io_before;
+    std::cout << "event loop I/O reuse: 10000 iterations, operator new calls=" << loop_io_added << '\n';
+    if (loop_io_added!=0 || io_completed!=10001) return 14;
+    LiveStream<int> live(4,std::chrono::seconds(1));
+    RealtimeSchedule schedule{std::chrono::seconds(1),std::chrono::seconds(1),
+        std::chrono::milliseconds(10),std::chrono::milliseconds(10),{}};
+    const auto timed_before=allocations.load();
+    for (int i=0;i<10000;++i) {
+        if (!loop.realtime(schedule,[](const auto&) { return SliceResult::stop; }) ||
+            loop.poll({1,std::chrono::seconds(1)})!=1 || !live.push(Clock::now(),i)) return 15;
+        auto frame=live.take();
+        if (!frame || frame->value!=i) return 16;
+    }
+    const auto timed_added=allocations.load()-timed_before;
+    std::cout << "timed/live reuse: 10000 iterations, operator new calls=" << timed_added << '\n';
+    return timed_added==0 && live.close() ? 0 : 17;
 }

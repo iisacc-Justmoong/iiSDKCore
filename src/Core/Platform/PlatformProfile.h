@@ -5,7 +5,7 @@
 
 namespace ii::core {
 enum class Architecture { arm64, arm32, x64, x86, wasm32, wasm64, unknown };
-struct PlatformProfile {
+struct PlatformProfile final {
     runtime::Platform os;
     Architecture architecture;
     unsigned pointer_bits;

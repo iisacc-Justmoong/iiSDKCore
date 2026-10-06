@@ -23,10 +23,10 @@ value_cast는 새 값을 반환하며 원본을 변경하지 않는다. cast_val
 | 표준 정수·float·double·long double 사이 | 범위와 정밀도가 보존될 때만 성공 |
 | bool과 숫자 사이 | bool 출력은 정확한 0/1만 허용 |
 | std::string → 표준 정수 | 전체 문자열을 10진수로 파싱. 공백, 선행 +, 소수점, 뒤따르는 문자를 거절 |
-| std::string → float/double | locale 독립 파싱. 소수·지수 표기 허용. 대상 타입으로 반올림하며 범위 초과·0으로의 언더플로를 거절하며 NaN/무한대 표기는 허용하지 않음 |
-| std::string ↔ bool | true/false 및 입력 1/0. 대소문자를 구분하며 출력은 true/false |
+|std::string → float/double| locale 독립 파싱. 소수·지수 표기 허용. 대상 타입으로 반올림하며 범위 초과·0으로의 언더플로를 거절하며 NaN/무한대 표기는 허용하지 않음 |
+|std::string ↔ bool| true/false 및 입력 1/0. 대소문자를 구분하며 출력은 true/false |
 | 표준 정수·float·double → std::string | locale 독립 출력. 부동소수점은 같은 타입으로 왕복 가능한 표기 |
-| long double ↔ std::string | 모든 플랫폼에서 unsupported. 일부 WASM 표준 라이브러리의 double 축소 출력으로 인한 조용한 정밀도 손실을 방지 |
+|롱 더블 ← std::string| 모든 플랫폼에서 unsupported. 일부 WASM 표준 라이브러리의 double 축소 출력으로 인한 조용한 정밀도 손실을 방지 |
 | 서로 다른 사용자 정의 타입·enum·포인터 타입 | 자동 변환 없음. 사용자 코드가 명시적으로 변환한 결과를 새 값으로 구성 |
 
 정수 타입은 bool, char, signed/unsigned char, short, int, long, long long과 각 unsigned 타입이다. char 변환은 문자 코드의 숫자 변환이며 유니코드 인코딩 변환이 아니다. C 문자열이나 string_view는 저장 시 std::string으로 자동 소유권 변환되지 않는다. 텍스트 변환에는 명시적인 std::string을 사용한다.
@@ -65,3 +65,11 @@ PropertySelection::cast_to는 선택한 응답 값에만 적용한다. include_v
 DynamicValue 자체가 가변 값의 동시 접근을 동기화하지는 않는다. 별도 값은 독립적으로 사용할 수 있으며 공유 가변 값은 SerialQueue 또는 명시적인 잠금으로 보호한다. 사용자 정의 복사 생성자와 참조 래퍼의 대상도 작성자가 해당 계약을 지켜야 한다. 전역 변환 레지스트리나 공유 가변 캐시는 없다.
 
 기존 런타임 슬롯 재사용은 유지한다. 임의 타입의 저장과 값 복사·문자열 변환은 할당할 수 있다. 복사 없는 정확한 타입 접근은 value_ref를 사용한다. 동적 타입 전체를 무할당 경로로 보장하지 않는다.
+
+## Explicit serialization (0.9.0)
+
+`Runtime/Serialization.h` adds per-instance `DynamicSerializer` registration and stable CBOR `[type_id, codec_version, payload]` envelopes. Builtins preserve exact C++ dynamic types; records use explicit `Codec<T>` specializations. Empty any and explicit null differ. Unsupported or borrowed values are errors, and object memory, methods, ports and private properties are never automatically persisted. Bounds, schema migration and ownership are defined in [serialization.md](serialization.md).
+
+## Implicitly shared payloads (0.10.0)
+
+A DynamicValue can contain `core::SharedValue<T>` so any copies share T's storage and modification separates automatically. Ordinary std types keep their standard copy semantics. The optional shared-value codec enables registered dynamic serialization. See [implicit-sharing.md](implicit-sharing.md) for concurrency, rollback and ownership rules.
