@@ -52,7 +52,7 @@ open_serial은 기존 raw 8N1 시리얼 설정을 사용한다. USB 시리얼도
 | Windows | 기존 파일·COM, 상태 재검사+wake event; open_device는 unsupported |
 | WASM | 가상 파일; open_serial/open_device는 unsupported |
 
-이 문서의 0.5.0 채널 기능은 열어 둔 채널의 준비 상태를 감지한다. USB/HID 장치 목록 열거·hotplug 서비스·Bluetooth·오디오·MIDI·소켓 연결 또는 장치별 ioctl API를 추가한 것은 아니다. OS 접근 권한과 드라이버 지원은 그대로 적용된다. **0.6.0의 별도 Hardware API가 USB/HID 열거·hotplug·제어 명령, CoreBluetooth/BlueZ/Windows BLE GATT, PCM과 MIDI UMP를 추가한다.** 현재 지원 범위는 [hardware.md](hardware.md)를 따른다.
+이 문서의 0.5.0 채널 기능은 열어 둔 채널의 준비 상태를 감지한다. USB/HID 장치 목록 열거·hotplug 서비스·Bluetooth·오디오·MIDI·소켓 연결 또는 장치별 ioctl API를 추가한 것은 아니다. OS 접근 권한과 드라이버 지원은 그대로 적용된다. 0.6.0에 추가한 Hardware·Protocols API는 0.12.0부터 독립 동위 모듈 iiDeviceMultimedia로 이동했다. Core는 그 모듈 없이 일반 채널 I/O를 제공하며, 장치 모듈 0.2 역시 Core 없이 동작한다. 두 모듈의 연결은 앱의 poll() 드라이버가 소유한다. 현재 장치 지원 범위는 [새 모듈 계약](../../iiDeviceMultimedia/docs/hardware.md)을 따른다.
 
 ## 제거와 소유권
 
@@ -67,3 +67,7 @@ CancellationToken의 취소는 cancelled 결과를 전달하며, 콜백 없는 T
 tests/loop_io.cpp는 파일·FIFO·PTY의 입력과 출력, typed QueryPort 전달, 준비 완료·EOF·빈 전송·기한·취소·종료·슬롯 재사용과 native wakeup을 검증한다. examples/loop_io.cpp는 실제 파일 입력을 루프에서 읽고 다른 채널로 방출한 뒤 저장된 바이트를 대조한다. 설치 소비자에서도 같은 LoopIO 계약을 실행한다. tests/reuse.cpp는 준비된 Buffer와 루프 슬롯의 반복 재사용을 측정한다.
 
 플랫폼 근거: [poll](https://man7.org/linux/man-pages/man2/poll.2.html), [pipe](https://man7.org/linux/man-pages/man2/pipe.2.html), [Windows ClearCommError](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-clearcommerror), [Windows WaitForSingleObject](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject). 실제 실행·교차 빌드·물리 장치의 증거 범위는 [validation.md](validation.md)에 구분한다.
+
+## 외부 GUI·이벤트 호스트 (0.16)
+
+외부 루프에서 poll만 호출하고 긴 타이머로 잠들면 채널 준비를 통지받을 수 없다. HostLoop의 기본 준비 대기 연결은 이 경계를 해결한다. 하나의 관리형 대기 스레드가 기존 폴러를 사용하고 완료는 소유 호스트의 poll에서 전달한다. 미완료 I/O가 없으면 대기 스레드는 조건 변수에서 잠든다. 대기 중 I/O의 협력적 취소·닫힘 확인에는 기존 최대 20ms 대기 한도가 적용된다. 느린 동기 파일·드라이버 호출은 계속 AsyncIO·Runtime에 격리한다. [호스트 연결 계약](host-loop.md)을 따른다.

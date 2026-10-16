@@ -5,7 +5,6 @@
 #include <iiSDKCore/Core/Event/Receiver.h>
 #include <iiSDKCore/Core/Memory/SharedValue.h>
 #include <iiSDKCore/Core/Task/Parallel.h>
-#include <iiSDKCore/IO/AtomicFile.h>
 #include <iiSDKCore/Plugin/Plugin.h>
 #include <iiSDKCore/Runtime/Animation.h>
 #include <iostream>
@@ -246,32 +245,7 @@ void parallel_and_events() {
   check(bool(queue.close()) && bool(workers.join()), "parallel workers clean");
 }
 
-void files() {
-  auto path = std::filesystem::current_path() / "modern-atomic-test.dat";
-  std::error_code ec;
-  std::filesystem::remove(path, ec);
-  const std::array<std::byte, 3> bytes{std::byte{1}, std::byte{2},
-                                       std::byte{3}};
-  auto file = io::AtomicFile::create(path);
-  check(bool(file), "atomic create");
-  auto temporary = file->temporary_path();
-  check(bool(file->write(bytes)) && !std::filesystem::exists(path),
-        "uncommitted target untouched");
-  check(bool(file->commit()) && !std::filesystem::exists(temporary),
-        "atomic commit retires temporary");
-  auto replacement = io::AtomicFile::create(path);
-  check(replacement && bool(replacement->write(std::span(bytes).first(1))),
-        "replacement admission");
-  temporary = replacement->temporary_path();
-  check(bool(replacement->cancel()) && !std::filesystem::exists(temporary) &&
-            std::filesystem::file_size(path) == 3,
-        "cancel preserves original");
-  auto again = io::AtomicFile::create(path);
-  check(again && bool(again->write(std::span(bytes).first(1))) &&
-            bool(again->commit()) && std::filesystem::file_size(path) == 1,
-        "replace existing file");
-  std::filesystem::remove(path, ec);
-}
+
 int main() {
   try {
     std::cout << "stage containers" << std::endl;
@@ -282,8 +256,6 @@ int main() {
     animation_removal();
     std::cout << "stage parallel" << std::endl;
     parallel_and_events();
-    std::cout << "stage files" << std::endl;
-    files();
     std::cout << "modern core contracts complete\n";
     return 0;
   } catch (const std::exception &e) {

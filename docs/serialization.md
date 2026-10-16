@@ -1,5 +1,7 @@
 # Data type serialization (0.9.0)
 
+JSON grammar and DTO codecs are available separately in [iiJson](../../iiJson/README.md), above Core Contracts. The CBOR profile and persisted envelopes below are unchanged by the 0.14 migration.
+
 `ii::serialization` serializes owned C++ values to CBOR and reconstructs new owned values. `Core/Serialization/CBOR.h` owns the wire parser, limits and errors; `Core/Serialization/Serialization.h` owns typed codecs. Both are header-only C++23 and use only the standard library. Link `iiSDKCore::Values` with `find_package(iiSDKCore 0.9 CONFIG REQUIRED COMPONENTS Values)` to use them independently of Runtime, Threads, Qt and native hardware libraries.
 
 `Runtime/Serialization.h` adds an instance-owned `DynamicSerializer` for the existing `DynamicValue` (`std::any`). It uses explicit type registration and standard synchronization. It never exports an object's layout, addresses, `typeid().name()`, implementation hashes, private fields, methods or query ports.
@@ -100,7 +102,7 @@ The default `Limits` are 16 MiB input/output, 8 MiB per text/byte string, 100,00
 
 Requested-storage accounting is a guardrail, not an exact heap/RSS ceiling. Allocator metadata, standard unordered bucket policy, stack objects and unaccounted custom code are not included. Encoded vector capacity is capped at `max_bytes`; arbitrary custom code is not an allocation-free or real-time promise. Validation completes before typed construction, so invalid complete messages never publish a partially populated destination. Parsing errors report the cursor position where the problem was detected; registry errors have offset zero. No existing destination object is mutated.
 
-Serialization is synchronous per message. Run independent batches on existing Runtime workers or `parallel_transform`; a stateful object uses its SerialQueue and a typed QueryPort. [examples/serialization.cpp](../examples/serialization.cpp) sends a sample-map query to a persistent worker and restores the result. A long codec is not preempted and must not occupy a time-sensitive callback. Transport backpressure, live timestamps and cancellation remain the corresponding runtime/I/O contracts. AtomicFile can persist the owned bytes using its existing commit/cancel semantics; the dynamic tests verify this complete path.
+Serialization is synchronous per message. Run independent batches on existing Runtime workers or `parallel_transform`; a stateful object uses its SerialQueue and a typed QueryPort. [examples/serialization.cpp](../examples/serialization.cpp) sends a sample-map query to a persistent worker and restores the result. A long codec is not preempted and must not occupy a time-sensitive callback. Transport backpressure, live timestamps and cancellation remain the corresponding runtime/I/O contracts. The separate iiFileProvider CoreIO AtomicFile persists owned bytes with commit/cancel semantics. Its integration suite preserves the complete file-to-DynamicSerializer test relocated from Core in 0.13.
 
 ## Verification
 

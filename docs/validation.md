@@ -1,4 +1,269 @@
-# 런타임 0.2.0 검증 기록
+# Validation records
+
+## 0.18.0 selective live query streams — 2026-10-16
+
+QueryStream composes typed QueryPort control, bounded per-subscriber output rings,
+TaskScope removal and existing executors. Its public C++23 API owns selected
+outputs without copying a whole source. No new thread, global broker, Qt or upper
+SDK dependency is added. The contract is in [query-stream.md](query-stream.md).
+
+| Validation | Result | Evidence below build/ |
+|---|---|---|
+| macOS ARM64 Debug/static full regression and examples | 43/43 passed | query-stream/tests-final.xml |
+| macOS ARM64 Release/shared full regression | 43/43 passed | query-stream-shared/tests-final.xml |
+| ASan + UBSan full Core regression | 43/43 passed | query-stream-asan/tests.xml |
+| TSan QueryStream, QueryPort, cleanup and parallel runtime | 4/4 passed | query-stream-tsan/tests-final.xml |
+| Final example with FIFO producer lane, Debug/Release/ASan | 1/1 each | respective query-stream*/example-final.xml |
+| Copied consumer against relocated shared Runtime/Values package | 19/19 passed | query-stream-package/latest.json identifies verification.json |
+| Independent installed Contracts/text and Values consumers | 2/2 and 3/3 passed | same package run |
+| Copied installed streaming example and full stream contracts | 2/2 passed | same package run, example/build/tests.xml |
+| Six-platform Core -> installed streaming consumer compile/link chain | 6 kits, 30 steps passed | query-stream-matrix/matrix/report.json |
+| Native macOS matrix example and stream contracts | 2/2 passed | query-stream-matrix/matrix/kits/macos/Release/app/build/matrix-tests.xml |
+| Compiled WASM under Node: contracts, example and payload reentry probe | 3 runs passed | query-stream-matrix/wasm-*.log |
+
+The stream suite exercises per-query filtering and lazy field selection, selected
+zero versus omitted fields, revision replacement and a racing old projection,
+async QueryPort control ownership, queue overflow/retry, external executor
+cancellation, weak executor/producer removal, slot generation isolation, batched
+fairness, move-only payloads, multiple producers, parallel and serial receivers,
+native HostLoop wake/owner dispatch, self-close/would_block handling, and quota
+retention until capture destruction. A separate red/green probe reproduced and
+fixed payload move/destructor reentry under a queue lock; only owning pointers
+now move under that lock. Runtime workers remain persistent and each
+subscription's callbacks remain serialized even with a parallel executor.
+
+All copied consumers compile with exact C++23, extensions off and
+-Wall -Wextra -Wpedantic -Werror; compile commands exclude original source and
+~/.local include paths. Package and example imports include no Qt/storage/GUI
+runtime. Headers are verified against source after installation and the prefix
+is renamed before consumer configuration/execution. The global SDK installation
+and active product apps are preserved.
+
+The ASan configuration initially made a deprecated macOS POSIX-spawn symbol
+probe fail under global -Werror, which disabled the existing process branch and
+exposed its unused fallback variable. The final configuration reruns that probe
+with only deprecated declarations remaining warnings. Native process capability
+and the complete process regression pass; no source fallback or test assertion
+was weakened. The initial configure/build logs remain available. System code and
+kernel memory are outside sanitizer instrumentation.
+
+Windows x64 PE, Linux ARM64 ELF, Android ARM64 ELF, iOS ARM64 Mach-O and
+macOS ARM64 Mach-O compile/link the same application and stream contracts through
+iiSDKBuilder and their own target toolchains. The WASM32 image is compiled C++
+with the existing pthread contract. Windows/Linux execution remains explicitly
+deferred by the user; Android/iOS device execution/signing/deployment and browser
+execution are not established by this matrix. Node executes the actual WASM
+modules and explicitly passes the new payload-reentry command-line probe.
+The example reports query revisions 1 -> 2 and zero unselected label reads.
+
+Payload callbacks, moves/destructors and endpoint copies execute outside the
+state lock. Queue storage remains bounded, while each matched event owns an
+allocated node; allocation-free or hard real-time operation is not claimed.
+The red timeout and green standalone probe remain under query-stream/. Aggregate
+current-source/package/platform evidence is build/query-stream-verification.json.
+
+## 0.17.0 native resource foundation — 2026-10-16
+
+Core implements immutable aligned packs and native read-only Channel mappings.
+Builder 0.2 owns the host compiler/target selection, and FileProvider owns output
+publication. Core still exports only standard/platform dependencies.
+
+| Validation | Result | Evidence below build/ |
+|---|---|---|
+| Native macOS ARM64 Debug/static regression, examples and architecture | 41/41 passed | resources/core-final-tests.xml |
+| Native macOS ARM64 Release/shared regression | 41/41 passed | resources-shared/core-tests.xml |
+| ASan + UBSan Core regression | 41/41 passed | resources-asan/core-tests.xml |
+| TSan Resources, HostLoop and Operation | 3/3 passed | resources-tsan/core-tests.xml |
+| Copied/rebased installed shared Runtime/Values consumer | 18/18 passed | resources-package/latest.json points to the run |
+| Independent installed Contracts/text and Values consumers | 2/2 and 3/3 passed | same run, contracts-consumer and values-consumer XML |
+| Existing native iiGUI host/GPU regression with Core 0.17 | 19/19 passed | ../iiGUI/build/resources-core/tests.xml |
+| Builder host regression including resource compiler/incremental builds | 14/14 passed | ../iiSDKBuilder/build/resources/builder-final-tests.xml |
+| Copied application + relocated shared Core and host tool/module | 1/1 passed; runs with source assets removed | ../iiSDKBuilder/build/resources-consumer/latest.json |
+| Six-platform Core -> HelloResources compilation/install chain | 5 steps per kit passed | ../iiSDKBuilder/build/resources-matrix/matrix/report.json |
+| macOS HelloResources and actual WASM module under Node | Executed successfully | ../iiSDKBuilder/build/resources-matrix/*-execution.log |
+
+The duplicate-payload fixture uses two references to the same 4 MiB content.
+Logical bytes are 8,388,608 and encoded bytes are 4,194,496, including 192 bytes
+of metadata/alignment. Both views address the same native bytes. A 100,000-lookup
+loop reports elapsed time without a hard performance assertion. These are
+fixture measurements, not compression, process-RSS, GPU-memory or Qt comparisons.
+
+Malformed input checks include every truncated extent, header changes, correctly
+fingerprinted out-of-bounds/reserved/name metadata, invalid encoding, ranges,
+budgets, and explicit payload integrity. Lifetime checks cover moved-from views,
+channel/pack removal, mapping slices, shared readers and owning Operation results.
+Native mapping/paging runs on macOS; compilation on other OSes is separate proof.
+
+One concurrent-build ASan run timed out the Resources entry at 30 seconds without
+a sanitizer diagnostic. The same binary passed the isolated entry in 1.27 seconds
+and the complete rerun above passed 41/41, without relaxing its timeout or
+assertions. The original XML is resources-asan/core-stress-timeout-tests.xml.
+System frameworks/kernel paging are outside sanitizer instrumentation.
+
+The Windows x64, Linux ARM64, Android ARM64, iOS ARM64 and WASM32 images compile
+the same resource main.cpp and generated C++ data through their target toolchains.
+Windows/Linux execution is explicitly deferred by the user. Android/iOS device
+execution, signing and deployment are not established. Node's WASM execution is
+not browser or physical-device evidence, and WASM reports OS mapping unsupported.
+The native CLI remains a desktop build-host tool.
+
+The SDK/Product file-creation audit records 2,509 runtime files, zero violations
+and zero unreadable files in resources-file-ownership.json. New generated files
+are published through FileProvider. Everything is installed into isolated
+build/ prefixes; global SDK installs and running product apps are preserved.
+Aggregate current-source/package/platform evidence is
+build/resources-verification.json. API, binary format, costs and mapping limits
+are documented in [resources.md](resources.md).
+
+## 0.16.0 external-host foundation for iiGUI — 2026-10-16
+
+Core remains below iiGUI. The exported Runtime target links only Contracts,
+Threads and, where required, the native dynamic-loader library. No window,
+font, graphics, Qt, storage or upper SDK package is imported. All builds use
+C++23 with language extensions disabled; independent public-header and mandatory
+inheritance/dependency checks run as part of the build.
+
+| Validation | Result | Evidence below build/ |
+|---|---|---|
+| macOS ARM64 Debug regression, examples and architecture | 40/40 passed | gui-foundation/core-final-tests.xml |
+| Core ASan + UBSan, including HostLoop and native pipe fixture | 40/40 passed | gui-foundation-asan/core-asan-final-tests.xml |
+| TSan: HostLoop, Operation, Runtime, LoopIO and Cleanup | 5/5 passed; no race report | gui-foundation-tsan/core-tsan-tests.xml |
+| Copied installed Runtime/Values consumer after prefix relocation | 17/17 passed | gui-package/latest.json locates its verification report and XML |
+| Installed Contracts/text consumer, Threads/GUI discovery disabled | 2/2 passed | same package run, contracts-consumer/tests.xml |
+| Installed Values-only consumer, no runtime target | 3/3 passed | same package run, values-consumer/tests.xml |
+| Actual macOS iiGUI host, HelloGUI and relocated GUI consumer | 19/19, 1/1 and 1/1 passed | ../iiGUI/build/foundation-verification/macos/ |
+| ASan + UBSan across both Core and iiGUI | 19/19 GUI checks passed | ../iiGUI/build/core-foundation-asan/sanitizer-tests.xml |
+| Windows x64 and Linux ARM64 Core -> iiGUI -> HelloGUI via Builder | Built, installed and linked; relocated consumers compiled | ../iiGUI/build/foundation-verification/{windows,linux}/ |
+| iOS ARM64, Android ARM64/API 34, WASM32 pthread Core | Static-library compilation passed | gui-ios-build.log, gui-android-build.log, gui-wasm-build.log |
+
+The new Core tests verify weak producer expiry, bounded admission, direct token
+cancellation notifications, coalesced wakes, owner-thread dispatch, inline/foreign
+driver rejection, surviving connections after loop removal, detach barriers,
+scoped deadlines, owned completion endpoints, nonblocking host observation and
+FrameLoop phase ordering. A real child process acknowledges startup, waits for
+release after I/O admission, then writes delayed pipe data. Host delivery must
+precede one second against a three-second request timeout; no repeating host
+timer drives this test. The startup handshake separates cold loader/sanitizer
+startup from readiness latency. An initial pre-handshake timing failure during
+concurrent builds led to that fixture correction; the final suites above use
+the corrected protocol without relaxing the readiness limit.
+
+iiGUI uses the same connection on AppKit, Win32 and X11; its separate native
+tests cover window updates, final Core host counters, tracked completion,
+scope cancellation, actual GPU frame preparation and terminal Core stop.
+Counts include source/tooling checks and repeated configurations; they are not
+counts of distinct UI features. System frameworks and GPU drivers are outside
+sanitizer instrumentation.
+
+Windows/Linux execution remains explicitly not_run at the user's request.
+iOS, Android and WASM results here establish Core compilation only, not new GUI
+backends, physical-device/browser execution or deployment. Emscripten was built
+with CMAKE_CXX_SCAN_FOR_MODULES=OFF because that toolchain has no clang-scan-deps;
+this project does not use C++ modules. Native GUI/runtime evidence is macOS only.
+All packages and copied consumers stay under build/; the global SDK installation
+and existing running product applications are preserved. The aggregate reports
+are build/gui-integration-verification.json and
+../iiGUI/build/core-integration-verification.json. See [host-loop.md](host-loop.md)
+for the public API, managed-waiter cost and lifetime contracts.
+
+## 0.14.0 Qt migration P0
+
+Current verification is macOS arm64 native execution plus separately compiled
+WASM32 contract/codec and tracked-runtime execution under Node. Every native package was staged under
+the owning repository's build/; no global SDK installation or running product
+application was replaced. Core/Native remain independent and Qt-disabled.
+
+| Suite | Passed / total |
+|---|---:|
+| Core Release, including mandatory architecture/boundary checks | 38 / 38 |
+| Core ASan + UBSan | 38 / 38 |
+| Tracked Operation TSan | 1 / 1 |
+| Tracked Operation WASM pthread execution under Node | 1 / 1 |
+| Independent installed WASM tracked-runtime consumer | 1 / 1 |
+| Core installed Runtime/Values consumer | 15 / 15 |
+| Independent Contracts + text, native / WASM | 2 / 2 each |
+| iiJson native / ASan+UBSan / WASM | 2 / 2 each |
+| iiJson independent installed native / WASM consumer | 1 / 1 each |
+| Native storage Release / ASan+UBSan | 3 / 3 each |
+| iiCSMIDI source / installed base / installed Async | 4 / 4, 2 / 2, 1 / 1 |
+| CoreIO storage adapter / Builder regressions | 2 / 2, 12 / 12 |
+
+Text tests contain 32 checks; tracked work contains 339 checks including 100
+completion/cancellation races; JSON contains 97 grammar/range/bounds/DTO checks;
+native MIDI contains 75 SMF/storage/legacy-compatibility checks. Suite counts are
+CTest entries, not assertions. Memory/thread instrumentation is host evidence.
+
+Qt 6.8.3-authored SMF/metadata fixtures are byte-identical after native round-trip;
+the captured compact journal hash is retained. NamespaceJournal itself is not
+migrated. Runtime loader evidence confirms installed Native 0.8.0, MIDI 0.3.0 and
+(only for Async) Core 0.14.0, with no Qt library loaded. Core's own dylib links only
+libc++ and libSystem. The SDK dependency audit covers 34 graph nodes with no cycle
+or Core/Native upward edges. SDK/Product file-creation audit reports zero
+violations and unreadable files.
+
+The aggregate machine-readable evidence is build/p0-verification.json with each
+JUnit path, runtime loader output, file audit and explicit platform boundaries.
+Supporting logs use build/p0-* and each consumer's build/. Windows, Linux,
+Android/iOS device execution, full WASM Runtime/browser execution and all-SDK Qt
+removal are not established by these results. Process/pipes/environment, network,
+SQL, XML, image/document and BLE-peripheral work remains outside this P0 scope;
+see qt-migration-p0.md. Historical results below retain their original scope.
+
+## 0.13.0 foundation and feature boundary - 2026-10-16
+
+The native macOS arm64 Release build imports no feature SDK. Its actual dylib
+loads only libc++ and libSystem; iiFileProvider/Qt/preview frameworks are absent.
+The standard-only Contracts component is separate from Values and Runtime.
+
+| Validation | Result | Evidence |
+| --- | --- | --- |
+| Native Core regression, architecture and headers | 36/36 | build/foundation/foundation-tests.xml |
+| AddressSanitizer + UndefinedBehaviorSanitizer | 36/36 | build/foundation-asan/foundation-asan-tests.xml |
+| Installed Runtime + Values consumer, Qt/storage discovery disabled | 15/15 | build/foundation/consumer/build/consumer-tests.xml |
+| Installed Contracts consumer, Threads/Qt/storage discovery disabled | 1/1 | build/foundation/contracts-consumer/build/contracts-consumer-tests.xml |
+| Installed Values-only consumer | 3/3 | build/foundation/values-consumer/build/values-consumer-tests.xml |
+| Native-header package consumed by WASM32, Node execution | 1/1 | build/foundation/contracts-wasm/build/contracts-wasm-tests.xml |
+| Relocated file creation/atomic/preview assertions and loop example | 2/2 | ../iiFileProvider/build/coreio/coreio-tests.xml |
+| Installed CoreIO consumer | 1/1 | ../iiFileProvider/build/coreio/consumer/build/coreio-consumer-tests.xml |
+| Native file provider built with Core/Qt disabled | 3/3 | ../iiFileProvider/build/core-independent/core-independent-tests.xml |
+| SDKBuilder unit, real Core/app build and relocated package | 12/12 | ../iiSDKBuilder/build/core-foundation/core-foundation-tests.xml |
+
+The independent data/execution test performs 32 checks, including Unicode-scalar
+UTF-8, null versus missing, owned nested values, signed/unsigned/real distinctions,
+nonfinite/invalid text rejection, and token observation/cancellation without a
+runtime link. Compile-time tests reject pointer truthiness, narrowing long-double
+construction and borrowed views from temporaries. Native stream ownership adds
+10 checks for aliases, exactly-once close notifications, rejected-resource cleanup
+and allocation-failure cleanup. The allocation-failure probe compiles Channel.cpp
+into the executable so sanitizer DSO allocation interposition cannot bypass the
+injected failure; the installed consumer also exercises the shared public API.
+
+Storage assertions moved with the storage implementation rather than being
+replaced by fake saves inside Core. Core's I/O tests provision isolated descriptors
+through test-only fixtures. The optional adapter retains exclusive creation,
+truncation, atomic cancel/commit, typed serialized-record restoration, last-owner
+presentation and the EventLoop copy example. It performs 29 integration checks.
+
+build/foundation-upgrade.log confirms removal of three legacy Core headers while
+preserving an unrelated consumer-owned file. build/foundation-sdk-dependencies.log
+checks 33 declared SDK/component nodes, including the adapter above Core and
+Native, with no cycle. build/foundation-file-ownership.json records 2,472 runtime
+sources, zero creation bypasses and zero unreadable sources in SDK/Product.
+The mandatory foundation guard also checks an explicit dependency allowlist in
+all runtime/value/contract target manifests, including tests-disabled builds.
+
+TDD failures are retained in build/core-foundation-tdd-red.log (the former upward
+file-provider include) and build/foundation-task-token-tdd-red.log (header-only
+token methods formerly required a runtime link). Configure/build/test logs use
+the build/foundation-* names. Generated files and staged packages stay in build/.
+
+This is native Core and adapter/package proof on macOS plus a Contracts-only
+WASM32 execution check. It is not a new full WASM runtime/browser validation,
+Windows/Linux/mobile build or device proof, nor a claim that the public APIs or
+binaries of all Qt-based SDKs and applications have migrated. Existing app/game
+runtime semantics remain covered by the native regression suites. The component,
+source migration and responsibility contract is in foundation-architecture.md.
+
 
 검증일: 2026-09-25, Asia/Seoul. 아래 결과는 이 변경을 작업한 macOS ARM64 환경의 실제 실행 기록이다. CI 구성 추가와 CI 실행 성공은 별개이며, 원격 CI는 아직 실행하지 않았다.
 
@@ -564,3 +829,233 @@ Initial TDD rejected the absent optional serialization bridge header in the mand
 All 46 staged public headers match source SHA-256, and the staged 0.10.0 dylib matches the native build. The Values-only sharing executable loads only libc++ and libSystem. Logs, file hashes and scope are recorded in build/architecture/implicit-sharing-installed-probe.json. Installation remains inside Workspace at build/stage and build/linux-arm64/stage; ~/.local was not modified. Consumers must rebuild because the template's internal storage layout changes in 0.10.0.
 
 Raw standard containers inside DynamicValue retain their standard copying behavior; applications select implicit sharing by storing SharedValue<T>. T must own mutable contents or supply appropriate copy semantics, and callback borrows must not escape. No lock-free, hard real-time, arbitrary deep-clone, paired Qt performance, physical-target execution, actual browser execution or production endurance claim follows from this matrix.
+
+## 0.11.0 app/game frame loop — 2026-10-14
+
+The new [FrameLoop contract](frame-loop.md) is implemented as native C++23
+composition over EventLoop and the existing DependencyGraph. Unity/Unreal official
+documentation informed scheduling requirements without introducing an engine or
+VM dependency. The versioned package includes the new public header, native
+symbols, a shared app/game example and an installed-package contract test.
+
+| Configuration | Result | Evidence boundary |
+| --- | --- | --- |
+| macOS arm64 Release/shared | 36/36 CTests | Complete suite, example, public headers and mandatory architecture gate |
+| macOS Debug/static, ASan + UBSan | 7/7 focused CTests | FrameLoop, example, EventLoop, realtime, I/O, cleanup and allocation reuse; warnings are errors |
+| Relocated installed package | 15/15 CTests | Independent find_package(0.11), headers, exported symbols and shared-library loading |
+| Emscripten pthreads, Node | 1/1 FrameLoop CTest | Deterministic scheduling/time/lifetime and worker-affinity contracts |
+| Actual in-app browser | Browser contracts and app/game example passed | requestAnimationFrame, UI during pause, resumed simulation, failure containment and stop |
+| Windows x64 | New tests and example compiled/linked | PE32+; no Windows execution |
+| Linux arm64 | New tests and example compiled/linked | ELF; no Linux execution |
+| Android arm64 | New tests and example compiled/linked | NDK ELF; no device execution |
+| iOS arm64 | Core static library built | FrameLoop object is Mach-O, platform IOS, minimum OS 15.0, SDK 27.0; no device execution |
+
+The deterministic suite checks all ten phases and repeated fixed triplets,
+fixed/real clocks, interpolation, clamping and bounded backlog discard, pause and
+time scale, coalesced intervals, enablement snapshots, cyclic/backward dependencies,
+stale/foreign identities, capacity, callback mutation, self removal, capture
+retirement, exceptions, recursion/affinity and native driver cleanup. A rejected
+timer reservation or invalid pump budget preserves other owners' event work.
+Initial TDD failed on the absent FrameLoop header in the mandatory architecture
+preprocessor before implementation.
+
+The allocation suite executes 10,000 stable warmed-up frames with zero additional
+ordinary operator-new calls. This excludes schema changes, arbitrary captures and
+OS allocations. A native Mach-O example also completes under `env -i PATH=`.
+The browser's observed outputs are `browser contracts passed` and
+`app/game frame loop complete: frames=8 UI=8 fixed=23`; frame cadence is owned by
+the browser and the fixed-step count is an observation, not a required constant.
+The test server supplied COOP/COEP isolation and was stopped after verification.
+
+All 47 installed public headers match source SHA-256 and the installed 0.11.0
+dylib matches the native build. The package was installed and then moved to
+`build/frame-package/relocated` before configuring its independent consumer in
+`build/frame-package/consumer/build`. The mandatory architecture gate audits 94
+translation units on native/Windows/Linux/Android, 93 on WASM and 20 in the
+tests-disabled iOS device configuration. No policy bypass was added.
+
+Commands and diagnostics are supported by these machine-readable reports:
+
+- `build/frame-loop-verification.json`: source/artifact hashes, package checks,
+  test counts, browser observations and platform execution boundaries.
+- `build/frame-loop-native-tests.xml`: complete native CTest output.
+- `build/sanitize/build/frame-loop-sanitizer-tests.xml`: sanitizer output.
+- `build/frame-package/consumer/build/frame-loop-installed-tests.xml`: relocated consumer output.
+- `build/wasm-threads/build/frame-loop-wasm-tests.xml`: Node contract output.
+
+Runtime execution on Windows/Linux/Android/iOS, mobile device installation,
+OS-specific window/input lifecycle integration and real rendering/physics consumers
+are unverified. WASM is a separate WebAssembly host execution target. The five OS
+targets compile native machine code; no common VM is required. Installation for
+this verification is inside Workspace; the global `~/.local` installation was not
+updated. Frame budgets remain cooperative and do not promise hard real-time work.
+
+## 0.12.0 device/media extraction — 2026-10-15
+
+USB/HID, BLE central/GATT, float32 PCM and MIDI UMP source, protocol helpers,
+native bridges, tests and inventory example now belong to iiDeviceMultimedia
+0.1.0. Core retains generic runtime, FrameLoop, typed queries, threads,
+serialization, Channel and AsyncIO. The device library depends on Core 0.12+;
+Core has no upward link, forwarding device header or native media dependency.
+Migration and install-upgrade behavior are documented in
+[device-extraction.md](device-extraction.md).
+
+| Configuration | Result | Evidence boundary |
+| --- | --- | --- |
+| macOS arm64 Release/shared Core | 34/34 CTests | Complete retained suite, examples, mandatory policy and new device-boundary guard |
+| macOS ASan + UBSan/static Core | 12/12 focused CTests | FrameLoop/example, Runtime, Query, Thread, shared runtime, realtime, generic I/O, cleanup, reuse and boundary |
+| Relocated Core-only package consumer | 13/13 CTests | Core 0.12 installed over an actual 0.11 prefix; no device/PkgConfig imports |
+| Values-only installed consumer | 3/3 CTests | No runtime, Threads or device imports |
+| New device module with source Core | 4/4 native CTests and 4/4 sanitizer CTests | Existing functionality moves without algorithm or assertion changes |
+| New device module with installed Core | 4/4 native CTests | No Core source/tools needed; public dependency interface works |
+| Relocated composed package consumer | 3/3 CTests | Device API/protocols, native hardware contracts and retained FrameLoop coexist |
+| Windows x64 / Linux arm64 / Android arm64 | Core/device libraries, tests, public headers and inventory example cross-built | Native PE/ELF output; no target execution |
+| iOS arm64 | Core/device static libraries cross-built | Native Apple bridge object, IOS 15.0 minimum, SDK 27.0; no device execution |
+| WASM32 pthreads | 3/3 device/state/protocol CTests in Node | Explicit unsupported hardware backend; no new browser hardware bridge |
+
+Three device CTests moved out of Core and the new boundary guard was added, so
+the prior 36-test Core set becomes 34. The standalone mandatory architecture gate
+passes 85 translation units. The source ownership test first rejected the
+pre-extraction device files; it now checks source ownership, generated headers,
+compiled units, actual target link requirements and installed package imports.
+
+The extraction comparison verifies 14 moved code/test/example files after only
+include-path and OS client/queue/test label changes. Eight existing FrameLoop and
+browser source/test/example files preserve their previously recorded hashes;
+the other 61 retained tracked Core source files match their original Git bytes.
+Existing uncommitted work and original extraction inputs are preserved under
+`build/device-extraction-baseline/`.
+
+All 45 installed Core headers match the generated public headers and the new
+0.12 dylib matches the native build. Its macOS dynamic dependencies are only
+libc++/libSystem; Hardware, hardware_capabilities and protocol symbols occur only
+in the device library. The Core 0.11 upgrade removes only its two obsolete device
+headers while preserving unrelated prefix data and the old versioned dylib.
+DESTDIR and a prefix with spaces preserve an adjacent generic header and leave
+the unstaged prefix untouched. Core 0.11 is explicitly rejected by the new device
+package to prevent duplicate old/new hardware implementations.
+
+Proof is recorded in `build/device-extraction-verification.json`, native results
+in `build/device-extraction-core-tests.xml`, sanitizer results in
+`build/sanitize/build/device-extraction-sanitizer-tests.xml`, and package results
+under `build/device-package/`. The device module's
+[validation](../../iiDeviceMultimedia/docs/validation.md) records its source,
+platform, native hardware and sanitizer boundaries, including an initial
+architecture timeout followed by an unchanged successful rerun. Installation
+remains inside Workspace; the global `~/.local` SDK was not modified. Physical
+USB/HID/BLE/audio hardware operations and other-OS runtime execution remain
+unverified by this extraction pass.
+
+## Peer iiDeviceMultimedia 0.2.0 — 2026-10-15
+
+The subsequent peer-module refactor removes the dependency in the other direction
+as well: iiDeviceMultimedia 0.2.0 no longer includes, imports, configures, links or
+calls Core. Both packages run independently and the application explicitly
+composes `ii::device::Hardware::poll()` with Core's existing EventLoop/FrameLoop.
+Device errors/codecs belong to the distinct `ii::device` namespace. No shared SDK
+base, Core adapter, optional package edge or replacement Core runtime is added.
+
+Core remains 0.12.0. All 65 Core source implementation/header files and its build
+and package definitions match the preceding extraction snapshot. The full native
+suite passes 34/34 again. Its separate installed consumer passes 13/13 with device
+package lookup disabled, preserving generic I/O, scheduling, frames, values and
+cleanup. Existing FrameLoop work is unchanged.
+
+The standalone device package passes 6/6 native CTests, 6/6 ASan/UBSan CTests,
+6/6 ThreadSanitizer CTests, 3/3 relocated installed-consumer CTests with Core lookup
+disabled, and 6/6 WASM/Node CTests. A separate application consumer passes once in
+each package-import order and compiles both header orders. It drives device poll
+from a Core timer, routes a device protocol packet through Core Channel file I/O,
+receives one OS-routed CoreMIDI UMP note, retires the timer/captures and continues
+Core frames after device shutdown. Both recorded runs report
+`frames=7 polls=5 native_notes=1`.
+
+Binary inspection confirms no cross-library dependency in either direction.
+The standalone device executable imports no Core, while the application
+composition explicitly imports both. SDK installation discovery reports no edge
+between the projects. Device Windows/Linux/Android/iOS native artifacts and WASM
+are independently cross-built without a Core target; other-OS and physical-device
+execution limits remain explicit in the device validation.
+
+Current migration and shutdown requirements are in
+[device-extraction.md](device-extraction.md) and the device
+[independence contract](../../iiDeviceMultimedia/docs/independence.md). In
+particular, the application retires its external polling driver before closing
+or destroying the hub. Foreign active-poll close stops admission and returns busy
+for owner retry, without a Core worker-thread dependency.
+
+New proof is `build/device-independence-verification.json`; Core native output is
+`build/device-independence-core-tests.xml` and installed output is
+`build/device-package/core-consumer/build/device-independence-installed-core-tests.xml`.
+The device [validation](../../iiDeviceMultimedia/docs/validation.md) records its
+current tests and binary/namespace evidence. Earlier 0.1 extraction results above
+retain their historical dependency boundary. Verification installs stay inside
+Workspace and the global ~/.local SDK is unchanged.
+
+## Native process P1 — 0.15.0 (2026-10-16)
+
+This completes the process/pipes/child-environment slice of P1 with an actual
+consumer, iiSDKBuilder 0.1.1. C++23 source, public headers, installed packages,
+source and preprocessed architecture checks, dependency direction and file
+ownership are covered. Core imports no Qt or upper SDK, including FileProvider.
+
+| Verification | Result |
+|---|---|
+| macOS arm64 Release Core suite, `build/foundation` | 39/39 CTest entries |
+| Installed Core consumer with Qt/provider discovery disabled | 16/16; includes 104 native process checks |
+| Independent installed Contracts consumer, Threads/feature discovery disabled | 2/2 |
+| Relocated installed process consumer, `build/p1-relocated/consumer/build` | 1/1; 104 process checks |
+| AddressSanitizer + UndefinedBehaviorSanitizer, Process/NativeFile/Operation/LoopIO | 4/4; no findings |
+| ThreadSanitizer Process | 1/1; 104 process checks, no findings |
+| WASM source and installed process consumers under Node | 1/1 each; four assertions of explicit unsupported behavior |
+| iiSDKBuilder Release suite | 12/12, including native Core → Addon → app build and relocated package/CLI consumer |
+| SDK dependency direction | 34 declarations, acyclic; Core and Native remain independent |
+| Workspace file creation audit | no violations or unreadable sources |
+
+The process checks exercise literal/empty/Unicode argv, Unicode child variables,
+unset versus empty values, inherited/clean environments, parent cwd/environment
+preservation, absolute and relative child PATH/cwd, independent/merged/discarded
+streams, closed input and closed host stdio, binary duplex beyond pipe capacity,
+bounded capture plus full streaming, early stdin close/SIGPIPE, stable normal and
+signal exits, wait-without-cancel, deadline/stop/explicit tree cancellation,
+remaining descendants on normal root exit, direct-child reaping, owner removal,
+move replacement, throwing sinks, concurrent communication/cancel, invalid
+inputs, unrelated handle isolation, EventLoop pipe reads, repeated resource reuse
+and failed-spawn cleanup. A real Darwin probe reproduced EPERM for a group whose
+only member was a zombie; Core verifies dead membership before treating that
+case as complete, with leader identity pinned until reaping.
+
+| Target artifacts and installed consumer | Evidence in this change | Execution limit |
+|---|---|---|
+| macOS arm64 | Mach-O library and consumer, full native execution | tested on this host |
+| Windows x86_64 | LLVM-MinGW 23, PE DLL and consumer EXE cross-build/link | no Windows execution |
+| Linux aarch64 | glibc 2.41 sysroot, ELF library and consumer cross-build/link; cwd/closefrom backend enabled | no Linux execution |
+| Android arm64 API 34 | ELF library and consumer cross-build/link; native spawn/cwd backend enabled | no device execution or app-policy proof |
+| Android arm64 API 26 | ELF library and consumer cross-build/link; subprocess capability disabled at configure | no device execution |
+| iOS arm64 | static library and Mach-O app consumer cross-build/link; subprocess unsupported | no device execution |
+| WASM | binary module plus installed consumer; unsupported subprocess/environment tested under Node | no browser or host-child-process execution |
+
+Direct Mach-O dependency inspection shows Core linking libc++ and libSystem.
+Runtime loader traces for the installed Core consumer and Builder CLI contain no
+Qt libraries; the CLI reports 0.1.1 from its CMake project version. Source hashes,
+artifact formats, test XML, dependency/audit output and loader evidence are
+collected in `build/p1-verification.json` and the adjacent p1 logs. All installs
+are isolated prefixes under build/, including package relocation; this check
+does not update the user's global SDK installation or running applications.
+
+Reproduce the native path (Core repository cwd):
+
+```sh
+cmake -S . -B build/foundation -DCMAKE_BUILD_TYPE=Release -DPython3_EXECUTABLE=/usr/bin/python3
+cmake --build build/foundation -j 4
+ctest --test-dir build/foundation --output-on-failure
+cmake --install build/foundation --prefix "$PWD/build/foundation/install"
+cmake -S tests/process-consumer -B build/process-consumer/build \
+  -DiiSDKCore_DIR="$PWD/build/foundation/install/lib/cmake/iiSDKCore"
+cmake --build build/process-consumer/build -j 4
+ctest --test-dir build/process-consumer/build --output-on-failure
+```
+
+These results concern the native process slice. Remaining P1 feature migrations
+continue to follow the concrete-consumer boundary described in process.md and
+qt-migration-p0.md; they are not inferred from process-test success.

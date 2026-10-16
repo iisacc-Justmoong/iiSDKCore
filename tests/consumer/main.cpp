@@ -1,3 +1,4 @@
+#include "../file_fixture.h"
 #include <iiSDKCore/library.h>
 #include <iiSDKCore/Runtime/EventLoop.h>
 #include <iiSDKCore/Runtime/Stream.h>
@@ -26,7 +27,7 @@ int main()
     ii::runtime::Thread worker;
     if (worker.joinable() || worker.state() != ii::runtime::ThreadState::idle || !worker.join()) return 5;
 #if !defined(__EMSCRIPTEN__)
-    auto source_file = ii::io::open_file(__FILE__);
+    auto source_file = ii::testing::open_file(__FILE__);
     std::array<std::byte, 8> io_bytes{};
     if (!source_file) return 10;
     auto io_read = source_file->read(io_bytes);

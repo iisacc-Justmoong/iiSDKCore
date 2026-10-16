@@ -1,8 +1,6 @@
 #include "serialization_record.h"
 #include <atomic>
 #include <filesystem>
-#include <iiSDKCore/IO/AtomicFile.h>
-#include <iiSDKCore/IO/Channel.h>
 #include <iiSDKCore/Runtime/Runtime.h>
 #include <iiSDKCore/Runtime/Serialization.h>
 #include <iostream>
@@ -152,22 +150,6 @@ int main() {
           "next independent decode has no retained reservation");
     check(!deserialize<Broken>(*ownedBytes),
           "ignored reader failure remains sticky");
-    auto file =
-        std::filesystem::current_path() / "iisdkcore-serialization.cbor";
-    auto transaction = ii::io::AtomicFile::create(file);
-    check(bool(transaction), "serialized atomic file creation");
-    auto written = transaction->write(*recordBytes);
-    check(written && *written == recordBytes->size() && transaction->commit(),
-          "serialized atomic commit");
-    auto channel = ii::io::open_file(file);
-    check(bool(channel), "serialized file read open");
-    Bytes read(recordBytes->size());
-    auto readCount = channel->read(read);
-    check(readCount && readCount->bytes == read.size() &&
-              serializer.deserialize(read)->type() == typeid(StoredSample),
-          "file to typed dynamic value");
-    (void)channel->close();
-    std::filesystem::remove(file);
     if (ii::runtime::Thread::supported()) {
       std::atomic<int> failures = 0;
       ii::runtime::Runtime workers({.workers = 4, .capacity = 16});

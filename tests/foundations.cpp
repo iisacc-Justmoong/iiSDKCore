@@ -1,3 +1,4 @@
+#include "file_fixture.h"
 #include <iiSDKCore/API/Services.h>
 #include <iiSDKCore/Core/Assert/Contract.h>
 #include <iiSDKCore/Core/Event/Event.h>
@@ -136,7 +137,7 @@ int run() {
 
     // Named file object owns the path and channel. Fixture lives inside build/VFS.
     const auto filename="iisdk-foundations-"+std::to_string(runtime::Clock::now().time_since_epoch().count());
-    auto file=core::File::open(root, filename, {.access=io::Access::read_write, .creation=io::Creation::create_new});
+    auto file=core::File::open(root, filename, ii::testing::open_file, {.access=io::Access::read_write, .creation=io::Creation::create_new});
     check(bool(file) && file->path()==root.path()/filename, "rooted file opening");
     check(file->channel().write(bytes)==bytes.size() && bool(file->channel().close()), "file channel composition");
     std::filesystem::remove(file->path());

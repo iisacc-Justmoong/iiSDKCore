@@ -83,15 +83,18 @@ TaskScope::~TaskScope() {
     if (!result && result.error().code!=ThreadErrorCode::work_failed) std::terminate();
 }
 std::shared_ptr<TaskScope::Job> TaskScope::prepare(Task task) const {
-    auto job=std::make_shared<Job>(impl_,std::move(task));
-    std::lock_guard lock(impl_->mutex);
-    if (impl_->closed) return {};
-    for(auto i=impl_->jobs.begin();i!=impl_->jobs.end();) {
-        if (!i->job && !i->token.pending()) i=impl_->jobs.erase(i);
+    return prepare(impl_,std::move(task));
+}
+std::shared_ptr<TaskScope::Job> TaskScope::prepare(const std::shared_ptr<Impl>& owner,Task task) {
+    auto job=std::make_shared<Job>(owner,std::move(task));
+    std::lock_guard lock(owner->mutex);
+    if (owner->closed) return {};
+    for(auto i=owner->jobs.begin();i!=owner->jobs.end();) {
+        if (!i->job && !i->token.pending()) i=owner->jobs.erase(i);
         else ++i;
     }
-    impl_->jobs.push_back({job.get(),{},false,false});
-    job->entry=std::prev(impl_->jobs.end()); job->listed=true;
+    owner->jobs.push_back({job.get(),{},false,false});
+    job->entry=std::prev(owner->jobs.end()); job->listed=true;
     return job;
 }
 Task TaskScope::callback(const std::shared_ptr<Job>& job) { return [job]{job->execute();}; }

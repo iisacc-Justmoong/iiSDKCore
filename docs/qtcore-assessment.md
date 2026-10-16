@@ -1,6 +1,17 @@
 # iiSDKCore 0.6.0 runtime assessment against Qt Core
 
+Current 0.17 update: immutable indexed resource packs, aligned native mappings and the external Builder resource compiler are implemented; see [resources](resources.md). The comparison table below retains its historical version/evidence scope. Native codecs and GUI rendering remain in upper modules.
+
+Current 0.13 foundation boundary: Core has no feature-SDK dependency. Contracts
+are independently imported; file creation/atomic publication/presentation moved
+to the optional iiFileProvider CoreIO adapter. UTF-8/bytes/structured Value and
+execution admission contracts are shared without Qt. See
+[the implemented architecture](foundation-architecture.md). This is foundation
+work, not proof that all consuming Qt modules or applications have migrated.
+
 This is the 0.6.0 evidence snapshot. The later 0.7.0 time-driven scheduling and live playout contract is documented in [realtime.md](realtime.md), with its own validation record. The later 0.8.0 [modern core families](modern-core.md) add implemented animation, parallel transforms, immutable shared snapshots, plugin loading, atomic file replacement and event filtering. The later 0.9.0 [data type serialization](serialization.md) supplies a bounded typed CBOR profile and registered DynamicValue envelopes. The test counts and missing-feature statements below belong to the 0.6.0 snapshot.
+
+Current boundary update: Core 0.12.0 moves all Hardware/Protocols device and media code, native backends and their dependencies to [iiDeviceMultimedia](../../iiDeviceMultimedia/README.md). Device 0.2 and Core are independent peers composed by applications through host polling. The table below remains a historical 0.6.0 snapshot.
 
 Assessment date: 2026-10-06. This evaluates the current source and recorded build/runtime evidence, not API names or planned capabilities. The conclusion is that iiSDKCore now provides an implemented, tested foundation for bounded scheduling, object communication, cleanup and native I/O. It remains an early platform foundation with incomplete device coverage and production validation. It cannot yet be treated as a complete replacement for Qt Core across the supported product fleet.
 

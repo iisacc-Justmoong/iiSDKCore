@@ -192,7 +192,7 @@ Core의 편의를 위해 상위 모듈의 개념을 Core로 역수입하지 않�
 - 특정 document model
 - 제품별 business logic
 
-2026-10-06의 명시적인 하드웨어 I/O 요구로 USB/HID 열거·hotplug·표준 제어 전송, Bluetooth LE GATT, PCM 오디오 입출력, MIDI UMP 전송·해석은 Core의 공통 런타임 기반에 포함한다. 합성·효과·음악 편집·제품별 독점 프로토콜 의미론은 포함하지 않는다. public 계약은 C++23 값·조합이며 네이티브 API 브리지는 private 구현이다. Apple Objective-C++ 번역 단위도 필수 다중 상속 검사를 적용한다. 플랫폼별 지원·권한·수명 계약은 `docs/hardware.md`를 따른다.
+2026-10-15의 모듈 독립 요구에 따라 USB/HID 열거·hotplug·제어 전송·report 처리, Bluetooth LE central/GATT, float32 PCM 입출력, MIDI UMP 전송·해석과 플랫폼 백엔드는 독립 동위 모듈 iiDeviceMultimedia가 소유한다. 두 모듈은 서로의 헤더·타입·심볼·타깃·설치 패키지·런타임을 참조하지 않는다. EventLoop·FrameLoop·Runtime·TaskScope·Thread와 일반 Channel·AsyncIO는 Core에 유지한다. 장치 모듈은 자체 ii::device 오류 타입과 poll()을 제공하며, 이를 Core 이벤트 루프에서 호출하는 연결은 앱이 소유한다. Core 의존 그래프의 통상적인 상위 SDK 규칙과 달리 이 모듈에는 양방향 의존성이 모두 없다. 호환 shim이나 선택적 어댑터를 Core에 추가하지 않는다. 현재 조합·마이그레이션 계약은 `docs/device-extraction.md`를 따른다.
 
 이 목록은 영구적인 금지 목록이 아니다.
 
@@ -234,7 +234,13 @@ C++ 사용자가 필요한 경우 추상화 아래의 기능을 사용할 수 �
 
 시간 민감 작업은 Core/Time의 단조 시간축과 EventLoop의 주기·마감·예산·quantum 예약으로 실행한다. 임의 C++ 콜백을 강제 선점한다고 선언하지 않는다. 예산 초과·마감 누락·놓친 주기를 관측하고, 지연된 실행을 무제한 따라잡지 않는다. LiveStream은 재생 시각·지연 한도·제한된 저장소를 조합하며 제거 시 실행 전달과 payload를 정리한다. 계약은 `docs/realtime.md`를 따른다.
 
+2026-10-14의 앱·게임 공용 런타임 요구에 따라 프레임 단계, 고정 시간 갱신·제한된 따라잡기·보간, 실제/배속 시간, 일시정지와 tick 선행 조건을 FrameLoop의 공통 책임으로 포함한다. EventLoop와 기존 DependencyGraph를 조합하며 물리·렌더러·세계·GUI 구현은 상위 모듈에 둔다. Unity·Unreal은 요구사항 참고 자료이며 의존성이 아니다. EventLoop만 사용하는 앱에 연속 프레임을 강제하지 않는다. 호스트 스레드·수명·변경·실패 계약은 `docs/frame-loop.md`를 따른다.
+
+2026-10-16의 라이브 데이터 선택 방출 요구에 따라 QueryStream은 타입 쿼리·프로젝터·구독별 bounded 출력·기존 실행기를 조합한다. 구독은 자체 QueryPort로 선택을 교체하고 버전으로 이전 대기/계산 결과를 차단한다. 선택·콜백·캡처 파괴 뒤 할당량을 반환하며 객체 전체 자동 노출, 새 전용 스레드, 전역 브로커, 네트워크/미디어 프로토콜은 추가하지 않는다. 수명·역압력·재시도 계약은 docs/query-stream.md를 따른다.
+
 ## 9. 성능 정책
+
+2026-10-16의 앱 에셋·리소스 네이티브 최적화 요구에 따라 Core 0.17은 불변 바이트 팩, 정렬·중복 제거·색인, 공유 뷰 수명과 기존 Channel의 읽기 전용 네이티브 매핑을 공통 기반으로 제공한다. 경로를 통한 파일 생성·제공은 iiFileProvider가, 대상 플랫폼 선택·생성 C++·depfile·팩 출력은 iiSDKBuilder가 담당한다. 이미지·텍스처·오디오·셰이더 변환기나 GPU·스토리지 모듈을 Core로 역수입하지 않는다. 팩의 공개 계약·예산·버전 형식·메모리 매핑 제한은 docs/resources.md를 따른다.
 
 iiSDKCore는 기반 소프트웨어이므로 성능을 중요하게 취급한다.
 
@@ -447,3 +453,19 @@ iiSDKCore의 좋은 설계는 처음부터 모든 요구사항을 해결하는 �
 ## 암시적 공유 (0.10.0)
 
 SharedValue의 복사·대입은 데이터 복사 없이 저장소를 공유하고 modify에서 자동 분리한다. 단독 소유의 미공개 저장소와 noexcept 편집에서만 제자리 재사용하며, 공개한 Snapshot 저장소는 weak_ptr 업그레이드도 보호하도록 불변으로 유지한다. use_count만으로 수정 권한을 판정하지 않는다. update의 기존 낙관적 커밋·충돌 계약은 보존한다. mutable 참조·iterator를 편집 범위 밖으로 유출하지 않는다. 수정에는 복사 횟수·실패 롤백·약한 참조·동시성·제거·설치 소비자 검증을 유지한다. 계약은 docs/implicit-sharing.md를 따른다.
+
+## 공통 계약과 기능 모듈의 경계 (0.13.0)
+
+Core는 C++23 및 네이티브 플랫폼 런타임만 참조한다. iiFileProvider 등 기능 SDK의 헤더·링크·패키지 의존성을 추가하지 않는다. 최소 데이터·실행 계약은 독립 Contracts 타깃으로 제공하고, Values와 Runtime 구현의 소비 여부는 호스트가 명시한다. Qt 호환 계층은 Core 밖에 둔다.
+
+UTF-8 텍스트·소유 Bytes/차용 ByteView·구조화 Value의 정확한 타입·수명을 보존한다. Value는 JSON 파서가 아니며, 비유한 실수·잘못된 UTF-8·포인터의 암묵적 bool 변환을 허용하지 않는다. 임시 값에서 차용 뷰를 꺼내지 않는다. 기존 DynamicValue는 타입 지정 쿼리의 std::any 저장소로 유지한다. Runtime/Execution.h의 TaskExecutor·Submission·TaskToken 계약을 QueryPort와 TaskScope가 공유한다.
+
+파일 생성·독점 생성·초기화·원자적 공개·프리뷰 통지는 iiFileProvider CoreIO가 소유한다. 이 선택적 어댑터는 Core와 Native 공급자 위에 있고 두 하위 라이브러리는 서로를 참조하지 않는다. 이전 문단의 AtomicFile 구현 위치는 이 규칙으로 대체한다. Core는 NativeFile 플랫폼 확장으로 이미 확보한 일반 파일 자원을 인수하며, 실패·할당 예외·마지막 소유자 제거 때에도 수명을 정리한다. rooted File에는 opener를 주입한다. 테스트의 자원 준비는 테스트 전용 fixture이며, 이전 저장소 회귀 검사와 예제는 새 소유 모듈에서 계속 실행한다.
+
+이 경계는 테스트 비활성 빌드에도 필수 검사한다. 설치된 Contracts 소비자는 Threads·Qt·파일 공급자를 찾지 못하도록 하여 독립성을 검증한다. 모든 상위 SDK와 제품의 Qt 이전 완료를 기반 모듈의 성공으로 대체하지 않는다. 계약은 docs/foundation-architecture.md를 따른다.
+
+## 텍스트 경계와 추적 작업 (0.14.0)
+
+텍스트 변환은 표준 문자열과 명시적인 UTF-8/UTF-16·네이티브 경로 의미론으로 제공한다. 바이트·코드 단위 인덱스와 차용 뷰의 수명을 혼동하지 않는다. JSON 문법·직렬화는 독립 기능 모듈 iiJson이 Contracts 위에서 담당하며 Core는 코덱에 의존하지 않는다.
+
+OperationOwner·Operation은 기존 TaskScope·실행기를 조합한다. 접수 실패, 실행 실패, 협력적 취소, 단조 마감, 소유자/실행기 제거, 외부 부작용 상태를 구분하며 최종 결과는 한 번만 확정한다. 대기 시간 초과가 작업 중단을 뜻하지 않는다. TaskScope::Sender는 제거된 수신 객체를 되살리지 않는 약한 접수 경계이다. 완료 전달 위치를 명시하고 SerialQueue의 순서 보장과 Thread+EventLoop의 고정 스레드 보장을 구분한다. 기존 QueryPort의 저수준 전달 동작은 유지한다. 실제 소비자는 iiCSMIDI의 소유 바이트 비동기 디코더이다. 계약은 docs/text.md·docs/operation.md·docs/qt-migration-p0.md를 따른다.

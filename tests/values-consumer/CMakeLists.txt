@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.31)
 project(iiSDKCoreIndependentValues LANGUAGES CXX)
-find_package(iiSDKCore 0.10 CONFIG REQUIRED COMPONENTS Values)
-if(TARGET iiSDKCore::iiSDKCore OR TARGET Threads::Threads OR TARGET PkgConfig::IISDKCORE_LINUX_IO)
+set(CMAKE_DISABLE_FIND_PACKAGE_iiFileProviderNative TRUE)
+find_package(iiSDKCore 0.12 CONFIG REQUIRED COMPONENTS Values)
+if(TARGET iiSDKCore::iiSDKCore OR TARGET Threads::Threads
+    OR TARGET PkgConfig::IISDKCORE_LINUX_IO
+    OR TARGET iiFileProvider::Native
+    OR TARGET iiDeviceMultimedia::iiDeviceMultimedia
+    OR TARGET PkgConfig::IIDEVICEMULTIMEDIA_LINUX_IO)
     message(FATAL_ERROR "Value-only import pulled runtime dependencies")
 endif()
 add_executable(iiSDKCoreIndependentValues ../value_modules.cpp)

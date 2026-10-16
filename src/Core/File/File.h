@@ -6,11 +6,12 @@ namespace ii::core {
 // Named resource + owning channel reference; copying shares the channel cursor.
 class File final {
 public:
+    template<class Open>
     [[nodiscard]] static io::Result<File> open(const PathRoot& root, const std::filesystem::path& relative,
-                                              io::FileOptions options={}) {
+                                              Open&& opener, io::FileOptions options={}) {
         auto path=root.resolve(relative);
         if (!path) return std::unexpected(io::Error{io::ErrorCode::invalid_argument,{}});
-        auto channel=io::open_file(*path,options);
+        auto channel=std::forward<Open>(opener)(*path,options);
         if (!channel) return std::unexpected(channel.error());
         return File(std::move(*path),std::move(*channel));
     }

@@ -1,3 +1,4 @@
+#include "file_fixture.h"
 #include <iiSDKCore/IO/AsyncIO.h>
 #include <array>
 #include <cstring>
@@ -14,6 +15,7 @@
 #endif
 
 using namespace ii::io;
+using ii::testing::open_file;
 using namespace std::chrono_literals;
 void check(bool condition, const char* message) { if (!condition) throw std::runtime_error(message); }
 template<class T> void fails(const Result<T>& result, ErrorCode error, const char* message) {
@@ -23,7 +25,9 @@ struct TestFile {
     std::filesystem::path path;
     explicit TestFile(const std::filesystem::path& directory) : path(directory /
         ("iisdk-io-" + std::to_string(ii::runtime::Clock::now().time_since_epoch().count()))) {}
-    ~TestFile() { std::error_code error; std::filesystem::remove(path, error); }
+    ~TestFile() {
+        std::error_code error; std::filesystem::remove(path, error);
+    }
 };
 int run(const std::filesystem::path& directory) {
     CancellationToken retained;

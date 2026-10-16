@@ -6,7 +6,42 @@ namespace ii::runtime {
 // Owns submitted callbacks until their captures have been destroyed. Closing
 // cancels queued work, waits for active work, then retires owned resources.
 class TaskScope final {
+    struct Impl;
+    struct Job;
 public:
+    // A copyable admission endpoint. It never keeps the owner alive and safely
+    // rejects deliveries after the owner's close/removal barrier.
+    class Sender final {
+    public:
+        template<TaskExecutor Executor>
+        [[nodiscard]] Submission post(Executor& executor, Task task,
+                                      Priority priority=Priority::normal) const {
+            if (!task) return {{},SubmitError::invalid};
+            const auto owner=owner_.lock();
+            if (!owner) return {{},SubmitError::stopped};
+            const auto job=TaskScope::prepare(owner,std::move(task));
+            if (!job) return {{},SubmitError::stopped};
+            const auto submitted=executor.post(TaskScope::callback(job),priority);
+            TaskScope::registered(job,submitted.token);
+            return submitted;
+        }
+        template<TimedTaskExecutor Executor>
+        [[nodiscard]] Submission at(Executor& executor, Clock::time_point deadline, Task task,
+                                    Priority priority=Priority::normal) const {
+            if (!task) return {{},SubmitError::invalid};
+            const auto owner=owner_.lock();
+            if (!owner) return {{},SubmitError::stopped};
+            const auto job=TaskScope::prepare(owner,std::move(task));
+            if (!job) return {{},SubmitError::stopped};
+            const auto submitted=executor.at(deadline,TaskScope::callback(job),priority);
+            TaskScope::registered(job,submitted.token);
+            return submitted;
+        }
+    private:
+        friend class TaskScope;
+        explicit Sender(const std::shared_ptr<Impl>& owner):owner_(owner){}
+        std::weak_ptr<Impl> owner_;
+    };
     explicit TaskScope(Task cleanup = {});
     ~TaskScope();
     TaskScope(const TaskScope&) = delete;
@@ -17,9 +52,7 @@ public:
     template<class Executor>
     [[nodiscard]] Submission post(Executor& executor, Task task,
                                   Priority priority = Priority::normal) const
-        requires requires(Executor& target, Task work) {
-            { target.post(std::move(work), Priority::normal) } -> std::same_as<Submission>;
-        } {
+        requires TaskExecutor<Executor> {
         if (!task) return {{}, SubmitError::invalid};
         const auto job = prepare(std::move(task));
         if (!job) return {{}, SubmitError::stopped};
@@ -28,7 +61,8 @@ public:
         return submitted;
     }
     // Timed one-shot work has the same removal barrier as immediate work.
-    [[nodiscard]] Submission at(EventLoop& executor, Clock::time_point deadline, Task task,
+    template<TimedTaskExecutor Executor>
+    [[nodiscard]] Submission at(Executor& executor, Clock::time_point deadline, Task task,
                                 Priority priority = Priority::normal) const {
         if (!task) return {{}, SubmitError::invalid};
         const auto job = prepare(std::move(task));
@@ -42,11 +76,11 @@ public:
     [[nodiscard]] ThreadResult close() const;
     [[nodiscard]] bool is_current() const noexcept;
     [[nodiscard]] bool closed() const;
+    [[nodiscard]] Sender sender() const { return Sender(impl_); }
 private:
-    struct Impl;
-    struct Job;
     std::shared_ptr<Impl> impl_;
     std::shared_ptr<Job> prepare(Task) const;
+    static std::shared_ptr<Job> prepare(const std::shared_ptr<Impl>&,Task);
     static Task callback(const std::shared_ptr<Job>&);
     static void registered(const std::shared_ptr<Job>&, TaskToken);
 };

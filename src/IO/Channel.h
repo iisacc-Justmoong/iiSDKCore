@@ -22,7 +22,7 @@ struct FileOptions final { Access access = Access::read; Creation creation = Cre
 // Raw binary 8N1, no software/hardware flow control.
 struct SerialOptions final { unsigned baud_rate = 115200; };
 struct DeviceOptions final { Access access = Access::read; };
-enum class ChannelKind { file, serial, device };
+enum class ChannelKind { file, serial, device, pipe };
 enum class Backend { posix, windows, wasm_virtual };
 enum class Interest { readable, writable };
 enum class SeekOrigin { begin, current, end };
@@ -76,15 +76,17 @@ public:
     [[nodiscard]] Result<void> close() const;
 private:
     friend class detail::ReadinessPoller;
+    friend class MappedRegion;
     struct State;
     std::shared_ptr<State> state_;
     explicit Channel(std::shared_ptr<State> state) : state_(std::move(state)) {}
-    friend Result<Channel> open_file(const std::filesystem::path&, FileOptions);
+    friend class NativeFile;
+    friend class NativePipe;
     friend Result<Channel> open_serial(const std::filesystem::path&, SerialOptions);
     friend Result<Channel> open_device(const std::filesystem::path&, DeviceOptions);
 };
 
-[[nodiscard]] Result<Channel> open_file(const std::filesystem::path& path, FileOptions options = {});
+// File opening/creation is supplied by a storage module through NativeFile.
 [[nodiscard]] Result<Channel> open_serial(const std::filesystem::path& path, SerialOptions options = {});
 // Existing POSIX character devices and FIFOs; no protocol or driver setup.
 [[nodiscard]] Result<Channel> open_device(const std::filesystem::path& path, DeviceOptions options = {});

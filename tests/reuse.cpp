@@ -1,4 +1,6 @@
+#include "file_fixture.h"
 #include <iiSDKCore/Runtime/EventLoop.h>
+#include <iiSDKCore/Runtime/FrameLoop.h>
 #include <iiSDKCore/Runtime/Stream.h>
 #include <iiSDKCore/Runtime/LiveStream.h>
 #include <iiSDKCore/Runtime/Runtime.h>
@@ -49,7 +51,7 @@ int main() {
     const auto parallel_added = allocations.load() - parallel_before;
     std::cout << "parallel reuse: 10000 iterations, operator new calls=" << parallel_added << '\n';
     if (parallel_added != 0 || !runtime.join()) return 7;
-    auto source_file = ii::io::open_file(__FILE__);
+    auto source_file = ii::testing::open_file(__FILE__);
     if (!source_file) return 8;
     ii::io::Buffer buffer(64);
     auto warm = source_file->read(buffer.bytes());
@@ -89,5 +91,16 @@ int main() {
     }
     const auto timed_added=allocations.load()-timed_before;
     std::cout << "timed/live reuse: 10000 iterations, operator new calls=" << timed_added << '\n';
-    return timed_added==0 && live.close() ? 0 : 17;
+    if (timed_added!=0 || !live.close()) return 17;
+    FrameLoop frames(loop,{.capacity=4,.fixed_step=std::chrono::milliseconds(1)});
+    int frame_calls=0;
+    if (!frames.add([&](const auto&) { ++frame_calls; }) ||
+        !frames.add([](const auto&) {},{.phase=FramePhase::fixed_update})) return 18;
+    const auto epoch=Clock::now();
+    frames.step(epoch); // Warm up the graph's cached schedule.
+    const auto frame_before=allocations.load();
+    for (int i=1;i<=10000;++i) frames.step(epoch+std::chrono::milliseconds(i));
+    const auto frame_added=allocations.load()-frame_before;
+    std::cout << "frame reuse: 10000 frames, operator new calls=" << frame_added << '\n';
+    return frame_added==0 && frame_calls==10001 ? 0 : 19;
 }

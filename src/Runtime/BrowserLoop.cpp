@@ -1,4 +1,5 @@
 #include "BrowserLoop.h"
+#include "FrameLoop.h"
 
 #include <emscripten/html5.h>
 #include <exception>
@@ -8,6 +9,7 @@ namespace ii::runtime {
 struct BrowserLoop::Impl {
     EventLoop& loop;
     PumpBudget budget;
+    FrameLoop* frames = nullptr; // Borrowed; the host owns both loops.
     std::optional<int> request;
     bool active = false;
     std::exception_ptr failure;
@@ -20,7 +22,8 @@ struct BrowserLoop::Impl {
         auto& self = *static_cast<Impl*>(context);
         self.request.reset();
         try {
-            self.loop.poll(self.budget);
+            if (self.frames) self.frames->poll(self.budget);
+            else self.loop.poll(self.budget);
             if (self.active && self.loop.state() != LoopState::stopped) {
                 if (!self.request) self.schedule();
             } else self.active = false;
@@ -38,6 +41,10 @@ BrowserLoop::BrowserLoop(EventLoop& loop, PumpBudget budget)
     : impl_(std::make_unique<Impl>(loop, budget)) {
     if (budget.max_callbacks == 0 || budget.max_time <= Clock::duration::zero())
         throw std::invalid_argument("BrowserLoop requires a positive pump budget");
+}
+BrowserLoop::BrowserLoop(FrameLoop& frames, PumpBudget budget)
+    : BrowserLoop(frames.events(), budget) {
+    impl_->frames = &frames;
 }
 BrowserLoop::~BrowserLoop() { stop(); }
 void BrowserLoop::start() {

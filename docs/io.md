@@ -1,5 +1,16 @@
 # 플랫폼 독립 I/O
 
+0.13부터 일반 파일 열기·생성은 Core 바깥의 iiFileProvider CoreIO 어댑터가 담당한다.
+이 어댑터로 연 쓰기 가능한 Channel은 성공적으로 닫힐 때 iiFileProvider Native 0.7에
+최종 파일 경로를 전달한다. 마지막 소유 참조의 정리에도 같은 처리를 적용한다.
+Provider는 별도 네이티브 워커에서 상세 정보와 프리뷰를 생성한다. 읽기 전용 채널과
+시리얼 채널은 이 알림을 생성하지 않으며, 메타데이터 생성 실패가 파일 닫기 성공을
+취소하지 않는다. 임시 파일의 원자적 공개도 어댑터가 소유한다. Core는 공급자 의존성이 없다.
+[새 기반 계약과 이전 방법](foundation-architecture.md)을 따른다.
+Darwin의 FIFO 쓰기는 디스크립터별 `F_SETNOSIGPIPE`를 적용한다. 프리뷰 생성 등
+다른 네이티브 워커가 있는 프로세스에서도 연결 종료를 오류로 반환하며, 호스트의
+프로세스 전역 신호 처리기를 바꾸지 않는다. 기존 스레드의 pending 신호는 보존한다.
+
 PTY 동시 접근 테스트는 관찰자의 `size()`와 워커의 `wait()`가 동시에 진입할 수 있음을 반영한다. 워커는 대기 진입 전 busy만 제한 시간 안에서 재시도하며, 실제 대기 중 size/close가 busy를 반환하는지 확인한다. 취소와 join을 마친 뒤 결과를 판정하므로 실패 경로에서도 워커가 테스트 지역 변수보다 오래 살아남지 않는다.
 
 iiSDKCore의 `ii::io`는 OS/드라이버가 공개하는 사용자 공간 I/O를 공통 C++ API로 다룬다. 현재 실제 백엔드는 저장장치의 일반 파일과 raw 8N1 시리얼 바이트 채널이다. 장치 드라이버 설치, 커널 접근 권한, USB/HID/GPIO/I2C/SPI, 네트워크 소켓, GPU·오디오·카메라 API는 이 변경에 포함하지 않는다. 해당 기능을 지원한다고 가정하는 범용 장치 이름이나 가짜 성공 응답을 제공하지 않는다.
@@ -10,9 +21,10 @@ Channel은 OS 자원의 RAII 참조이고 상속을 요구하지 않는다. Asyn
 
 ```cpp
 #include <iiSDKCore/IO/AsyncIO.h>
+#include <iiFileProviderCoreIO.h>
 using namespace ii::io;
 
-auto opened = open_file("data.bin", {.access=Access::read});
+auto opened = iiFileProvider::core::open_file("data.bin", {.access=Access::read});
 if (!opened) { /* opened.error(): 범주와 native 오류 */ }
 else {
     ii::runtime::Runtime io_workers({.workers=2, .capacity=64});
@@ -86,4 +98,16 @@ platform_capabilities()는 컴파일된 백엔드 지원 범위이며 Channel::c
 
 ## Native device families (0.6.0)
 
-`IO/Hardware.h` provides enumeration, native topology notifications, USB/HID controls, Bluetooth LE GATT, PCM audio and MIDI UMP through the same EventLoop. `IO/Protocols.h` contains bounded standard parsers and encoders. This API owns endpoints and their cancellation boundary independently of Channel. See [hardware I/O](hardware.md) for the platform matrix, permissions, lifetime, and current verification limits.
+Since Core 0.12, `<iiDeviceMultimedia/IO/Hardware.h>` and `<iiDeviceMultimedia/IO/Protocols.h>` provide device discovery, USB/HID, BLE, PCM and MIDI in an independent peer module. Core retains Channel/AsyncIO; neither package depends on the other. Device types/errors use ii::device and the application owns its poll() driver. See [migration](device-extraction.md) and the [device contract](../../iiDeviceMultimedia/docs/hardware.md).
+
+## Process pipes (0.15.0)
+
+NativePipe adopts existing native pipe endpoints into Channel without weakening
+NativeFile regular-file checks. Process standard pipes use partial nonblocking
+transfers, readiness/EOF, shared aliases and the same EventLoop read/write
+contract. See [native process ownership](process.md) for stream modes, native
+backends, SIGPIPE handling, bounded pumping and owner/tree cancellation.
+
+## Read-only native mappings (0.17)
+
+IO/MemoryMap.h maps a storage-provided file Channel without creating or reopening it by path. MappedRegion owns the OS view, supports bounded slices and explicit paging hints, and can back immutable resource packs. Closing a Channel does not unmap retained views. The file must remain immutable; OS-backed mapping is unsupported on WASM. See [resources.md](resources.md) for lifetime, paging, error and platform contracts.

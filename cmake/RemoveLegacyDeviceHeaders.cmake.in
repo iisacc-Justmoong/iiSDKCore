@@ -1,0 +1,6 @@
+# Upgrade only obsolete headers formerly installed by this package. Device
+# declarations and concrete atomic publication now belong to their feature SDKs.
+file(REMOVE
+    "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/@CMAKE_INSTALL_INCLUDEDIR@/iiSDKCore/IO/AtomicFile.h"
+    "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/@CMAKE_INSTALL_INCLUDEDIR@/iiSDKCore/IO/Hardware.h"
+    "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/@CMAKE_INSTALL_INCLUDEDIR@/iiSDKCore/IO/Protocols.h")

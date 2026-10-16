@@ -62,9 +62,7 @@ public:
     template<class Executor>
     [[nodiscard]] Submission post(Executor& loop, Request request, Completion completion,
                                   Priority priority = Priority::normal) const
-        requires std::copy_constructible<Request> && requires(Executor& target, Task task) {
-            { target.post(std::move(task), Priority::normal) } -> std::same_as<Submission>;
-        } {
+        requires std::copy_constructible<Request> && TaskExecutor<Executor> {
         if (executor_) {
             if constexpr (std::same_as<std::remove_cv_t<Executor>, SerialQueue>) {
                 if (&loop != &executor_->get()) return {{}, SubmitError::invalid};

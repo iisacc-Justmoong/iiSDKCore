@@ -50,6 +50,8 @@ revision()은 atomic 스냅샷으로 외부에서 읽을 수 있다. revision을
 
 Runtime은 작업 실행과 워커 수명, SerialQueue는 객체의 실행 순서를 담당한다. 기존 EventLoop는 타이머·주기·우선순위 이벤트와 호스트의 프레임 처리를 담당한다. GUI/브라우저 메인 스레드는 호스트 이벤트를 처리하고 긴 계산을 Runtime에 제출한다. 네이티브 타이머 루프는 필요하면 Thread가 소유할 수 있다. 같은 EventLoop를 여러 워커가 동시에 pump하도록 바꾸지 않는다.
 
+0.11.0의 [FrameLoop](frame-loop.md)는 EventLoop에 조합해 앱·게임의 단계별 프레임과 고정 시간 갱신을 실행한다. 워커 모델을 대체하거나 모든 객체를 호스트 스레드로 옮기지 않는다. 프레임 콜백의 선행 조건은 직렬 프레임 작업 간 순서이며, Runtime에 제출한 비동기 작업의 완료 장벽은 아니다. 완료를 EventLoop/QueryPort로 전달한 뒤 해당 프레임 단계에서 소비한다.
+
 의존 방향은 QueryPort → Runtime/SerialQueue → Thread → C++ 스레드이며, Runtime과 EventLoop는 공통 작업 토큰 식별자를 사용한다. EventLoop가 Runtime이나 QueryPort를 참조하지 않는다. 상속·전역 실행자·Qt 의존성은 없다.
 
 ## 용량·취소·메모리

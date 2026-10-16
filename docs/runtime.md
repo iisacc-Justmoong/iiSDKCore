@@ -5,9 +5,11 @@
 애플리케이션의 기본 실행 모델은 [Runtime의 멀티스레드·병렬·비동기 처리](parallel-runtime.md)이다. 객체별 SerialQueue에 연결한 쿼리를 기본으로 사용한다. 이 문서의 EventLoop는 단일 실행 영역의 예약·프레임·호스트 이벤트 의미론을 정의하며, 전체 애플리케이션을 하나의 스레드로 제한하지 않는다.
 이번 요구사항에 따라 Core에 최소 실행·중단·재개·종료 의미론을 포함한다. `AGENT.md`의 application lifecycle 범위는 “명확한 필요성이 확인되기 전까지” 제외하는 원칙이므로, 제품 공통 실행 상태만 여기서 제공한다. UIKit/AppKit/Win32/Android의 전체 앱 생명주기를 재구현하지 않는다.
 
-의존 방향은 제품/상위 SDK → EventLoop·Stream → Core/Time·C++ 표준 라이브러리 및 OS이다. [Thread](thread.md)는 작업 스레드 수명을 소유하고 선택적으로 EventLoop를 구동하며, EventLoop는 Thread를 참조하지 않는다. Core/Time은 Runtime을 참조하지 않는다. Emscripten에서는 BrowserLoop와 스레드 호스트 검사가 브라우저 C ABI를 사용한다. Core는 상위 SDK와 Qt를 참조하지 않으며, 하드웨어 계층은 공식 네이티브 장치·미디어 API를 사용한다.
+0.11.0은 앱·게임 공용 프레임 실행을 [FrameLoop](frame-loop.md)로 제공한다. EventLoop에 인스턴스로 조합하며 입력, 고정 갱신 전·중·후, 일반 갱신, 후처리, 표시 준비·표시, 종료 단계를 구분한다. 고정 시간 누적·보간·제한된 따라잡기, 실제/배속 시간, 일시정지, 콜백별 주기·활성화 및 선행 조건을 제공한다. 이벤트 중심 앱은 EventLoop만 사용하며 연속 프레임을 강제하지 않는다. Unity·Unreal의 공식 실행 모델을 참고하되 엔진·Qt·VM 의존성은 추가하지 않는다.
 
-객체 간 통신은 [QueryPort](query.md)로 표현한다. QueryPort의 비동기 전달이 EventLoop의 실행 단위로 내려가며, EventLoop가 수신 객체나 쿼리 타입에 의존하지 않는다.
+의존 방향은 제품/상위 SDK → EventLoop·Stream → Core/Time·C++ 표준 라이브러리 및 OS이다. [Thread](thread.md)는 작업 스레드 수명을 소유하고 선택적으로 EventLoop를 구동하며, 외부 HostLoop 연결은 준비 대기를 위해 관리형 Thread를 조합하며 기본 EventLoop는 자체 스레드를 생성하지 않는다. Core/Time은 Runtime을 참조하지 않는다. Emscripten에서는 BrowserLoop와 스레드 호스트 검사가 브라우저 C ABI를 사용한다. Core는 상위 SDK와 Qt를 참조하지 않는다. 장치·미디어 네이티브 API는 독립 동위 모듈 iiDeviceMultimedia가 사용한다. 두 모듈은 서로 의존하지 않으며, 앱이 자체 장치 poll() 호출을 EventLoop·FrameLoop·TaskScope와 조합한다.
+
+객체 간 통신은 [QueryPort](query.md)로 표현한다. 지속 데이터 구독은 [QueryStream](query-stream.md)이 쿼리별 필터·선택 출력·버전·bounded 큐를 조합하여 같은 실행 경로로 전달한다. QueryPort의 비동기 전달이 EventLoop의 실행 단위로 내려가며, EventLoop가 수신 객체나 쿼리 타입에 의존하지 않는다.
 
 생성 이후에도 변경할 멤버 스키마는 [ObjectProperties](object-properties.md)를 인스턴스로 소유한다. 이 계층이 PropertyQuery를 처리하며, QueryPort와 EventLoop는 동적 속성 구현에 의존하지 않는다. 동적 설계·스냅샷의 할당 비용은 아래 고정 큐/버퍼 재사용 보장과 구분한다.
 
@@ -32,7 +34,7 @@
 
 `PumpBudget`의 콜백 수 또는 시간 한도에 도달하면 호스트로 반환한다. `poll`의 0 예산은 아무것도 실행하지 않으며 음수 시간은 예외이다. `run`과 `BrowserLoop`의 0 예산은 무한 공회전을 막기 위해 예외이다. 콜백을 선점하지 않으므로 단일 콜백과 큐 검색 시간이 예산을 넘을 수 있다. 긴 계산과 blocking I/O는 외부 작업 스레드에서 수행하고 완료를 `post`한다. 오디오 하드 리얼타임 콜백용 무잠금 런타임이 아니다.
 
-주기 작업은 최초 위상을 유지하고 지연된 횟수를 `missed_ticks`로 기록해 건너뛴다. 과거 프레임을 한꺼번에 실행하지 않는다. 물리 시뮬레이션 고정 시간 적분이나 미디어 타임스탬프 동기화는 도메인 로직으로 구현한다.
+주기 작업은 최초 위상을 유지하고 지연된 횟수를 `missed_ticks`로 기록해 건너뛴다. 과거 타이머를 한꺼번에 실행하지 않는다. 고정 시간 갱신이 필요한 소비자는 FrameLoop의 제한된 누적기를 사용한다. 적분·물리 계산 자체와 미디어 타임스탬프 동기화의 도메인 의미는 상위 모듈에서 구현한다.
 
 현재 scheduler는 고정 슬롯을 순회한다. 작업 선택당 O(capacity), 저장 공간 O(capacity)이다. 소규모 코어의 명확한 의미론을 우선했으며, 타이머 수가 커질 때 heap/wheel 최적화는 실측 후 내부 구현을 교체할 수 있는 경계이다.
 
@@ -98,3 +100,7 @@ cmake --build build/android-arm64/build --parallel 4
 ```
 
 WASM은 Emscripten 대상이며 IISDKCORE_WASM_THREADS 기본값은 ON이다. pthread 워커에서는 Runtime, Thread와 EventLoop::run을 사용할 수 있으며 브라우저 메인 스레드에서는 BrowserLoop/poll을 사용한다. 단일 스레드 제한 구성은 명시적으로 OFF를 지정한다. 빌드·호스트 설정은 [스레드 계약](thread.md), 실제 실행 결과는 [검증 기록](validation.md)에 정의한다. WASI는 미지원이며 iOS·Android Core 빌드는 앱 스토어 배포 또는 물리 장치 검증과 동일하지 않다.
+
+## 외부 호스트 연결 (0.16)
+
+HostLoop는 기존 EventLoop에 외부 호스트의 깨우기 함수를 연결하고 펌프의 소유 스레드를 고정한다. 직접 제출·토큰 취소·일시정지·재개·종료와 I/O 준비가 같은 통지 경로를 사용한다. 기본 EventLoop는 스레드를 생성하지 않으며, HostLoop의 선택적 준비 대기만 관리형 Thread를 사용한다. 완료 콜백은 여전히 호스트 스레드에서 실행한다. 상세 계약은 [host-loop.md](host-loop.md)이다.

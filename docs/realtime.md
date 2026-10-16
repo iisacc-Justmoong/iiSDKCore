@@ -27,3 +27,5 @@ Close blocks producers, cancels playout, waits for active delivery/slot retireme
 Prepared trivial payload operations and scheduler slot reuse do not themselves allocate after construction. Payload creation/captures and native/event paths may allocate or block. This mutex queue does not replace a dedicated SPSC ring on an OS audio realtime callback. Hardware collectors can produce timestamped blocks for EventLoop playout.
 
 The executable usage example is examples/realtime.cpp. Exact tests and evidence are in [validation.md](validation.md).
+
+Live query filtering and per-subscriber field selection use [QueryStream](query-stream.md). Its production timestamps are metadata; use LiveStream when presentation-time scheduling and jitter control are required. Both use existing bounded runtime execution without a dedicated stream thread.

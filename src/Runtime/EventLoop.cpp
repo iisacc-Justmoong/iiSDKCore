@@ -1,4 +1,6 @@
 #include "EventLoop.h"
+#include "HostLoop.h"
+#include "Thread.h"
 #include "../IO/Poller.h"
 #include "../IO/Transfer.h"
 
@@ -25,6 +27,7 @@
 namespace ii::runtime {
 namespace {
 std::atomic<std::uint64_t> next_task_owner{1};
+thread_local std::size_t external_hosts=0;
 constexpr std::array wheel{
     Priority::high,   Priority::high,   Priority::high,      Priority::high,
     Priority::normal, Priority::normal, Priority::background};
@@ -46,17 +49,56 @@ Clock::duration transfer_timeout(std::chrono::milliseconds timeout) {
     return Clock::duration::max();
   return std::chrono::duration_cast<Clock::duration>(timeout);
 }
+struct WakeInvocation final {
+  const void* state;
+  WakeInvocation* previous;
+  static thread_local WakeInvocation* current;
+  explicit WakeInvocation(const void* value) : state(value), previous(current) { current=this; }
+  ~WakeInvocation() { current=previous; }
+  static bool contains(const void* value) {
+    for (auto* entry=current; entry; entry=entry->previous) if (entry->state==value) return true;
+    return false;
+  }
+};
+thread_local WakeInvocation* WakeInvocation::current=nullptr;
 } // namespace
 
 std::uint64_t TaskToken::next_owner() { return next_task_owner.fetch_add(1); }
-bool TaskToken::cancel() const {
-  const auto owner = executor_.lock();
-  return owner && cancel_ && cancel_(owner.get(), *this);
-}
-bool TaskToken::pending() const {
-  const auto owner = executor_.lock();
-  return owner && pending_ && pending_(owner.get(), *this);
-}
+
+struct HostLoop::State final {
+  std::weak_ptr<EventLoop::Impl> loop;
+  const std::thread::id owner=std::this_thread::get_id();
+  Task wake;
+  Thread waiter;
+  std::atomic<bool> closing{false};
+  mutable std::mutex mutex;
+  std::condition_variable idle;
+  HostLoopStats statistics{true};
+  bool pending=false;
+  std::size_t active=0;
+  std::exception_ptr failure;
+  bool registered=false; // Host-owner-only execution-context registration.
+  void signal() noexcept {
+    {
+      std::lock_guard lock(mutex);
+      ++statistics.wake_requests;
+      if (closing.load() || pending) return;
+      pending=true;
+      ++active; ++statistics.wake_signals;
+    }
+    {
+      WakeInvocation invocation(this);
+      wake(); // Public constructor admits only noexcept-invocable wake targets.
+    }
+    { std::lock_guard lock(mutex); --active; idle.notify_all(); }
+  }
+  void acknowledge() {
+    std::exception_ptr error;
+    { std::lock_guard lock(mutex); pending=false; error=failure; }
+    if (error) std::rethrow_exception(error);
+  }
+  void monitor(EventLoop::Impl&);
+};
 
 struct EventLoop::Impl {
   enum class Status { free, queued, executing, retiring };
@@ -119,6 +161,10 @@ struct EventLoop::Impl {
   struct DispatchGuard {
     Impl &impl;
     explicit DispatchGuard(Impl &value) : impl(value) {
+      std::lock_guard lock(impl.mutex);
+      if (impl.host && (impl.host->owner!=std::this_thread::get_id() ||
+          impl.host->closing.load() || WakeInvocation::contains(impl.host.get())))
+        throw std::logic_error("Hosted EventLoop dispatch requires its host thread outside wake/close");
       if (impl.dispatching.test_and_set())
         throw std::logic_error("EventLoop dispatch is already active "
                                "(recursive or concurrent pump)");
@@ -209,7 +255,8 @@ struct EventLoop::Impl {
     }
   }
   void notify() {
-    changed.notify_one();
+    ++revision;
+    changed.notify_all();
     reactor.wake();
   }
   std::optional<std::size_t> select(Clock::time_point now) {
@@ -274,16 +321,137 @@ struct EventLoop::Impl {
   std::size_t cursor = 0;
   LoopState state = LoopState::ready;
   LoopStats statistics;
+  std::shared_ptr<HostLoop::State> host;
+  std::uint64_t revision=0;
 };
+
+void HostLoop::State::monitor(EventLoop::Impl& events) {
+  try {
+    for (;;) {
+      std::unique_lock lock(events.mutex);
+      if (closing.load() || events.state==LoopState::stopped) return;
+      const auto revision=events.revision;
+      bool became_ready=false;
+      events.io_waits.clear();
+      std::optional<Clock::time_point> next;
+      if (events.state==LoopState::ready) {
+        std::size_t before=0,after=0;
+        for (const auto& slot:events.slots) if (slot.io && slot.io->ready) ++before;
+        const auto now=Clock::now();
+        events.refresh_io(now);
+        for (const auto& slot:events.slots) {
+          if (slot.status!=EventLoop::Impl::Status::queued || !slot.io) continue;
+          if (slot.io->ready) { ++after; continue; }
+          events.io_waits.push_back({slot.io->channel,slot.io->interest});
+          auto deadline=slot.deadline;
+          if (slot.io->retry_after>now) deadline=std::min(deadline,slot.io->retry_after);
+          if (!next || deadline<*next) next=deadline;
+        }
+        became_ready=after>before;
+      }
+      if (became_ready) {
+        lock.unlock(); signal(); lock.lock();
+        if (closing.load() || events.state==LoopState::stopped) return;
+        if (events.revision!=revision) continue;
+      }
+      if (events.io_waits.empty()) {
+        events.changed.wait(lock,[&] { return closing.load() || events.state==LoopState::stopped || events.revision!=revision; });
+      } else {
+        auto timeout=std::chrono::milliseconds(20);
+        if (next) timeout=std::clamp(std::chrono::ceil<std::chrono::milliseconds>(*next-Clock::now()),
+            std::chrono::milliseconds(0),timeout);
+        events.reactor.prepare(events.io_waits,timeout);
+        events.io_waits.clear();
+        ++events.statistics.io_waits;
+        { std::lock_guard measured(mutex); ++statistics.io_waits; }
+        lock.unlock(); events.reactor.wait();
+      }
+    }
+  } catch (...) {
+    { std::lock_guard lock(mutex); failure=std::current_exception(); }
+    signal();
+  }
+}
+
+std::shared_ptr<HostLoop::State> HostLoop::connect(EventLoop& loop,Task wake,HostLoopOptions options) {
+  if (!wake) throw std::invalid_argument("HostLoop requires a wake callback");
+  auto state=std::make_shared<State>();
+  state->loop=loop.impl_; state->wake=std::move(wake);
+  {
+    std::lock_guard lock(loop.impl_->mutex);
+    if (loop.impl_->host || loop.impl_->dispatching.test() || loop.impl_->state==LoopState::stopped)
+      throw std::logic_error("HostLoop requires an idle, live, unbound EventLoop");
+    loop.impl_->host=state;
+  }
+  if (options.monitor_io) {
+    auto started=state->waiter.start([state=state.get(),events=loop.impl_.get()](ThreadContext&) { state->monitor(*events); });
+    if (!started) {
+      (void)disconnect(state);
+      throw std::runtime_error("HostLoop cannot start its native readiness waiter; disable monitor_io for a manually driven host");
+    }
+  }
+  state->registered=true; ++external_hosts;
+  state->signal(); // Include submissions admitted before the host was attached.
+  return state;
+}
+core::Result<void> HostLoop::disconnect(std::shared_ptr<State> state) {
+  if (!state) return {};
+  { std::lock_guard lock(state->mutex); if (!state->statistics.connected) return {}; }
+  if (state->owner!=std::this_thread::get_id())
+    return core::fail(core::ErrorCode::wrong_executor,"HostLoop close requires its host thread");
+  if (WakeInvocation::contains(state.get()))
+    return core::fail(core::ErrorCode::busy,"HostLoop cannot detach inside its wake callback");
+  const auto events=state->loop.lock();
+  if (events) {
+    std::lock_guard lock(events->mutex);
+    if (events->dispatching.test()) return core::fail(core::ErrorCode::busy,"HostLoop cannot detach during dispatch");
+    state->closing.store(true);
+    events->notify();
+  } else state->closing.store(true);
+  Task retired;
+  {
+    std::unique_lock lock(state->mutex);
+    state->idle.wait(lock,[&]{return state->active==0;});
+    retired.swap(state->wake);
+    state->statistics.connected=false;
+  }
+  const auto joined=state->waiter.join();
+  if (state->registered) { state->registered=false; --external_hosts; }
+  if (events) {
+    std::lock_guard lock(events->mutex);
+    if (events->host==state) events->host.reset();
+  }
+  // Native wake captures retire after the barrier and outside Core locks.
+  retired=nullptr;
+  if (!joined) return core::fail(core::ErrorCode::failed,"HostLoop readiness waiter failed");
+  std::exception_ptr failure;
+  { std::lock_guard lock(state->mutex); failure=state->failure; }
+  if (failure) return std::unexpected(core::Error{core::ErrorCode::failed,"HostLoop readiness wait failed",failure});
+  return {};
+}
+HostLoop::~HostLoop() {
+  const auto closed=close();
+  if (!closed && (closed.error().code==core::ErrorCode::busy || closed.error().code==core::ErrorCode::wrong_executor))
+    std::terminate();
+}
+core::Result<void> HostLoop::close() { return disconnect(state_); }
+HostLoopStats HostLoop::stats() const { std::lock_guard lock(state_->mutex); return state_->statistics; }
+bool HostLoop::is_current_thread() noexcept { return external_hosts!=0; }
 
 EventLoop::EventLoop(std::size_t capacity)
     : impl_(std::make_shared<Impl>(capacity)) {}
-EventLoop::~EventLoop() { request_stop(); }
+EventLoop::~EventLoop() {
+  request_stop();
+  if (impl_->host) {
+    const auto detached=HostLoop::disconnect(impl_->host);
+    if (!detached && (detached.error().code==core::ErrorCode::busy || detached.error().code==core::ErrorCode::wrong_executor)) std::terminate();
+  }
+}
 
-Submission EventLoop::submit(Clock::time_point deadline,
+Submission EventLoop::submit(const std::shared_ptr<Impl>& impl_,Clock::time_point deadline,
                              Clock::duration interval, Task task,
                              Priority priority) {
-  std::lock_guard lock(impl_->mutex);
+  std::unique_lock lock(impl_->mutex);
   auto reject = [&](SubmitError error) {
     ++impl_->statistics.rejected;
     return Submission{{}, error};
@@ -320,36 +488,43 @@ Submission EventLoop::submit(Clock::time_point deadline,
   token.cancel_ = &EventLoop::cancel_impl;
   token.pending_ = &EventLoop::pending_impl;
   impl_->notify();
+  auto host=impl_->host; lock.unlock(); if (host) host->signal();
   return {token, SubmitError::none};
 }
 
 Submission EventLoop::post(Task task, Priority priority) {
-  return submit(Clock::now(), {}, std::move(task), priority);
+  return submit(impl_,Clock::now(), {}, std::move(task), priority);
 }
 Submission EventLoop::at(Clock::time_point deadline, Task task,
                          Priority priority) {
   // Clamp past deadlines to avoid overflow in timer arithmetic.
-  return submit(std::max(deadline, Clock::now()), {}, std::move(task),
+  return submit(impl_,std::max(deadline, Clock::now()), {}, std::move(task),
                 priority);
 }
 Submission EventLoop::after(Clock::duration delay, Task task,
                             Priority priority) {
-  return submit(add_saturated(Clock::now(), delay), {}, std::move(task),
+  return submit(impl_,add_saturated(Clock::now(), delay), {}, std::move(task),
                 priority);
 }
 Submission EventLoop::every(Clock::duration interval, Task task,
                             Priority priority) {
+  return submit_every(impl_,interval,std::move(task),priority);
+}
+Submission EventLoop::submit_every(const std::shared_ptr<Impl>& impl_,Clock::duration interval,Task task,Priority priority) {
   if (interval <= Clock::duration::zero()) {
     std::lock_guard lock(impl_->mutex);
     ++impl_->statistics.rejected;
     return {{}, SubmitError::invalid};
   }
-  return submit(add_saturated(Clock::now(), interval), interval,
+  return submit(impl_,add_saturated(Clock::now(), interval), interval,
                 std::move(task), priority);
 }
 
 Submission EventLoop::realtime(RealtimeSchedule schedule, SliceTask task) {
-  std::lock_guard lock(impl_->mutex);
+  return submit_realtime(impl_,std::move(schedule),std::move(task));
+}
+Submission EventLoop::submit_realtime(const std::shared_ptr<Impl>& impl_,RealtimeSchedule schedule,SliceTask task) {
+  std::unique_lock lock(impl_->mutex);
   auto reject = [&](SubmitError error) {
     ++impl_->statistics.rejected;
     return Submission{{}, error};
@@ -396,15 +571,16 @@ Submission EventLoop::realtime(RealtimeSchedule schedule, SliceTask task) {
   token.cancel_ = &EventLoop::cancel_impl;
   token.pending_ = &EventLoop::pending_impl;
   impl_->notify();
+  auto host=impl_->host; lock.unlock(); if (host) host->signal();
   return {token, SubmitError::none};
 }
 
 Submission
-EventLoop::submit_io(io::Channel channel, io::Interest interest, IOReady ready,
+EventLoop::submit_io(const std::shared_ptr<Impl>& impl_,io::Channel channel, io::Interest interest, IOReady ready,
                      IOCompletion completion,
                      std::variant<std::monostate, io::Read, io::Write> request,
                      IOWatchOptions options) {
-  std::lock_guard lock(impl_->mutex);
+  std::unique_lock lock(impl_->mutex);
   auto reject = [&](SubmitError error) {
     ++impl_->statistics.rejected;
     return Submission{{}, error};
@@ -462,18 +638,19 @@ EventLoop::submit_io(io::Channel channel, io::Interest interest, IOReady ready,
   token.cancel_ = &EventLoop::cancel_impl;
   token.pending_ = &EventLoop::pending_impl;
   impl_->notify();
+  auto host=impl_->host; lock.unlock(); if (host) host->signal();
   return {token, SubmitError::none};
 }
 Submission EventLoop::watch(io::Channel channel, io::Interest interest,
                             IOReady ready, IOWatchOptions options) {
-  return submit_io(std::move(channel), interest, std::move(ready), {},
+  return submit_io(impl_,std::move(channel), interest, std::move(ready), {},
                    std::monostate{}, std::move(options));
 }
 Submission EventLoop::read(io::Channel channel, io::Read request,
                            IOCompletion completion, Priority priority) {
   IOWatchOptions options{transfer_timeout(request.timeout), request.stop,
                          priority};
-  return submit_io(std::move(channel), io::Interest::readable, {},
+  return submit_io(impl_,std::move(channel), io::Interest::readable, {},
                    std::move(completion), std::move(request),
                    std::move(options));
 }
@@ -481,13 +658,50 @@ Submission EventLoop::write(io::Channel channel, io::Write request,
                             IOCompletion completion, Priority priority) {
   IOWatchOptions options{transfer_timeout(request.timeout), request.stop,
                          priority};
-  return submit_io(std::move(channel), io::Interest::writable, {},
+  return submit_io(impl_,std::move(channel), io::Interest::writable, {},
                    std::move(completion), std::move(request),
                    std::move(options));
 }
 
 bool EventLoop::cancel(TaskToken token) {
   return cancel_impl(impl_.get(), token);
+}
+Submission EventLoop::Sender::post(Task task,Priority priority) const {
+  const auto state=state_.lock();
+  return state ? EventLoop::submit(state,Clock::now(),{},std::move(task),priority) : Submission{{},SubmitError::stopped};
+}
+Submission EventLoop::Sender::at(Clock::time_point time,Task task,Priority priority) const {
+  const auto state=state_.lock();
+  return state ? EventLoop::submit(state,std::max(time,Clock::now()),{},std::move(task),priority) : Submission{{},SubmitError::stopped};
+}
+Submission EventLoop::Sender::after(Clock::duration delay,Task task,Priority priority) const {
+  const auto state=state_.lock();
+  return state ? EventLoop::submit(state,add_saturated(Clock::now(),delay),{},std::move(task),priority) : Submission{{},SubmitError::stopped};
+}
+Submission EventLoop::Sender::every(Clock::duration period,Task task,Priority priority) const {
+  const auto state=state_.lock();
+  return state ? EventLoop::submit_every(state,period,std::move(task),priority) : Submission{{},SubmitError::stopped};
+}
+Submission EventLoop::Sender::realtime(RealtimeSchedule schedule,SliceTask task) const {
+  const auto state=state_.lock();
+  return state ? EventLoop::submit_realtime(state,std::move(schedule),std::move(task)) : Submission{{},SubmitError::stopped};
+}
+Submission EventLoop::Sender::watch(io::Channel channel,io::Interest interest,IOReady ready,IOWatchOptions options) const {
+  const auto state=state_.lock();
+  return state ? EventLoop::submit_io(state,std::move(channel),interest,std::move(ready),{},std::monostate{},std::move(options)) : Submission{{},SubmitError::stopped};
+}
+Submission EventLoop::Sender::read(io::Channel channel,io::Read request,IOCompletion completion,Priority priority) const {
+  const auto state=state_.lock();
+  IOWatchOptions options{transfer_timeout(request.timeout),request.stop,priority};
+  return state ? EventLoop::submit_io(state,std::move(channel),io::Interest::readable,{},std::move(completion),std::move(request),std::move(options)) : Submission{{},SubmitError::stopped};
+}
+Submission EventLoop::Sender::write(io::Channel channel,io::Write request,IOCompletion completion,Priority priority) const {
+  const auto state=state_.lock();
+  IOWatchOptions options{transfer_timeout(request.timeout),request.stop,priority};
+  return state ? EventLoop::submit_io(state,std::move(channel),io::Interest::writable,{},std::move(completion),std::move(request),std::move(options)) : Submission{{},SubmitError::stopped};
+}
+bool EventLoop::Sender::cancel(TaskToken token) const {
+  const auto state=state_.lock(); return state && EventLoop::cancel_impl(state.get(),token);
 }
 bool EventLoop::pending_impl(void *owner, const TaskToken &token) {
   auto &impl = *static_cast<Impl *>(owner);
@@ -502,6 +716,7 @@ bool EventLoop::cancel_impl(void *owner, const TaskToken &token) {
   SliceTask retired_slice;
   std::optional<Impl::IOOperation> retired_io;
   bool queued = false;
+  std::shared_ptr<HostLoop::State> host;
   {
     std::lock_guard lock(impl.mutex);
     if (token.owner_ != impl.owner || token.slot_ >= impl.slots.size())
@@ -521,6 +736,7 @@ bool EventLoop::cancel_impl(void *owner, const TaskToken &token) {
       queued = true;
     }
     impl.notify();
+    host=impl.host;
   }
   if (retired_io)
     impl.reactor.synchronize();
@@ -533,6 +749,7 @@ bool EventLoop::cancel_impl(void *owner, const TaskToken &token) {
     impl.release(token.slot_);
     impl.changed.notify_all();
   }
+  if (host) host->signal();
   return true;
 }
 
@@ -707,10 +924,21 @@ std::size_t EventLoop::dispatch(PumpBudget budget) {
 std::size_t EventLoop::poll(PumpBudget budget) {
   validate_budget(budget);
   Impl::DispatchGuard guard(*impl_);
+  std::shared_ptr<HostLoop::State> host;
+  { std::lock_guard lock(impl_->mutex); host=impl_->host; }
+  if (host) host->acknowledge();
+  struct Changed final {
+    Impl& state;
+    ~Changed() { std::lock_guard lock(state.mutex); state.notify(); }
+  } changed{*impl_};
   return dispatch(budget);
 }
 
 void EventLoop::run(PumpBudget budget) {
+  {
+    std::lock_guard lock(impl_->mutex);
+    if (impl_->host) throw std::logic_error("Hosted EventLoop is driven by its external host; blocking run is unavailable");
+  }
 #if defined(__EMSCRIPTEN__) && !defined(__EMSCRIPTEN_PTHREADS__)
   (void)budget;
   throw std::logic_error("WASM requires host-driven poll() or BrowserLoop; "
@@ -761,23 +989,26 @@ void EventLoop::run(PumpBudget budget) {
 }
 
 void EventLoop::suspend() {
-  std::lock_guard lock(impl_->mutex);
+  std::unique_lock lock(impl_->mutex);
   if (impl_->state == LoopState::ready)
     impl_->state = LoopState::suspended;
   impl_->notify();
+  auto host=impl_->host; lock.unlock(); if (host) host->signal();
 }
 void EventLoop::resume() {
-  std::lock_guard lock(impl_->mutex);
+  std::unique_lock lock(impl_->mutex);
   if (impl_->state == LoopState::suspended)
     impl_->state = LoopState::ready;
   impl_->notify();
+  auto host=impl_->host; lock.unlock(); if (host) host->signal();
 }
 void EventLoop::request_stop() {
+  std::shared_ptr<HostLoop::State> host;
   {
     std::lock_guard lock(impl_->mutex);
     impl_->state = LoopState::stopped;
-    impl_->changed.notify_all();
-    impl_->reactor.wake();
+    impl_->notify();
+    host=impl_->host;
   }
   for (std::size_t i = 0; i < impl_->slots.size(); ++i) {
     TaskToken token;
@@ -791,6 +1022,7 @@ void EventLoop::request_stop() {
     }
     (void)cancel(token);
   }
+  if (host) host->signal();
 }
 LoopState EventLoop::state() const {
   std::lock_guard lock(impl_->mutex);

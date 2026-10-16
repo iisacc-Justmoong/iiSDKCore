@@ -1,3 +1,4 @@
+#include "file_fixture.h"
 #include <iiSDKCore/Runtime/EventLoop.h>
 #include <iiSDKCore/IO/AsyncIO.h>
 #include <iiSDKCore/Runtime/Thread.h>
@@ -21,6 +22,7 @@
 
 using namespace ii::runtime;
 using namespace ii::io;
+using ii::testing::open_file;
 using namespace std::chrono_literals;
 namespace {
 constexpr PumpBudget generous{128, 1s};
@@ -179,7 +181,9 @@ void fifo_contracts() {
     sigset_t blocked{},previous{},pending_signals{};
     sigemptyset(&blocked); sigaddset(&blocked,SIGPIPE);
     check(pthread_sigmask(SIG_BLOCK,&blocked,&previous)==0, "block fixture signal");
-    const bool raised=raise(SIGPIPE)==0;
+    // The pending-signal contract is local to the writing thread, including
+    // when unrelated native provider workers are present in the host.
+    const bool raised=pthread_kill(pthread_self(),SIGPIPE)==0;
     broken=writer.write(input);
     const bool inspected=sigpending(&pending_signals)==0;
     const bool preserved=inspected && sigismember(&pending_signals,SIGPIPE)==1;

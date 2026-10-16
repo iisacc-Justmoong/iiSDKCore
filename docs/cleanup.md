@@ -17,6 +17,7 @@
 | API | 제거 동작 |
 |---|---|
 | TaskScope::close / 소멸 | 등록한 post를 취소하고 run·활성 콜백·캡처 및 슬롯 반환을 기다린 뒤 cleanup을 한 번 실행 |
+| QueryStream / Subscription::close | 발행·쿼리 접수 차단, 대기 출력·펌프 취소, 활성 선택·전달·캡처 파괴 대기 후 구독 슬롯 반환 |
 | QueryPort::close / 소멸 | 대기 요청·completion 취소, 활성 send·처리기·completion 대기, 처리기 캡처 해제 |
 | SerialQueue::request_close | 해당 큐의 접수 차단과 대기 작업 취소. 활성 작업 대기는 하지 않음 |
 | SerialQueue::close / 소멸 | request_close 이후 해당 큐의 활성 작업·캡처와 슬롯 반환까지 대기 |
@@ -84,4 +85,4 @@ close는 반복 호출할 수 있으며 성공 후 다시 작업을 받지 않�
 
 ## Additional family removal boundaries (0.8.0)
 
-TaskScope::at registers timed one-shot captures with the same cancellation and retirement barrier as post. Animation uses it for phase-aligned frames; close retires track and completion captures after active frames finish. EventReceiver filters and handlers are owned QueryPort captures. Plugin close quiesces calls and completions, destroys its context, and then releases the module reference. ParallelResult cancellation settles discarded task tickets; future readiness itself does not promise executor slot retirement. SharedValue snapshots preserve explicitly shared external ownership. AtomicFile cancel/destruction removes the uncommitted temporary, while a committed target remains persistent user data. Filesystem cleanup errors are observable through explicit cancel. See [modern core contracts](modern-core.md).
+TaskScope::at registers timed one-shot captures with the same cancellation and retirement barrier as post. Animation uses it for phase-aligned frames; close retires track and completion captures after active frames finish. EventReceiver filters and handlers are owned QueryPort captures. Plugin close quiesces calls and completions, destroys its context, and then releases the module reference. ParallelResult cancellation settles discarded task tickets; future readiness itself does not promise executor slot retirement. SharedValue snapshots preserve explicitly shared external ownership. The external `iiFileProvider::core::AtomicFile` cancel/destruction removes the uncommitted temporary, while a committed target remains persistent user data. Filesystem cleanup errors are observable through explicit cancel. See [modern core contracts](modern-core.md).

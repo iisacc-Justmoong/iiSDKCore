@@ -1,3 +1,4 @@
+#include "file_fixture.h"
 #include <iiSDKCore/Runtime/TaskScope.h>
 #include <iiSDKCore/Runtime/Query.h>
 #include <iiSDKCore/Scene/Scene.h>
@@ -252,7 +253,7 @@ void async_io_cleanup() {
     Runtime runtime({.workers=1,.capacity=2}); Gate blocker;
     check(bool(runtime.post([&]{blocker.enter();})),"I/O blocker admitted"); blocker.wait();
     const auto path=std::filesystem::current_path()/"cleanup-io.tmp";
-    auto opened=ii::io::open_file(path,{ii::io::Access::read_write,ii::io::Creation::truncate});
+    auto opened=ii::testing::open_file(path,{ii::io::Access::read_write,ii::io::Creation::truncate});
     check(bool(opened),"cleanup I/O file opened");
     auto alias=*opened;
     auto resource=std::make_shared<int>(1); std::weak_ptr<int> weak=resource;

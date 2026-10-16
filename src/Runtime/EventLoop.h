@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Core/Time/Time.h"
+#include "Execution.h"
 #include "../IO/Requests.h"
 
 #include <chrono>
@@ -12,48 +12,7 @@
 #include <string_view>
 
 namespace ii::runtime {
-
-using Clock = core::Clock;
-using Task = std::function<void()>;
-enum class Priority { high, normal, background };
-enum class SubmitError { none, full, stopped, invalid, overloaded };
-enum class LoopState { ready, suspended, stopped };
-
-// Opaque value identity; an expired token cannot cancel a reused slot.
-class TaskToken final {
-public:
-  TaskToken() = default;
-  // Lifetime-safe cancellation even when the submitting executor was removed.
-  bool cancel() const;
-  [[nodiscard]] bool pending() const;
-  friend bool operator==(const TaskToken &a, const TaskToken &b) {
-    return a.owner_ == b.owner_ && a.generation_ == b.generation_ &&
-           a.slot_ == b.slot_;
-  }
-
-private:
-  friend class EventLoop;
-  friend class Runtime;
-  friend class SerialQueue;
-  static std::uint64_t next_owner();
-  std::uint64_t owner_ = 0;
-  std::uint64_t generation_ = 0;
-  std::size_t slot_ = 0;
-  std::weak_ptr<void> executor_;
-  bool (*cancel_)(void *, const TaskToken &) = nullptr;
-  bool (*pending_)(void *, const TaskToken &) = nullptr;
-};
-
-struct Submission final {
-  TaskToken token;
-  SubmitError error = SubmitError::none;
-  explicit operator bool() const noexcept { return error == SubmitError::none; }
-};
-
-struct PumpBudget final {
-  std::size_t max_callbacks = 64;
-  Clock::duration max_time = std::chrono::milliseconds(4);
-};
+class HostLoop;
 
 enum class SliceResult { complete, yield, stop };
 using SliceTask = std::function<SliceResult(const core::TimeSlice &)>;
@@ -94,7 +53,27 @@ struct IOWatchOptions final {
 // One dispatch thread, multiple producers. Compose instances and callbacks;
 // subclassing and owning raw pointers are not part of the public contract.
 class EventLoop final {
+  struct Impl;
 public:
+  // A weak producer endpoint. It never retains the EventLoop owner or allows
+  // dispatch; accepted jobs retain the same bounded slots and cancellation.
+  class Sender final {
+  public:
+    Sender() = default;
+    [[nodiscard]] Submission post(Task task, Priority priority = Priority::normal) const;
+    [[nodiscard]] Submission at(Clock::time_point, Task, Priority = Priority::normal) const;
+    [[nodiscard]] Submission after(Clock::duration, Task, Priority = Priority::normal) const;
+    [[nodiscard]] Submission every(Clock::duration, Task, Priority = Priority::normal) const;
+    [[nodiscard]] Submission realtime(RealtimeSchedule, SliceTask) const;
+    [[nodiscard]] Submission watch(io::Channel, io::Interest, IOReady, IOWatchOptions = {}) const;
+    [[nodiscard]] Submission read(io::Channel, io::Read, IOCompletion, Priority = Priority::normal) const;
+    [[nodiscard]] Submission write(io::Channel, io::Write, IOCompletion, Priority = Priority::normal) const;
+    bool cancel(TaskToken) const;
+  private:
+    friend class EventLoop;
+    explicit Sender(const std::shared_ptr<Impl>& state) : state_(state) {}
+    std::weak_ptr<Impl> state_;
+  };
   explicit EventLoop(std::size_t capacity = 1024);
   ~EventLoop();
   EventLoop(const EventLoop &) = delete;
@@ -124,6 +103,7 @@ public:
                                  IOCompletion completion,
                                  Priority priority = Priority::normal);
   bool cancel(TaskToken token);
+  [[nodiscard]] Sender sender() const noexcept { return Sender(impl_); }
 
   // Nonblocking host-driven dispatch for UIKit, Android, GUI hosts and WASM.
   std::size_t poll(PumpBudget budget = {});
@@ -137,12 +117,14 @@ public:
   [[nodiscard]] std::optional<Clock::time_point> next_deadline() const;
 
 private:
-  struct Impl;
+  friend class HostLoop;
   std::shared_ptr<Impl> impl_;
   static bool cancel_impl(void *, const TaskToken &);
   static bool pending_impl(void *, const TaskToken &);
-  Submission submit(Clock::time_point, Clock::duration, Task, Priority);
-  Submission submit_io(io::Channel, io::Interest, IOReady, IOCompletion,
+  static Submission submit(const std::shared_ptr<Impl>&, Clock::time_point, Clock::duration, Task, Priority);
+  static Submission submit_realtime(const std::shared_ptr<Impl>&, RealtimeSchedule, SliceTask);
+  static Submission submit_every(const std::shared_ptr<Impl>&, Clock::duration, Task, Priority);
+  static Submission submit_io(const std::shared_ptr<Impl>&, io::Channel, io::Interest, IOReady, IOCompletion,
                        std::variant<std::monostate, io::Read, io::Write>,
                        IOWatchOptions);
   std::size_t dispatch(PumpBudget);
