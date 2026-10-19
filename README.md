@@ -1,5 +1,10 @@
 # iiSDKCore
 
+Package release: **0.18.1** (2026-10-19). This patch packages the current
+source snapshot; build, test and installation evidence is recorded in the SDK
+patch-release report. Earlier versioned feature notes remain historical.
+
+
 iiSDKCore is the C++23 foundation runtime for iiSDK applications and games. Version 0.18.0 adds typed live query streams with per-subscriber selection, bounded delivery and explicit removal. Native resource packs, aligned immutable views, content deduplication and read-only OS memory mapping from 0.17 remain available. The external-host integration from 0.16 and native process/pipe/environment support from 0.15 remain available. USB/HID, BLE, PCM and live MIDI implementations belong to the independent [iiDeviceMultimedia](../iiDeviceMultimedia/README.md) module. Core does not link its device/media frameworks or Linux libudev/D-Bus/ALSA dependencies. See [native resources](docs/resources.md), [host integration](docs/host-loop.md), [app/game frames](docs/frame-loop.md) and the [extraction boundary](docs/device-extraction.md).
 
 The foundation has no feature-SDK dependency. `iiSDKCore::Contracts` supplies

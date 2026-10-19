@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.31)
-project(iiSDKCore VERSION 0.18.0 LANGUAGES CXX)
+project(iiSDKCore VERSION 0.18.1 LANGUAGES CXX)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 
