@@ -1,9 +1,11 @@
 #include "file_fixture.h"
 #include <iiSDKCore/IO/NativePipe.h>
 #include <atomic>
+#include <array>
 #include <cstdlib>
 #include <iostream>
 #include <new>
+#include <utility>
 
 namespace { std::atomic<bool> fail_allocation = false; int notifications = 0; }
 void *operator new(std::size_t size) {
@@ -33,11 +35,41 @@ bool retired(std::intptr_t handle) {
     return fcntl(static_cast<int>(handle), F_GETFD) == -1 && errno == EBADF;
 #endif
 }
+#if defined(_WIN32)
+void read_only_nonblocking_pipe() {
+    struct Owner final {
+        HANDLE handle = INVALID_HANDLE_VALUE;
+        ~Owner() { if (handle != INVALID_HANDLE_VALUE) CloseHandle(handle); }
+    };
+    const auto name = L"\\\\.\\pipe\\iiSDKCore-readonly-" + std::to_wstring(GetCurrentProcessId());
+    Owner server{CreateNamedPipeW(name.c_str(), PIPE_ACCESS_INBOUND | FILE_FLAG_FIRST_PIPE_INSTANCE,
+        PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_NOWAIT | PIPE_REJECT_REMOTE_CLIENTS,
+        1, 4096, 4096, 0, nullptr)};
+    check(server.handle != INVALID_HANDLE_VALUE);
+    Owner writer{CreateFileW(name.c_str(), GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr)};
+    check(writer.handle != INVALID_HANDLE_VALUE);
+    check(ConnectNamedPipe(server.handle, nullptr) || GetLastError() == ERROR_PIPE_CONNECTED);
+    const auto raw = reinterpret_cast<std::intptr_t>(std::exchange(server.handle, INVALID_HANDLE_VALUE));
+    auto reader = NativePipe::adopt(raw, Access::read);
+    check(bool(reader));
+    std::array<std::byte, 1> buffer{};
+    auto empty = reader->read(buffer);
+    check(!empty && empty.error().code == ErrorCode::would_block);
+    DWORD written = 0;
+    check(WriteFile(writer.handle, "x", 1, &written, nullptr) && written == 1);
+    auto received = reader->read(buffer);
+    check(received && received->bytes == 1 && buffer[0] == std::byte{'x'});
+    check(bool(reader->close()) && retired(raw));
+}
+#endif
 }
 int main() {
     using namespace ii::io;
     const auto path = std::filesystem::current_path() / "native-file-ownership.bin";
     try {
+#if defined(_WIN32)
+        read_only_nonblocking_pipe();
+#endif
         auto provisioned = ii::testing::open_file(path, {Access::read_write, Creation::truncate});
         check(provisioned && bool(provisioned->close()));
         auto handle = open_native(path);

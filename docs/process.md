@@ -113,6 +113,14 @@ POSIX writes suppress newly generated SIGPIPE without changing the host's signal
 handler or consuming a previously pending signal. Windows uses byte-mode named
 pipes with PIPE_NOWAIT. Read readiness includes EOF. Windows writable readiness
 is an advisory probe; a following nonblocking write can still return would_block.
+Already nonblocking byte-mode read handles are adopted without changing their
+mode. This supports read-only server handles without FILE_WRITE_ATTRIBUTES;
+handles that still require a mode change must have the Windows access rights
+required by SetNamedPipeHandleState. The native ownership regression checks
+read-only adoption, would-block, transfer and handle retirement on Windows.
+The Windows process handle-accounting test first exercises one real missing-file
+spawn error to warm process-global error-handling resources, then requires the
+exact same handle count after repeated successful and rejected launches.
 
 `communicate` pumps stdin/stdout/stderr fairly on the calling thread, closes input
 at the end of the supplied bytes, and drains outputs through EOF. Binary NUL is

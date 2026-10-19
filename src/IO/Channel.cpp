@@ -318,7 +318,13 @@ Result<Channel> NativePipe::adopt(std::intptr_t owned_handle, Access access) {
 #if defined(_WIN32)
     if (GetFileType(state->handle) != FILE_TYPE_PIPE) return failure(ErrorCode::unsupported);
     DWORD mode=PIPE_READMODE_BYTE | PIPE_NOWAIT;
-    if (!SetNamedPipeHandleState(state->handle,&mode,nullptr,nullptr)) return native_failure();
+    DWORD current_mode=0;
+    if (access==Access::read && !GetNamedPipeHandleStateW(state->handle,&current_mode,nullptr,nullptr,nullptr,nullptr,0))
+        return native_failure();
+    // Read-only server handles need FILE_WRITE_ATTRIBUTES to change mode, even
+    // when the requested byte/nonblocking mode was already set at creation.
+    if ((access!=Access::read || (current_mode&(PIPE_READMODE_MESSAGE|PIPE_NOWAIT))!=mode)
+        && !SetNamedPipeHandleState(state->handle,&mode,nullptr,nullptr)) return native_failure();
 #elif !defined(__EMSCRIPTEN__)
     struct stat info{};
     if (fstat(state->handle,&info)!=0) return native_failure();

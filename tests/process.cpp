@@ -188,12 +188,21 @@ void contracts(const std::string& fixture) {
         int count=0; for(int fd=0;fd<1024;++fd) if(fcntl(fd,F_GETFD)>=0) ++count; return count;
 #endif
     };
+#if defined(_WIN32)
+    // The first rejected Windows launch initializes process-global error
+    // resources. Warm that path before measuring process-owned handles.
+    auto warm_failure=Process::start(launch(fixture+"-missing",{}));
+    check(!warm_failure && warm_failure.error().code==ii::core::ErrorCode::not_found,
+          "missing executable reports not_found before handle accounting");
+#endif
     const auto before=resources();
     for(int i=0;i<20;++i) {
         check(run(launch(fixture,{"echo","reuse"})).exit.code==0,"repeated native launch");
         auto rejected=launch(fixture+"-missing",{}); check(!Process::start(rejected),"repeated spawn failure cleanup");
     }
-    check(resources()==before,"native handles/descriptors returned after success and spawn failure");
+    const auto after=resources();
+    check(after==before,"native handles/descriptors returned after success and spawn failure: before="+
+          std::to_string(before)+", after="+std::to_string(after));
 
     auto invalid=launch(fixture,{"echo"}); invalid.arguments[0]+="-missing";
     check(!Process::start(invalid),"spawn failure distinct from child exit");
