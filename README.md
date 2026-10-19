@@ -1,5 +1,7 @@
 # iiSDKCore
 
+[Windows 빌드 및 실행](docs/WindowsBuildAndRun.md)
+
 Package release: **0.18.1** (2026-10-19). This patch packages the current
 source snapshot; build, test and installation evidence is recorded in the SDK
 patch-release report. Earlier versioned feature notes remain historical.

@@ -7,3 +7,5 @@ Visual Studio 개발 환경에서 `cmake -S . -B build -G Ninja -DBUILD_TESTING=
 # 표준 컨테이너 회귀 테스트
 
 고정 버퍼의 PMR 테스트는 각 반복에 새 자원 객체를 연결하여 MSVC와 GNU 구현 모두에서 동일한 외부 버퍼를 재사용한다. 작은 표준 컨테이너는 성공하고 용량을 초과하는 요청은 `std::bad_alloc`으로 실패하는지 검증한다.
+
+최신 구성·실행 결과와 복구 조치는 [Windows 빌드 및 실행](WindowsBuildAndRun.md)에 기록한다.
