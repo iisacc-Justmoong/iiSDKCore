@@ -134,3 +134,11 @@ Communication between objects is configured according to [query contract](docs/q
 ## Source layout
 
 Implementation files and their headers live together under `src/`. Existing feature and platform subdirectories retain their responsibilities. Build configuration, tests, documentation, resources, and maintenance scripts remain at the project root. Configure and build using the repository-local `build/` directory.
+
+## License
+
+SPDX-License-Identifier: MIT
+
+The original code and documentation in this repository are licensed under the
+[MIT License](LICENSE). Third-party code, libraries, fonts, tools, and model
+weights retain their respective licenses.
