@@ -27,5 +27,16 @@ int main() {
     check(!path_to_utf8(std::filesystem::path(std::string("\xff",1))));
 #endif
     const auto error=to_utf16("a\xff"); check(error.error().offset==1);
+    for (unsigned a=0;a<256;++a) for (unsigned b=0;b<256;++b) {
+        const char bytes[]{char(a),char(b)};
+        const std::string_view text(bytes,2);
+        check(valid_utf8(text)==to_utf16(text).has_value());
+    }
+    for (std::size_t prefix=0;prefix<20;++prefix)
+        for (std::string_view tail:{"한글🎵", "\x80", "\xc0\xaf", "\xed\xa0\x80", "\xf4\x90\x80\x80", "\xe2\x82"}) {
+            const auto text=std::string(prefix,'a')+std::string(tail)+std::string(24,'b');
+            check(valid_utf8(text)==to_utf16(text).has_value());
+        }
+    check(valid_utf8(std::string(8192,'\0')));
     std::cout << checks << " text boundary checks passed\n";
 }

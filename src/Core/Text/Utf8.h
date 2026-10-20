@@ -1,5 +1,7 @@
 #pragma once
 #include "../Bytes/Bytes.h"
+#include <cstdint>
+#include <cstring>
 
 namespace ii::core {
 // Unicode scalar UTF-8: reject overlong encodings, surrogates and truncation.
@@ -8,7 +10,18 @@ inline bool valid_utf8(ByteView bytes) noexcept {
     std::size_t i = 0;
     while (i < bytes.size()) {
         const auto first = std::to_integer<unsigned>(bytes[i++]);
-        if (first < 0x80) continue;
+        if (first < 0x80) {
+            // ASCII runs need no scalar decoding. memcpy is alignment/alias safe,
+            // and the high-bit mask is independent of native byte order.
+            while (bytes.size() - i >= sizeof(std::uint64_t)) {
+                std::uint64_t word;
+                std::memcpy(&word, bytes.data() + i, sizeof word);
+                if (word & UINT64_C(0x8080808080808080)) break;
+                i += sizeof word;
+            }
+            while (i < bytes.size() && std::to_integer<unsigned>(bytes[i]) < 0x80) ++i;
+            continue;
+        }
         unsigned count = 0, value = 0, minimum = 0;
         if (first >= 0xc2 && first <= 0xdf) { count = 1; value = first & 0x1f; minimum = 0x80; }
         else if (first >= 0xe0 && first <= 0xef) { count = 2; value = first & 0x0f; minimum = 0x800; }

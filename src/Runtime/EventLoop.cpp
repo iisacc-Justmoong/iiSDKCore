@@ -156,6 +156,7 @@ struct EventLoop::Impl {
     std::uint64_t generation = 0, sequence = 0;
     Priority priority = Priority::normal;
     Status status = Status::free;
+    std::size_t active_position = 0;
     bool cancelled = false;
   };
   struct DispatchGuard {
@@ -176,13 +177,23 @@ struct EventLoop::Impl {
     if (capacity == 0)
       throw std::invalid_argument("EventLoop capacity must be positive");
     free.reserve(capacity);
+    active.reserve(capacity);
     io_waits.reserve(capacity);
     for (std::size_t i = capacity; i > 0; --i)
       free.push_back(i - 1);
     statistics.capacity = capacity;
   }
+  void activate(std::size_t index) {
+    slots[index].active_position = active.size();
+    active.push_back(index);
+  }
   void release(std::size_t index) {
     auto &slot = slots[index];
+    const bool was_realtime = slot.realtime.has_value();
+    const auto moved = active.back();
+    active[slot.active_position] = moved;
+    slots[moved].active_position = slot.active_position;
+    active.pop_back();
     slot.status = Status::free;
     slot.deadline = {};
     slot.interval = {};
@@ -194,14 +205,17 @@ struct EventLoop::Impl {
     slot.spent = {};
     free.push_back(index);
     --statistics.pending;
-    statistics.reserved_utilization = static_cast<double>(utilization());
+    if (was_realtime)
+      statistics.reserved_utilization = static_cast<double>(utilization());
   }
   long double utilization() const {
     long double total = 0;
-    for (const auto &slot : slots)
+    for (const auto index : active) {
+      const auto &slot = slots[index];
       if (slot.status != Status::free && slot.realtime)
         total += static_cast<long double>(slot.realtime->runtime.count()) /
                  slot.realtime->period.count();
+    }
     return total;
   }
   std::optional<Clock::time_point> deadline() const {
@@ -209,7 +223,8 @@ struct EventLoop::Impl {
     if (state != LoopState::ready)
       return next;
     const auto now = Clock::now();
-    for (const auto &slot : slots) {
+    for (const auto index : active) {
+      const auto &slot = slots[index];
       if (slot.status != Status::queued)
         continue;
       auto candidate = slot.deadline;
@@ -227,7 +242,8 @@ struct EventLoop::Impl {
     return next;
   }
   void refresh_io(Clock::time_point now) {
-    for (auto &slot : slots) {
+    for (const auto index : active) {
+      auto &slot = slots[index];
       if (slot.status != Status::queued || !slot.io)
         continue;
       auto &operation = *slot.io;
@@ -261,7 +277,7 @@ struct EventLoop::Impl {
   }
   std::optional<std::size_t> select(Clock::time_point now) {
     std::optional<std::size_t> realtime_choice;
-    for (std::size_t i = 0; i < slots.size(); ++i) {
+    for (const auto i : active) {
       auto &slot = slots[i];
       if (slot.status != Status::queued || !slot.realtime)
         continue;
@@ -292,18 +308,23 @@ struct EventLoop::Impl {
     }
     if (realtime_choice)
       return realtime_choice;
+    std::array<std::optional<std::size_t>, 3> ready;
+    for (const auto i : active) {
+      const auto &slot = slots[i];
+      if (slot.status != Status::queued || slot.realtime ||
+          !(slot.io ? bool(slot.io->ready) : slot.deadline <= now))
+        continue;
+      const auto bucket = static_cast<std::size_t>(slot.priority);
+      if (bucket >= ready.size())
+        continue; // Invalid enum values were never eligible for the priority wheel.
+      auto &candidate = ready[bucket];
+      if (!candidate || slot.sequence < slots[*candidate].sequence)
+        candidate = i;
+    }
     for (std::size_t attempt = 0; attempt < wheel.size(); ++attempt) {
       const auto priority = wheel[cursor];
       cursor = (cursor + 1) % wheel.size();
-      std::optional<std::size_t> chosen;
-      for (std::size_t i = 0; i < slots.size(); ++i) {
-        const auto &slot = slots[i];
-        if (slot.status == Status::queued && !slot.realtime &&
-            (slot.io ? bool(slot.io->ready) : slot.deadline <= now) &&
-            slot.priority == priority &&
-            (!chosen || slot.sequence < slots[*chosen].sequence))
-          chosen = i;
-      }
+      const auto chosen = ready[static_cast<std::size_t>(priority)];
       if (chosen)
         return chosen;
     }
@@ -314,6 +335,7 @@ struct EventLoop::Impl {
   std::atomic_flag dispatching = ATOMIC_FLAG_INIT;
   std::vector<Slot> slots;
   std::vector<std::size_t> free;
+  std::vector<std::size_t> active;
   const std::uint64_t owner;
   io::detail::ReadinessPoller reactor;
   std::vector<io::detail::WatchEntry> io_waits;
@@ -336,10 +358,14 @@ void HostLoop::State::monitor(EventLoop::Impl& events) {
       std::optional<Clock::time_point> next;
       if (events.state==LoopState::ready) {
         std::size_t before=0,after=0;
-        for (const auto& slot:events.slots) if (slot.io && slot.io->ready) ++before;
+        for (const auto index:events.active) {
+          const auto& slot=events.slots[index];
+          if (slot.io && slot.io->ready) ++before;
+        }
         const auto now=Clock::now();
         events.refresh_io(now);
-        for (const auto& slot:events.slots) {
+        for (const auto index:events.active) {
+          const auto& slot=events.slots[index];
           if (slot.status!=EventLoop::Impl::Status::queued || !slot.io) continue;
           if (slot.io->ready) { ++after; continue; }
           events.io_waits.push_back({slot.io->channel,slot.io->interest});
@@ -467,6 +493,7 @@ Submission EventLoop::submit(const std::shared_ptr<Impl>& impl_,Clock::time_poin
     return reject(SubmitError::full);
   const auto index = impl_->free.back();
   impl_->free.pop_back();
+  impl_->activate(index);
   auto &slot = impl_->slots[index];
   slot.task.swap(task);
   slot.deadline = deadline;
@@ -548,6 +575,7 @@ Submission EventLoop::submit_realtime(const std::shared_ptr<Impl>& impl_,Realtim
     return reject(SubmitError::overloaded);
   const auto index = impl_->free.back();
   impl_->free.pop_back();
+  impl_->activate(index);
   auto &slot = impl_->slots[index];
   slot.slice.swap(task);
   slot.realtime = schedule;
@@ -608,6 +636,7 @@ EventLoop::submit_io(const std::shared_ptr<Impl>& impl_,io::Channel channel, io:
     return reject(SubmitError::full);
   const auto index = impl_->free.back();
   impl_->free.pop_back();
+  impl_->activate(index);
   auto &slot = impl_->slots[index];
   auto &operation = slot.io.emplace();
   operation.channel = std::move(channel);
@@ -963,9 +992,11 @@ void EventLoop::run(PumpBudget budget) {
       continue;
     impl_->io_waits.clear();
     if (impl_->state == LoopState::ready) {
-      for (const auto &slot : impl_->slots)
+      for (const auto index : impl_->active) {
+        const auto &slot = impl_->slots[index];
         if (slot.status == Impl::Status::queued && slot.io && !slot.io->ready)
           impl_->io_waits.push_back({slot.io->channel, slot.io->interest});
+      }
     }
     if (!impl_->io_waits.empty()) {
       auto timeout = std::chrono::milliseconds(20);

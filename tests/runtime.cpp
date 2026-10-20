@@ -64,6 +64,26 @@ void timers_and_budgets() {
     check(loop.state() == LoopState::stopped, "stop is terminal");
 }
 
+void sparse_mixed_priority_reuse() {
+    EventLoop loop(65536);
+    std::vector<int> values;
+    auto post=[&](int value,Priority priority) { return loop.post([&,value]{values.push_back(value);},priority); };
+    (void)post(1,Priority::high);auto h2=post(2,Priority::high);
+    (void)post(3,Priority::high);auto n1=post(4,Priority::normal);
+    (void)post(5,Priority::normal);(void)post(6,Priority::background);
+    (void)post(7,Priority::high);(void)post(8,Priority::high);(void)post(9,Priority::normal);
+    check(loop.cancel(h2.token)&&loop.cancel(n1.token),"remove non-tail reservations");
+    (void)post(10,Priority::normal);
+    auto future=loop.after(1h,[]{throw std::runtime_error("future timer fired");});
+    check(loop.poll(generous)==8,"sparse mixed queue dispatch count");
+    check(values==std::vector<int>({1,3,7,8,5,9,6,10}),"weighted fairness and FIFO survive cancellation/reuse");
+    check(loop.stats().pending==1&&loop.next_deadline().has_value(),"future reservation survives sparse dispatch");
+    check(loop.cancel(future.token)&&!loop.next_deadline(),"last cancellation empties deadline state");
+    auto invalid=loop.post([]{throw std::runtime_error("invalid priority dispatched");},static_cast<Priority>(255));
+    check(loop.poll(generous)==0,"invalid enum priority is never dispatched");
+    if(invalid) check(loop.cancel(invalid.token),"invalid priority reservation remains cancellable");
+}
+
 void fairness_and_failures() {
     EventLoop loop;
     int background = 0;
@@ -226,7 +246,7 @@ void threaded_driver() {
 
 int main() {
     try {
-        queue_and_tokens(); timers_and_budgets(); fairness_and_failures(); stream_contract();
+        queue_and_tokens(); timers_and_budgets(); sparse_mixed_priority_reuse(); fairness_and_failures(); stream_contract();
 #if !defined(__EMSCRIPTEN__) || defined(__EMSCRIPTEN_PTHREADS__)
         threaded_driver(); threaded_stream();
 #endif
