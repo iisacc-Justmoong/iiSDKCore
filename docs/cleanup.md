@@ -17,6 +17,7 @@
 | API | 제거 동작 |
 |---|---|
 | TaskScope::close / 소멸 | 등록한 post를 취소하고 run·활성 콜백·캡처 및 슬롯 반환을 기다린 뒤 cleanup을 한 번 실행 |
+| TaskScope::request_close | 접수 차단·등록 작업 취소를 요청하고 활성 작업을 기다리지 않음. 늦게 등록된 토큰도 취소하며 최종 수명 장벽은 close |
 | QueryStream / Subscription::close | 발행·쿼리 접수 차단, 대기 출력·펌프 취소, 활성 선택·전달·캡처 파괴 대기 후 구독 슬롯 반환 |
 | QueryPort::close / 소멸 | 대기 요청·completion 취소, 활성 send·처리기·completion 대기, 처리기 캡처 해제 |
 | SerialQueue::request_close | 해당 큐의 접수 차단과 대기 작업 취소. 활성 작업 대기는 하지 않음 |

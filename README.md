@@ -21,6 +21,7 @@ for package selection, ownership and the 0.12 migration.
 
 ## Provided Features
 
+- [Native compute load balancing](docs/load-balancer.md): bounded dispatch across existing TaskExecutor instances, capacity-normalized load or round-robin routing, declared memory/capability admission, health thresholds, draining, cancellation-safe cleanup and per-target statistics. No AWS, Qt, remote protocol or extra worker dependency is introduced. See the [two-Runtime example](examples/load_balancer.cpp).
 - [Selective live query streams](docs/query-stream.md): typed filter/projection queries, independent subscribers, query revisions, bounded output rings, executor backpressure/retry and removal barriers. Existing Runtime workers, EventLoop/HostLoop and QueryPort supply execution and control.
 - [Native resources](docs/resources.md): deterministic indexed packs, 64-byte-aligned shared payloads, immutable embedded/owned/native-mapped views, explicit integrity/paging hints and native lifetime after channel/pack removal. iiSDKBuilder supplies the build-host compiler and target selection; iiFileProvider owns outputs. Core imports neither module.
 

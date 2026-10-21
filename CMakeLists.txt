@@ -26,6 +26,7 @@ set(_runtime_headers Runtime/Execution.h Runtime/EventLoop.h Runtime/Stream.h Ru
 list(APPEND _runtime_headers Runtime/FrameLoop.h Runtime/Operation.h IO/NativePipe.h Process/Process.h)
 list(APPEND _runtime_headers Runtime/HostLoop.h)
 list(APPEND _runtime_headers IO/MemoryMap.h Resource/Pack.h Runtime/QueryStream.h)
+list(APPEND _runtime_headers Runtime/LoadBalancer.h)
 # Remove only the generated headers owned by the former Core device API.
 file(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/include/iiSDKCore/IO/AtomicFile.h"
     "${CMAKE_CURRENT_BINARY_DIR}/include/iiSDKCore/IO/Hardware.h"
@@ -40,6 +41,7 @@ target_sources(iiSDKCore PRIVATE src/Runtime/Animation.cpp src/Plugin/Plugin.cpp
 target_sources(iiSDKCore PRIVATE src/Runtime/FrameLoop.cpp)
 target_sources(iiSDKCore PRIVATE src/Process/Process.cpp)
 target_sources(iiSDKCore PRIVATE src/Resource/Pack.cpp)
+target_sources(iiSDKCore PRIVATE src/Runtime/LoadBalancer.cpp)
 # Spawn only when child-local cwd and descriptor isolation can both be
 # implemented. Older Android/libc and sandboxed targets report unsupported.
 if(UNIX AND NOT EMSCRIPTEN AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
@@ -149,6 +151,10 @@ file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/core-boundary-$<CONFIG>.txt"
     CONTENT "$<TARGET_PROPERTY:iiSDKCore,LINK_LIBRARIES>\n$<TARGET_PROPERTY:iiSDKCore,INTERFACE_LINK_LIBRARIES>\n$<TARGET_PROPERTY:iiSDKCoreContracts,INTERFACE_LINK_LIBRARIES>\n$<TARGET_PROPERTY:iiSDKCoreValues,INTERFACE_LINK_LIBRARIES>\n")
 
 if(BUILD_TESTING)
+    add_executable(iiSDKCoreLoadBalancerTests tests/load_balancer.cpp)
+    target_link_libraries(iiSDKCoreLoadBalancerTests PRIVATE iiSDKCore::Runtime)
+    add_test(NAME iiSDKCore.LoadBalancer COMMAND iiSDKCoreLoadBalancerTests)
+    set_tests_properties(iiSDKCore.LoadBalancer PROPERTIES TIMEOUT 30)
     add_executable(iiSDKCoreQueryStreamTests tests/query_stream.cpp)
     target_link_libraries(iiSDKCoreQueryStreamTests PRIVATE iiSDKCore::Runtime)
     add_test(NAME iiSDKCore.QueryStream COMMAND iiSDKCoreQueryStreamTests)
@@ -312,6 +318,13 @@ if(BUILD_TESTING)
 endif()
 
 if(IISDKCORE_BUILD_EXAMPLES)
+    add_executable(iiSDKCoreLoadBalancerExample examples/load_balancer.cpp)
+    target_link_libraries(iiSDKCoreLoadBalancerExample PRIVATE iiSDKCore::Runtime)
+    if(BUILD_TESTING)
+        add_test(NAME iiSDKCore.LoadBalancerExample COMMAND iiSDKCoreLoadBalancerExample)
+        set_tests_properties(iiSDKCore.LoadBalancerExample PROPERTIES TIMEOUT 10
+            PASS_REGULAR_EXPRESSION "native load balancing complete: jobs=12 sum=650")
+    endif()
     add_executable(iiSDKCoreQueryStreamExample examples/query_stream.cpp)
     target_link_libraries(iiSDKCoreQueryStreamExample PRIVATE iiSDKCore::Runtime)
     if(BUILD_TESTING)
@@ -405,7 +418,7 @@ if(EMSCRIPTEN AND IISDKCORE_WASM_THREADS)
         set(IISDKCORE_BROWSER_CONTRACT_SCRIPT "iiSDKCoreIOTests.js")
         configure_file(tests/thread-browser.html "${CMAKE_CURRENT_BINARY_DIR}/io-browser.html" @ONLY)
     endif()
-    foreach(_worker_program iiSDKCoreQueryStreamTests iiSDKCoreQueryStreamExample iiSDKCoreHostLoopTests iiSDKCoreOperationTests iiSDKCoreFrameLoopTests iiSDKCoreSharingRuntimeTests iiSDKCoreSerializationExample iiSDKCoreDynamicSerializationTests iiSDKCoreModernTests iiSDKCorePluginTests iiSDKCoreRealtimeTests iiSDKCoreLoopIOTests iiSDKCoreCleanupTests iiSDKCoreFoundationsTests iiSDKCoreFoundationsExample iiSDKCoreIOTests iiSDKCoreValueTests iiSDKCoreParallelTests iiSDKCoreParallelExample iiSDKCoreThreadTests iiSDKCoreRuntimeTests iiSDKCoreQueryTests iiSDKCoreThreadExample)
+    foreach(_worker_program iiSDKCoreLoadBalancerTests iiSDKCoreLoadBalancerExample iiSDKCoreQueryStreamTests iiSDKCoreQueryStreamExample iiSDKCoreHostLoopTests iiSDKCoreOperationTests iiSDKCoreFrameLoopTests iiSDKCoreSharingRuntimeTests iiSDKCoreSerializationExample iiSDKCoreDynamicSerializationTests iiSDKCoreModernTests iiSDKCorePluginTests iiSDKCoreRealtimeTests iiSDKCoreLoopIOTests iiSDKCoreCleanupTests iiSDKCoreFoundationsTests iiSDKCoreFoundationsExample iiSDKCoreIOTests iiSDKCoreValueTests iiSDKCoreParallelTests iiSDKCoreParallelExample iiSDKCoreThreadTests iiSDKCoreRuntimeTests iiSDKCoreQueryTests iiSDKCoreThreadExample)
         if(TARGET ${_worker_program})
             target_link_options(${_worker_program} PRIVATE
                 "-sPROXY_TO_PTHREAD=1" "-sPTHREAD_POOL_SIZE=16" "-sEXIT_RUNTIME=1"

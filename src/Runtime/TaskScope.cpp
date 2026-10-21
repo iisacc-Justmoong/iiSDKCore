@@ -99,8 +99,17 @@ std::shared_ptr<TaskScope::Job> TaskScope::prepare(const std::shared_ptr<Impl>& 
 }
 Task TaskScope::callback(const std::shared_ptr<Job>& job) { return [job]{job->execute();}; }
 void TaskScope::registered(const std::shared_ptr<Job>& job,TaskToken token) {
-    std::lock_guard lock(job->owner->mutex);
-    job->entry->token=std::move(token); job->entry->registered=true; job->owner->changed.notify_all();
+    bool cancel=false;
+    {
+        std::lock_guard lock(job->owner->mutex);
+        job->entry->token=token; job->entry->registered=true;
+        cancel=job->owner->closed && !job->entry->cancelling;
+        if(cancel) job->entry->cancelling=true;
+        job->owner->changed.notify_all();
+    }
+    // request_close may have raced the executor's admission. Complete that
+    // cancellation here, outside the scope lock, once the token becomes known.
+    if(cancel) (void)token.cancel();
 }
 SubmitError TaskScope::run(Task task) const {
     if (!task) return SubmitError::invalid;
@@ -118,10 +127,22 @@ SubmitError TaskScope::run(Task task) const {
     task=nullptr;
     return SubmitError::none;
 }
-ThreadResult TaskScope::close() const {
-    if (is_current()) return error(ThreadErrorCode::self_join);
+void TaskScope::request_close() const {
     std::unique_lock lock(impl_->mutex);
     impl_->closed=true;
+    for(;;) {
+        Impl::Entry* selected=nullptr;
+        for(auto& entry:impl_->jobs) if(entry.registered && !entry.cancelling) { selected=&entry; break; }
+        if(!selected) return;
+        selected->cancelling=true;
+        const auto token=selected->token;
+        lock.unlock(); (void)token.cancel(); lock.lock();
+    }
+}
+ThreadResult TaskScope::close() const {
+    if (is_current()) return error(ThreadErrorCode::self_join);
+    request_close();
+    std::unique_lock lock(impl_->mutex);
     for (;;) {
         if (impl_->cleaned) return impl_->result();
         for(auto i=impl_->jobs.begin();i!=impl_->jobs.end();) {

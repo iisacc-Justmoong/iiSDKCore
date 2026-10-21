@@ -73,6 +73,9 @@ public:
     }
     // A synchronous operation participates in the same lifetime boundary.
     [[nodiscard]] SubmitError run(Task task) const;
+    // Stop admission and cancel queued work without waiting for active work.
+    // Capture destructors still run synchronously; close() is the final barrier.
+    void request_close() const;
     [[nodiscard]] ThreadResult close() const;
     [[nodiscard]] bool is_current() const noexcept;
     [[nodiscard]] bool closed() const;
