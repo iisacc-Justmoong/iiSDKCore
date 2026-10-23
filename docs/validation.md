@@ -1,5 +1,76 @@
 # Validation records
 
+## 앱·게임 공통 프레임 주기 추가 검증 — 2026-10-22
+
+`Application::frame_loop()`와 기존 FrameLoop 구현을 재사용하여 표시 주기와 시간 기반
+타이머의 계약을 구분했다. 공개 API나 런타임 구현은 추가 변경하지 않았으며,
+[프레임 문서](frame-loop.md#frame-cadence-and-timer-deadlines)와
+`tests/frame_loop.cpp::host_cadence_and_display_changes`를 보강했다.
+
+| 검사 | 결과 | `build/` 아래 증거 |
+|---|---|---|
+| macOS ARM64 Release, 앱 수명·프레임·시간·작업자·메모리 재사용 | 13/13 통과 | `frame-cadence-question-tests.xml` |
+| 재배치한 실제 LVRS 색상 갤러리의 Core 패키지로 빌드한 프레임 소비자 | 1/1 통과 | `frame-cadence-consumer/build/tests.xml` |
+
+소비자는 `LVRS/build/native-color-consumer-final/relocated`의 설치 헤더와 동적 라이브러리를
+참조하며 C++23, extensions OFF, `-Wall -Wextra -Wpedantic -Werror`로 컴파일했다.
+Qt·상위 파일 공급자 패키지 검색은 비활성화하고 외부 include·라이브러리 환경 변수를
+제거한 환경에서 구성·실행했다. 기본 `~/.local` 설치본은 교체하지 않았다.
+
+결정적 타임스탬프로 60·120·144 Hz를 각각 1초 구동하고 같은 루프에서 차례로 전환했다.
+각 표시 프레임에 가변 업데이트가 한 번 실행되며, 10 ms 고정 업데이트는 초당 100회로
+유지되었다. 전환 검사에서는 초기 기준 프레임을 포함해 325개 프레임·300개 고정 업데이트를
+관측했고, 주기 EventLoop 타이머 예약은 0개였다. 양수 interval 콜백도 프레임 경계에서만
+실행되며 누락된 간격을 연속 재생하지 않음을 검사했다.
+
+이 결과는 Core 스케줄링 계약의 검증이며 120/144 Hz 모니터 실행이나 물리적 표시 FPS의
+측정이 아니다. 실제 macOS 디스플레이 콜백·GPU 표시·변경 없는 장면의 제출 병합은
+iiGUI의 별도 frame-host 검사 기록과 구분한다.
+
+## 비동기 계산·QtConcurrent 대응 객체 — 2026-10-22
+
+기존 Runtime·TaskScope 위에 Concurrent, Future, Promise, FutureWatcher,
+FutureSynchronizer, TaskBuilder를 추가했다. 결과·진행률과 협력적 제어,
+소유 입력의 병렬 map/filter 및 순서가 있는 순차 reduce를 제공한다.
+Qt·상위 SDK 의존성이나 작업별 스레드를 추가하지 않는다.
+공개 계약과 차이는 [concurrent.md](concurrent.md)에 정의한다.
+
+| 검증 | 최종 결과 | `build/` 아래 증거 |
+|---|---|---|
+| macOS ARM64 Release/shared 전체 회귀·예제 | 48/48 통과 | `concurrent-full-tests.xml` |
+| 새 Future·Concurrent·예제의 ASan + UBSan | 3/3 통과 | `concurrent-validation/asan/build/concurrent-tests.xml` |
+| 같은 기능의 TSan | 3/3 통과 | `concurrent-validation/tsan/build/concurrent-tests.xml` |
+| 경로를 옮긴 shared 설치 패키지의 독립 소비자 | 2/2 통과 | `concurrent-validation/final-package/consumer/build/installed-tests.xml` |
+| Windows x64·Linux ARM64·WASM32 pthread의 테스트·예제 C++23 문법·템플릿 검사 | 9/9 통과 | `concurrent-validation/cross-syntax.json` |
+| 공개 헤더 독립 컴파일·상속 정책·Core 의존성 경계 | 통과 | `concurrent-validation/final-build.log`, 전체 CTest 결과 |
+
+두 테스트는 다중 결과의 순서, 빈 입력, move-only 데이터·관찰 캡처, 실제 네 워커의
+병렬 실행, 함수·mapper·reducer 예외, 진행률 범위, 큐 포화, 실행기 콜백 폐기,
+처리 중 취소, 정지·재개와 소유자 제거에 의한 깨우기를 검사한다. Watcher의
+알림 병합·관찰 한도 재사용·포화 후 재시도·콜백 제거 장벽도 포함한다.
+동기 편의 API는 워커에서 작업을 제출하기 전에 거절하는지 검사하여 호출자의
+참조를 빌린 작업이 오류 반환 뒤에 남지 않도록 한다.
+
+설치 소비자는 테스트 소스를 복사하여 원본 `src/`나 `~/.local` include 없이
+재배치한 패키지만 사용한다. `-Wall -Wextra -Wpedantic -Werror`, C++23,
+extensions OFF로 빌드하며 Qt·파일 공급자 패키지 검색을 비활성화한다.
+네 공개 헤더가 원본과 일치하는지, Mach-O의 rpath와 실제 로더가 검증용 설치
+라이브러리를 선택하는지 별도 확인한다. 패키지 증거는
+`concurrent-validation/final-package/verification.json`, 전체 집계는
+`concurrent-validation/verification.json`이다.
+
+ASan 재검사 중에는 bounded Runtime 테스트의 latch가 직접 제출한 워커 작업보다
+먼저 범위를 벗어나는 fixture 오류를 검출했다. latch 제거 전에 명시적으로
+`wait_idle()`을 완료하도록 수정했고 assertion이나 sanitizer를 완화하지 않았다.
+실패 기록은 `concurrent-validation/asan/build/concurrent-fixture-failure.xml`과
+`.log`에 보존한다. 더 엄격한 크로스 컴파일러의 누락 초기화 경고도 공개 스냅샷의
+멤버 기본 초기화로 수정했다. 최초 진단은
+`concurrent-validation/cross-syntax-initial.json`에 남긴다.
+
+네이티브 실행 증거는 macOS ARM64이다. Windows·Linux·WASM 결과는
+`-fsyntax-only`에 의한 공개 템플릿 검사 범위이며 링크·대상 OS·브라우저 실행
+증거로 해석하지 않는다. sanitizer의 검사 범위도 위의 새 기능 3개 테스트이다.
+
 ## 0.18.0 selective live query streams — 2026-10-16
 
 QueryStream composes typed QueryPort control, bounded per-subscriber output rings,

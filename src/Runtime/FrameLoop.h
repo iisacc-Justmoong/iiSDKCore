@@ -82,6 +82,9 @@ public:
 
   [[nodiscard]] core::Result<TickToken> add(Tick tick, TickOptions options = {});
   [[nodiscard]] core::Result<void> remove(TickToken token);
+  // Idempotently revoke registration and retire captures. Safe inside a tick;
+  // its own capture retires after that invocation, and pending ticks are skipped.
+  void close();
   [[nodiscard]] bool contains(TickToken token) const;
   [[nodiscard]] core::Result<void> set_enabled(TickToken token, bool enabled);
   [[nodiscard]] core::Result<void> add_dependency(TickToken dependent,

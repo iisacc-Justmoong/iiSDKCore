@@ -90,4 +90,9 @@ IISDKCORE_WASM_THREADS=OFF는 명시적인 제한 빌드이다. Thread와 Runtim
 
 브라우저 검증은 tests/serve_wasm.py로 pthread 빌드 디렉터리를 제공한 뒤 `parallel-browser.html`과 `iiSDKCoreBrowserTests.html`을 연다. 전자는 실제 병렬·직렬 큐 계약, 후자는 브라우저 메인 스레드의 blocking 실행 거절과 프레임 루프 계약을 검사한다. Node CTest와 실제 브라우저 검증은 별도로 기록한다.
 
-`Core/Task/Parallel.h` supplies owned-input asynchronous transforms on these same workers, with bounded chunk admission, ordered standard futures, cancellation between elements, and discarded-task settlement. `Runtime/Animation.h` uses timed TaskScope one-shots for a separate serialized animation domain. See [modern core contracts](modern-core.md) for ownership and blocking restrictions.
+`Core/Task/Parallel.h`는 같은 워커에 소유 입력 변환과 표준 future를 제공한다.
+`Runtime/Concurrent.h`는 다중 결과·진행률·취소·일시정지를 다루는 Future/Promise와
+map/filter/reduce 및 명시적인 관찰 실행기를 추가한다. 두 API는 기존 Runtime의
+슬롯과 워커를 사용한다. 자세한 계약은 [비동기 계산](concurrent.md)을 따른다.
+`Runtime/Animation.h`의 시간축 실행과 기존 Operation의 마감·부작용 추적은
+독립된 책임을 유지한다.

@@ -8,8 +8,8 @@
 #include <vector>
 
 namespace ii::animation {
-enum class Easing { linear, in_quad, out_quad, in_out_quad, smooth };
-inline double ease(Easing curve, double position) noexcept {
+enum class Easing { linear, in_quad, out_quad, in_out_quad, smooth, in_cubic, out_back };
+inline double ease(Easing curve, double position, double overshoot = 1.70158) noexcept {
   const auto p = std::clamp(position, 0.0, 1.0);
   switch (curve) {
   case Easing::in_quad:
@@ -20,6 +20,14 @@ inline double ease(Easing curve, double position) noexcept {
     return p < 0.5 ? 2 * p * p : 1 - 2 * (1 - p) * (1 - p);
   case Easing::smooth:
     return p * p * (3 - 2 * p);
+  case Easing::in_cubic:
+    return p * p * p;
+  case Easing::out_back: {
+    if (p == 0 || p == 1) return p;
+    const auto s = std::isfinite(overshoot) ? overshoot : 1.70158;
+    const auto t = p - 1;
+    return 1 + t * t * ((s + 1) * t + s);
+  }
   default:
     return p;
   }

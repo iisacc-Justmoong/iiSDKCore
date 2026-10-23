@@ -7,6 +7,21 @@ domain. Independent computation still runs on `Runtime` workers; frame callbacks
 run serially on their host thread. No Qt, engine, managed VM or interpreter is
 introduced. Core owns timing/ordering; consumers own UI, physics and rendering.
 
+`Application::frame_loop()` provides an application-owned instance for both apps
+and games. `TickOptions::interval == 0` delivers once per eligible frame phase;
+an interval throttles at frame boundaries and never creates catch-up bursts.
+`FrameLoop::close()` rejects registrations, revokes not-yet-started callbacks and
+retires captures. It is idempotent and safe from a tick; the executing capture is
+released only after its invocation returns. Application teardown closes this loop
+before detaching owned views.
+
+A display host drives `step` using native presentation-target timestamps. The
+explicit timer-based `run` remains useful for headless simulation, but a 16 ms
+timer is neither 60 Hz nor vertical synchronization. Fixed updates remain bounded
+and independent of variable display cadence; scaled gameplay can pause while
+unscaled UI callbacks continue. Display callback rate, rendered scenes and physical
+screen presentations are distinct measurements.
+
 ## References
 
 Unity's [Player loop](https://docs.unity3d.com/6000.0/Documentation/ScriptReference/LowLevel.PlayerLoop.html)
@@ -83,6 +98,50 @@ and actual frame work. `frame_budget` (default 16 ms) measures overruns without
 preempting callbacks or skipping presentation. `PumpBudget` separately bounds event
 dispatch in `poll()`. Neither promises hard real-time behavior. Move long blocking
 work to Runtime/AsyncIO.
+
+## Frame cadence and timer deadlines
+
+An app and a game use the same `Application::frame_loop()`. Register an
+`update` tick with `interval == 0` for one delivery per eligible host frame.
+Select `TickClock::unscaled` when UI or input must continue during simulation
+pause. The display host supplies timestamps to `step`; do not also start
+`FrameLoop::run()` or a second periodic frame timer on that loop.
+
+| Work | Contract | Time source |
+| --- | --- | --- |
+| UI animation or variable game update | One eligible callback per host frame | Display host timestamps, through `FrameLoop::step` |
+| Physics or deterministic simulation step | Zero or several constant-duration updates per host frame | `FrameLoopOptions::fixed_step`, bounded catch-up |
+| Debounce, autosave, timeout or periodic service work | Deadline-based dispatch independent of display frames | `EventLoop::at`, `after` or `every` |
+| Frame-bound throttled work | At most one callback per host frame, after the minimum interval | `TickOptions::interval` on its selected clock |
+
+A 16 ms timer nominally requests 62.5 callbacks per second, not 60. A timer
+set to approximately 16.67 ms still does not synchronize with the display.
+When a host changes from 60 to 120 or 144 Hz, interval-zero frame callbacks
+follow the supplied frame cadence without changing a timer interval. Their
+`delta` reflects the elapsed host time; game motion must use it rather than
+assume a fixed amount of motion per frame. A 10 ms fixed simulation step
+continues to request 100 simulation steps per elapsed second, subject to
+pause, time scale, clamping and the configured catch-up limit.
+
+Positive tick intervals are minimum delays quantized to host frames, not exact
+frequency guarantees. A late host frame coalesces missed variable-tick intervals
+into one delivery. Fixed-step catch-up has its separate bounded policy. For an
+event-driven static app, omit the display frame source until continuous updates
+are needed; iiGUI can also avoid GPU submissions when frame callbacks leave the
+scene unchanged.
+
+Count display callbacks, scene renders, GPU submissions/presentations and actual
+physical scanout separately. A successful `present` phase or a timer count alone
+does not establish visible FPS. Scheduling, occlusion, system load and the
+renderer can reduce delivery or presentation frequency.
+
+`tests/frame_loop.cpp::host_cadence_and_display_changes` feeds deterministic
+60, 120 and 144 Hz timestamps, then switches those cadences on one loop. It checks
+one variable update per host frame, an unchanged 100 Hz fixed simulation,
+frame-bound throttling without bursts and zero reserved EventLoop timer slots.
+This proves the Core scheduling contract; it is not a measurement of a 120/144 Hz
+monitor. Native display delivery and unchanged-scene presentation coalescing are
+verified separately by iiGUI's frame-host tests.
 
 ## Ownership and mutation
 

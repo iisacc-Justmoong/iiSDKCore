@@ -1,5 +1,17 @@
 # iiSDKCore
 
+Native applications can now use [Core-owned application lifetime and executable entry](docs/application.md).
+`Application` owns the event loop, shared workers and native attachment lifecycle;
+`iisdkcore_add_application` supplies Core's main and links the final C++23 program.
+GUI modules provide an upper-layer driver without adding a GUI dependency to Core.
+`Application::frame_loop()` supplies the same ordered native frame phases to apps
+and games. A display host drives its timestamps; headless drivers can use timer
+or manual stepping. Core retires frame captures before detaching application owners.
+
+[Shared easing curves](docs/easing.md) include cubic acceleration and configurable
+back overshoot for native app/game animation. These are Values-only C++23 math;
+frame cadence and framework-specific motion preferences remain separate owners.
+
 [Windows 빌드 및 실행](docs/WindowsBuildAndRun.md)
 
 Package release: **0.18.1** (2026-10-19). This patch packages the current
@@ -21,6 +33,7 @@ for package selection, ownership and the 0.12 migration.
 
 ## Provided Features
 
+- [Concurrent computations](docs/concurrent.md): instance-owned `Concurrent` work on existing Runtime workers, `Future`/`Promise` results and progress, cooperative cancellation and suspension, coalescing `FutureWatcher` delivery, explicit `FutureSynchronizer` waits, configurable `TaskBuilder`, ordered parallel map/filter and sequential reductions. Inputs are owned standard vectors; Qt and global thread pools are not required. See the [runnable example](examples/concurrent.cpp).
 - [Native compute load balancing](docs/load-balancer.md): bounded dispatch across existing TaskExecutor instances, capacity-normalized load or round-robin routing, declared memory/capability admission, health thresholds, draining, cancellation-safe cleanup and per-target statistics. No AWS, Qt, remote protocol or extra worker dependency is introduced. See the [two-Runtime example](examples/load_balancer.cpp).
 - [Selective live query streams](docs/query-stream.md): typed filter/projection queries, independent subscribers, query revisions, bounded output rings, executor backpressure/retry and removal barriers. Existing Runtime workers, EventLoop/HostLoop and QueryPort supply execution and control.
 - [Native resources](docs/resources.md): deterministic indexed packs, 64-byte-aligned shared payloads, immutable embedded/owned/native-mapped views, explicit integrity/paging hints and native lifetime after channel/pack removal. iiSDKBuilder supplies the build-host compiler and target selection; iiFileProvider owns outputs. Core imports neither module.

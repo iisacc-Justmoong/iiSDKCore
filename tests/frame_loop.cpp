@@ -127,6 +127,64 @@ void pause_scale_and_intervals() {
   check(deltas.back() == 50ms, "reenabled interval observes time since last delivery");
 }
 
+void host_cadence_and_display_changes() {
+  // Deterministic host timestamps, not measured display refresh or scanout.
+  // No nominal 16 ms timer is involved in the externally driven path.
+  for (const std::int64_t hz : {60, 120, 144}) {
+    EventLoop events;
+    FrameLoop frames(events, {.fixed_step = 10ms});
+    std::uint64_t updates = 0, presents = 0, fixed = 0;
+    Clock::duration elapsed{};
+    take(frames.add([&](const FrameContext &time) {
+      check(time.frame == ++updates, "variable update follows every host frame exactly once");
+      elapsed = time.unscaled_elapsed;
+    }, {.clock = TickClock::unscaled}));
+    take(frames.add([&](const FrameContext &time) {
+      check(time.delta == 10ms, "fixed simulation step is independent of display cadence");
+      ++fixed;
+    }, {.phase = FramePhase::fixed_update}));
+    take(frames.add([&](const auto &) { ++presents; },
+        {.phase = FramePhase::present, .clock = TickClock::unscaled}));
+    frames.step(origin);
+    for (std::int64_t i = 1; i <= hz; ++i)
+      frames.step(origin + std::chrono::duration_cast<Clock::duration>(
+          std::chrono::nanoseconds(i * 1'000'000'000 / hz)));
+    check(updates == static_cast<std::uint64_t>(hz + 1) && presents == updates &&
+        fixed == 100 && elapsed == 1s && frames.stats().dropped_fixed_steps == 0,
+        "60/120/144 Hz hosts share one variable loop and a 100 Hz simulation");
+    check(events.stats().pending == 0, "external frames reserve no periodic event timer");
+  }
+
+  EventLoop events;
+  FrameLoop frames(events, {.fixed_step = 10ms});
+  std::uint64_t updates = 0, fixed = 0, throttled = 0;
+  std::uint64_t previous_throttled_frame = 0;
+  take(frames.add([&](const FrameContext &time) {
+    check(time.frame == ++updates, "refresh changes neither skip nor duplicate host frames");
+  }, {.clock = TickClock::unscaled}));
+  take(frames.add([&](const auto &) { ++fixed; }, {.phase = FramePhase::fixed_update}));
+  take(frames.add([&](const FrameContext &time) {
+    check(time.frame > previous_throttled_frame && (!throttled || time.delta >= 50ms),
+        "interval ticks remain frame-bound and do not replay missed intervals");
+    previous_throttled_frame = time.frame;
+    ++throttled;
+  }, {.clock = TickClock::unscaled, .interval = 50ms}));
+  frames.step(origin);
+  auto segment = origin;
+  for (const std::int64_t hz : {60, 120, 144}) {
+    for (std::int64_t i = 1; i <= hz; ++i)
+      frames.step(segment + std::chrono::duration_cast<Clock::duration>(
+          std::chrono::nanoseconds(i * 1'000'000'000 / hz)));
+    segment += 1s;
+  }
+  check(updates == 325 && fixed == 300 && throttled > 1 && throttled <= 61 &&
+      frames.stats().clamped_frames == 0 && frames.stats().dropped_fixed_steps == 0 &&
+      events.stats().pending == 0,
+      "60 to 120 to 144 Hz changes preserve simulation time without a second driver");
+  std::cout << "FRAME_CADENCE_OK hosts=60,120,144 fixed_hz=100 switched_frames="
+            << updates << " timers=" << events.stats().pending << '\n';
+}
+
 void bounded_catchup_and_extremes() {
   EventLoop events;
   FrameLoop frames(events, {.fixed_step = 10ms, .max_delta = 100ms,
@@ -324,6 +382,7 @@ int main() {
     phases_and_fixed_time();
     ordering_and_identity();
     pause_scale_and_intervals();
+    host_cadence_and_display_changes();
     bounded_catchup_and_extremes();
     mutation_and_failure_cleanup();
     guards_and_frame_boundary();

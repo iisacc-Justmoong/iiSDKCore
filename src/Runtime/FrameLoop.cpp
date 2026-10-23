@@ -163,12 +163,15 @@ struct FrameLoop::Impl final {
 FrameLoop::FrameLoop(EventLoop &events, FrameLoopOptions options)
     : impl_(std::make_unique<Impl>(events, options)) {}
 FrameLoop::~FrameLoop() {
+  close();
+}
+void FrameLoop::close() {
+  impl_->check_owner();
+  if(impl_->closing) return;
   impl_->closing = true;
   for (auto &entry : impl_->entries)
     if (impl_->valid(entry.id)) {
-      Tick tick;
-      tick.swap(entry.tick);
-      impl_->retire(entry.id, tick);
+      (void)remove(TickToken(entry.id));
     }
 }
 
