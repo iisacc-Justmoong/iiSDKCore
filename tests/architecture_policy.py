@@ -8,6 +8,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 REPO = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("inheritance_policy", REPO / "tools/check_inheritance.py")
@@ -18,6 +19,31 @@ CONFIG, BUILD = None, None
 
 
 class InheritancePolicyTests(unittest.TestCase):
+    def test_repeated_line_markers_preserve_scope_lines_and_dependencies(self):
+        build = REPO/'build'
+        build.mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix='marker-policy-', dir=build) as temporary:
+            root = Path(temporary)
+            source = root/'src/records.h'
+            source.parent.mkdir()
+            source.write_text('struct Good final {};\n', encoding='utf-8')
+            external = root/'external.h'
+            external.write_text('struct External : A, B {};\n', encoding='utf-8')
+            output = (f'#line 7 "{source.as_posix()}"\nstruct Good final {{}};\n'
+                      f'#line 1 "{external.as_posix()}"\nstruct External : A, B {{}};\n'
+                      f'#line 21 "{source.as_posix()}"\nstruct Bad final : A, B {{}};\n'
+                      f'#line 5 "{external.as_posix()}"\nstruct ExternalAgain : A, B {{}};\n')
+            with patch.object(policy, 'within', wraps=policy.within) as scope_check:
+                tokens, dependencies = policy.preprocessed_tokens(output, [source.parent])
+            self.assertEqual(scope_check.call_count, 2)
+            self.assertEqual(dependencies, {source.resolve(), external.resolve()})
+            records = list(policy.records(tokens))
+            self.assertEqual([(record['name'], record['token'].line) for record in records],
+                             [('Good', 7), ('Bad', 21)])
+            issues = policy.inspect_tokens(tokens, public_roots=[source.parent])
+            self.assertEqual(len(issues), 1)
+            self.assertIn('multiple inheritance', issues[0])
+
     def findings(self, source, sealed=False):
         return policy.inspect(source, Path("fixture.h"), sealed=sealed)
 

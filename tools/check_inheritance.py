@@ -158,6 +158,7 @@ def within(path, roots):
 def preprocessed_tokens(output, roots):
     roots = [Path(root).resolve() for root in roots]
     tokens, dependencies = [], set()
+    locations = {}
     current, number, buffered, start, scoped = None, 1, [], 1, False
 
     def flush():
@@ -170,10 +171,13 @@ def preprocessed_tokens(output, roots):
         if marker:
             flush()
             filename = marker[2].replace("\\\\", "\\").replace('\\"', '"')
-            current = None if filename.startswith("<") else Path(filename).resolve()
-            scoped = current is not None and within(current, roots)
+            if filename not in locations:
+                path = None if filename.startswith("<") else Path(filename).resolve()
+                locations[filename] = (path, path is not None and within(path, roots),
+                                       path is not None and path.is_file())
+            current, scoped, exists = locations[filename]
             number = int(marker[1])
-            if current and current.is_file():
+            if exists:
                 dependencies.add(current)
             continue
         if scoped:

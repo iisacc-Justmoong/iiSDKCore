@@ -117,7 +117,10 @@ int run(std::vector<std::string> args) {
     }
     if(mode=="inherited-handle") {
 #if defined(_WIN32)
-        DWORD flags=0; return GetHandleInformation(reinterpret_cast<HANDLE>(static_cast<std::uintptr_t>(std::stoull(args.at(2)))),&flags)?94:0;
+        // Numeric handle values can name unrelated child objects. The parent
+        // checks whether its actual event was signaled, rather than this value.
+        (void)SetEvent(reinterpret_cast<HANDLE>(static_cast<std::uintptr_t>(std::stoull(args.at(2)))));
+        return 0;
 #else
         return fcntl(std::stoi(args.at(2)),F_GETFD)<0 && errno==EBADF?0:94;
 #endif

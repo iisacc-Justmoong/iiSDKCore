@@ -223,8 +223,19 @@ void contracts(const std::string& fixture) {
 #else
     SECURITY_ATTRIBUTES security{sizeof(SECURITY_ATTRIBUTES),nullptr,TRUE}; auto sentinel=CreateEventW(&security,TRUE,FALSE,nullptr);
     check(bool(sentinel),"unrelated inheritable handle fixture");
-    auto isolation=run(launch(fixture,{"inherited-handle",std::to_string(reinterpret_cast<std::uintptr_t>(sentinel))})); CloseHandle(sentinel);
-    check(isolation.exit.code==0,"unrelated inheritable handle not inherited");
+    const auto wide=std::filesystem::u8path(fixture).native();
+    auto command=L"\""+wide+L"\" inherited-handle "+std::to_wstring(reinterpret_cast<std::uintptr_t>(sentinel));
+    STARTUPINFOW startup{}; startup.cb=sizeof(startup); PROCESS_INFORMATION inherited{};
+    check(CreateProcessW(wide.c_str(),command.data(),nullptr,nullptr,TRUE,CREATE_NO_WINDOW,
+                         nullptr,nullptr,&startup,&inherited),"unrestricted inheritance oracle starts");
+    const auto completed=WaitForSingleObject(inherited.hProcess,10000)==WAIT_OBJECT_0;
+    if(!completed)(void)TerminateProcess(inherited.hProcess,1);
+    CloseHandle(inherited.hThread); CloseHandle(inherited.hProcess);
+    check(completed&&WaitForSingleObject(sentinel,0)==WAIT_OBJECT_0,"fixture signals an actually inherited event");
+    check(ResetEvent(sentinel),"inheritance oracle reset");
+    auto isolation=run(launch(fixture,{"inherited-handle",std::to_string(reinterpret_cast<std::uintptr_t>(sentinel))}));
+    const auto isolated=WaitForSingleObject(sentinel,0)==WAIT_TIMEOUT; CloseHandle(sentinel);
+    check(isolation.exit.code==0&&isolated,"unrelated inheritable event not signaled by child");
 #endif
     // A caller can use an EventLoop instead of communicate; pipe kinds retain
     // the existing bounded readiness/completion contract.
