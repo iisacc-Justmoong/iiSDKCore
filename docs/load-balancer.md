@@ -1,5 +1,9 @@
 # 네이티브 컴퓨팅 리소스 로드 밸런서
 
+0.19의 [Application·Classic 라우팅과 비동기 예약](load-routing.md)은 대상 그룹,
+least_outstanding·flow_hash 정책과 LoadLease의 수명을 확장한다. 아래 0.18 이전의
+기본 계산 분산 계약과 검증 기록은 유지하며 새 예약의 종료 규칙은 해당 문서를 따른다.
+
 `Runtime/LoadBalancer.h`의 `ii::runtime::LoadBalancer`는 여러 기존 실행기에
 계산 작업을 배분하는 C++23 객체이다. `Runtime`, `SerialQueue`, `EventLoop`의
 `TaskExecutor` 계약을 그대로 받는다. 공통 `post(Task, Priority)`를 제공하므로

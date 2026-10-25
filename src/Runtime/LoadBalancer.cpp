@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
+#include <cmath>
 #include <limits>
 #include <mutex>
 #include <stdexcept>
@@ -37,6 +38,15 @@ bool cannot_block() {
     return Runtime::is_worker_thread();
 }
 bool valid(ShutdownMode mode) { return mode==ShutdownMode::drain || mode==ShutdownMode::cancel_pending; }
+bool valid(BalancePolicy policy) {
+    return policy==BalancePolicy::round_robin || policy==BalancePolicy::least_loaded ||
+        policy==BalancePolicy::least_outstanding || policy==BalancePolicy::flow_hash;
+}
+std::uint64_t mix(std::uint64_t value) {
+    value=(value^(value>>30))*0xbf58476d1ce4e5b9ULL;
+    value=(value^(value>>27))*0x94d049bb133111ebULL;
+    return value^(value>>31);
+}
 LoadTarget next_target() {
     static std::atomic<std::uint64_t> next{1};
     auto value=next.load(std::memory_order_relaxed);
@@ -52,6 +62,7 @@ struct LoadBalancer::Target final {
     LoadTargetStats statistics;
     SubmitFunction submit;
     TaskScope scope;
+    std::stop_source stop;
     std::uint32_t successes=0,failures=0;
     std::exception_ptr failure;
     Target(SubmitFunction execute,LoadTargetOptions settings):options(std::move(settings)),submit(std::move(execute)) {
@@ -59,6 +70,7 @@ struct LoadBalancer::Target final {
         statistics.capacity=options.capacity;
         statistics.memory_capacity=options.memory_capacity;
         statistics.capabilities=options.capabilities;
+        statistics.group=options.group;
         statistics.health=options.require_health_check ? TargetHealth::initial : TargetHealth::healthy;
     }
     Submission post(Task task,Priority priority) { return submit(std::move(task),priority); }
@@ -70,10 +82,11 @@ struct LoadBalancer::Impl final {
     std::mutex lifecycle;
     std::condition_variable changed;
     std::vector<std::shared_ptr<Target>> targets;
-    std::size_t cursor=0;
+    struct Group final { LoadGroup id=0; std::size_t cursor=0,targets=0; };
+    std::vector<Group> groups;
     LoadBalancerStats statistics;
     std::exception_ptr failure;
-    explicit Impl(LoadBalancerOptions settings):options(settings),targets(settings.max_targets) {
+    explicit Impl(LoadBalancerOptions settings):options(settings),targets(settings.max_targets),groups(settings.max_targets) {
         statistics.capacity=options.capacity;
         statistics.max_targets=options.max_targets;
     }
@@ -83,12 +96,17 @@ struct LoadBalancer::Impl final {
     }
     ThreadResult result(const std::shared_ptr<Target>& target={}) const {
         const auto failed=target ? target->failure : failure;
-        return failed ? error(ThreadErrorCode::work_failed,failed) : ThreadResult{};
+        const auto count=target ? target->statistics.failed : statistics.failed;
+        return count ? error(ThreadErrorCode::work_failed,failed) : ThreadResult{};
     }
-    ThreadResult wait(const std::shared_ptr<Target>& target={}) {
+    ThreadResult wait(const std::shared_ptr<Target>& target={},bool lifecycle=false) {
         if(Activity::contains(this,target.get())) return error(ThreadErrorCode::self_join);
         std::unique_lock lock(mutex);
         const auto idle=[&]{return target ? target->statistics.in_flight==0 : statistics.in_flight==0;};
+        // External reservations can be held by the lifecycle caller itself.
+        // Request cancellation, then let that owner release and retry the barrier.
+        if(lifecycle && (target ? target->statistics.reservations : statistics.reservations))
+            return error(ThreadErrorCode::would_block);
         if(!idle() && cannot_block()) return error(ThreadErrorCode::would_block);
         changed.wait(lock,idle);
         return result(target);
@@ -103,6 +121,7 @@ struct LoadBalancer::Ticket final {
     LoadRequest request;
     std::atomic<Outcome> outcome{Outcome::cancelled};
     bool admitted=false;
+    bool reservation=false;
     std::exception_ptr failure;
     Ticket(std::shared_ptr<Impl> state,Task work,LoadRequest resources)
         :owner(std::move(state)),task(std::move(work)),request(resources) {}
@@ -114,6 +133,7 @@ struct LoadBalancer::Ticket final {
         auto& all=owner->statistics;
         auto& selected=target->statistics;
         --all.in_flight; --selected.in_flight;
+        if(reservation) { --all.reservations; --selected.reservations; }
         selected.units-=request.units; selected.memory_bytes-=request.memory_bytes;
         if(admitted) {
             switch(outcome.load(std::memory_order_acquire)) {
@@ -140,16 +160,33 @@ struct LoadBalancer::Ticket final {
         admit(); // an inline executor may finish or throw before post returns
         try { task(); outcome.store(Outcome::completed,std::memory_order_release); }
         catch(...) {
-            failure=std::current_exception();
-            outcome.store(Outcome::failed,std::memory_order_release);
+            fail(std::current_exception());
             throw;
         }
     }
+    void fail(std::exception_ptr cause) noexcept {
+        std::lock_guard lock(owner->mutex);
+        if(!failure) failure=std::move(cause);
+        outcome.store(Outcome::failed,std::memory_order_release);
+    }
+    struct Delivery final {
+        std::shared_ptr<Ticket> ticket;
+        Task task;
+        Delivery(std::shared_ptr<Ticket> request,Task work):ticket(std::move(request)),task(std::move(work)) {}
+        ~Delivery() {
+            Activity retiring(ticket->owner.get(),ticket->target.get());
+            task=nullptr;
+        }
+        void run() {
+            Activity active(ticket->owner.get(),ticket->target.get());
+            try { task(); }
+            catch(...) { ticket->fail(std::current_exception()); throw; }
+        }
+    };
 };
 
 LoadBalancer::LoadBalancer(LoadBalancerOptions options) {
-    if(!options.capacity || !options.max_targets ||
-        (options.policy!=BalancePolicy::round_robin && options.policy!=BalancePolicy::least_loaded))
+    if(!options.capacity || !options.max_targets || !valid(options.policy))
         throw std::invalid_argument("LoadBalancer requires positive bounds and a valid policy");
     impl_=std::make_shared<Impl>(options);
 }
@@ -165,8 +202,16 @@ std::expected<LoadTarget,SubmitError> LoadBalancer::add_target_erased(SubmitFunc
     if(impl_->statistics.stopped) return std::unexpected(SubmitError::stopped);
     const auto available=std::find(impl_->targets.begin(),impl_->targets.end(),nullptr);
     if(available==impl_->targets.end()) return std::unexpected(SubmitError::full);
+    auto group=std::find_if(impl_->groups.begin(),impl_->groups.end(),[&](const auto& entry) {
+        return entry.targets && entry.id==target->options.group;
+    });
+    if(group==impl_->groups.end()) {
+        group=std::find_if(impl_->groups.begin(),impl_->groups.end(),[](const auto& entry){return !entry.targets;});
+        *group={.id=target->options.group};
+    }
     target->statistics.target=next_target();
     *available=target;
+    ++group->targets;
     ++impl_->statistics.targets;
     return target->statistics.target;
 }
@@ -174,43 +219,84 @@ Submission LoadBalancer::post(Task task,Priority priority) {
     return submit(std::move(task),{.priority=priority});
 }
 Submission LoadBalancer::submit(Task task,LoadRequest request) {
-    auto ticket=std::make_shared<Ticket>(impl_,std::move(task),request);
-    {
-        std::lock_guard lock(impl_->mutex);
-        auto reject=[&](SubmitError reason) { ++impl_->statistics.rejected; return Submission{{},reason}; };
-        if(!ticket->task || !request.units || (request.priority!=Priority::high &&
-            request.priority!=Priority::normal && request.priority!=Priority::background)) return reject(SubmitError::invalid);
-        if(impl_->statistics.stopped) return reject(SubmitError::stopped);
-        if(impl_->statistics.in_flight==impl_->options.capacity) return reject(SubmitError::full);
-        std::size_t chosen=impl_->targets.size();
-        long double best=0;
-        for(std::size_t i=0;i<impl_->targets.size();++i) {
-            const auto index=(impl_->cursor+i)%impl_->targets.size();
-            const auto& target=impl_->targets[index];
-            if(!target) continue;
-            const auto& load=target->statistics;
-            if(load.draining || load.health!=TargetHealth::healthy ||
-                (load.capabilities & request.capabilities)!=request.capabilities ||
-                request.units>load.capacity-load.units ||
-                request.memory_bytes>std::numeric_limits<std::size_t>::max()-load.memory_bytes ||
-                (load.memory_capacity && request.memory_bytes>load.memory_capacity-load.memory_bytes)) continue;
-            const auto projected=static_cast<long double>(load.units+request.units)/static_cast<long double>(load.capacity);
-            if(chosen==impl_->targets.size() || projected<best) { chosen=index; best=projected; }
-            if(impl_->options.policy==BalancePolicy::round_robin) break;
-        }
-        if(chosen==impl_->targets.size()) return reject(SubmitError::overloaded);
-        impl_->cursor=(chosen+1)%impl_->targets.size();
-        ticket->target=impl_->targets[chosen];
-        auto& selected=ticket->target->statistics;
-        ++selected.in_flight; selected.units+=request.units; selected.memory_bytes+=request.memory_bytes;
-        ++impl_->statistics.in_flight;
-        impl_->statistics.high_watermark=std::max(impl_->statistics.high_watermark,impl_->statistics.in_flight);
-    }
+    auto prepared=prepare(std::move(task),request,false);
+    if(!prepared) return {{},prepared.error()};
+    auto ticket=std::move(*prepared);
     // Admission may synchronously execute/reject/destroy a callback. Do not hold
     // the dispatcher lock and never replay an operation on another executor.
     const auto submitted=ticket->target->scope.post(*ticket->target,[ticket]{ticket->run();},request.priority);
     if(submitted) ticket->admit();
     return submitted;
+}
+std::expected<std::shared_ptr<LoadBalancer::Ticket>,SubmitError>
+LoadBalancer::prepare(Task task,LoadRequest request,bool reservation,std::span<const LoadTarget> candidates,bool restricted) {
+    auto ticket=std::make_shared<Ticket>(impl_,std::move(task),request);
+    {
+        std::lock_guard lock(impl_->mutex);
+        auto reject=[&](SubmitError reason) -> std::expected<std::shared_ptr<Ticket>,SubmitError> {
+            ++impl_->statistics.rejected; return std::unexpected(reason);
+        };
+        const auto policy=request.policy.value_or(impl_->options.policy);
+        if((!reservation && !ticket->task) || !request.units || !valid(policy) ||
+            (policy==BalancePolicy::flow_hash && !request.affinity) || (request.priority!=Priority::high &&
+            request.priority!=Priority::normal && request.priority!=Priority::background)) return reject(SubmitError::invalid);
+        if(impl_->statistics.stopped) return reject(SubmitError::stopped);
+        if(impl_->statistics.in_flight==impl_->options.capacity) return reject(SubmitError::full);
+        auto group=std::find_if(impl_->groups.begin(),impl_->groups.end(),[&](const auto& entry) {
+            return entry.targets && entry.id==request.group;
+        });
+        if(group==impl_->groups.end()) return reject(SubmitError::overloaded);
+        std::size_t chosen=impl_->targets.size();
+        long double best=0;
+        for(std::size_t i=0;i<impl_->targets.size();++i) {
+            const auto index=(group->cursor+i)%impl_->targets.size();
+            const auto& target=impl_->targets[index];
+            if(!target) continue;
+            const auto& load=target->statistics;
+            if(restricted && std::find(candidates.begin(),candidates.end(),load.target)==candidates.end()) continue;
+            if(load.group!=request.group || load.draining || load.health!=TargetHealth::healthy ||
+                (load.capabilities & request.capabilities)!=request.capabilities ||
+                request.units>load.capacity-load.units ||
+                request.memory_bytes>std::numeric_limits<std::size_t>::max()-load.memory_bytes ||
+                (load.memory_capacity && request.memory_bytes>load.memory_capacity-load.memory_bytes)) continue;
+            auto projected=static_cast<long double>(load.units+request.units)/static_cast<long double>(load.capacity);
+            if(policy==BalancePolicy::least_outstanding) projected=static_cast<long double>(load.in_flight);
+            if(policy==BalancePolicy::flow_hash) {
+                // Weighted rendezvous: a topology change only remaps keys whose
+                // winning target changed. Existing connections retain a lease.
+                const auto bits=mix(*request.affinity^mix(load.target.id));
+                const auto uniform=(static_cast<long double>(bits>>11)+1.0L)/9007199254740993.0L;
+                projected=-std::log(uniform)/static_cast<long double>(load.capacity);
+            }
+            if(chosen==impl_->targets.size() || projected<best ||
+               (policy==BalancePolicy::flow_hash && projected==best && load.target.id<impl_->targets[chosen]->statistics.target.id)) {
+                chosen=index; best=projected;
+            }
+            if(policy==BalancePolicy::round_robin) break;
+        }
+        if(chosen==impl_->targets.size()) return reject(SubmitError::overloaded);
+        group->cursor=(chosen+1)%impl_->targets.size();
+        ticket->target=impl_->targets[chosen];
+        auto& selected=ticket->target->statistics;
+        ++selected.in_flight; selected.units+=request.units; selected.memory_bytes+=request.memory_bytes;
+        ++impl_->statistics.in_flight;
+        ticket->reservation=reservation;
+        if(reservation) { ++selected.reservations; ++impl_->statistics.reservations; }
+        impl_->statistics.high_watermark=std::max(impl_->statistics.high_watermark,impl_->statistics.in_flight);
+    }
+    return ticket;
+}
+std::expected<LoadLease,SubmitError> LoadBalancer::acquire(LoadRequest request) {
+    auto prepared=prepare({},request,true);
+    if(!prepared) return std::unexpected(prepared.error());
+    (*prepared)->admit();
+    return LoadLease(std::move(*prepared));
+}
+std::expected<LoadLease,SubmitError> LoadBalancer::acquire(LoadRequest request,std::span<const LoadTarget> candidates) {
+    auto prepared=prepare({},request,true,candidates,true);
+    if(!prepared) return std::unexpected(prepared.error());
+    (*prepared)->admit();
+    return LoadLease(std::move(*prepared));
 }
 bool LoadBalancer::report_health(LoadTarget id,bool healthy) {
     std::lock_guard lock(impl_->mutex);
@@ -247,16 +333,18 @@ ThreadResult LoadBalancer::remove_target(LoadTarget id,ShutdownMode mode) {
         target->statistics.draining=true;
     }
     if(mode==ShutdownMode::drain) {
-        const auto idle=impl_->wait(target);
+        const auto idle=impl_->wait(target,true);
         if(!idle && idle.error().code!=ThreadErrorCode::work_failed) return idle;
     }
+    if(mode==ShutdownMode::cancel_pending) target->stop.request_stop();
     const auto closed=target->scope.close();
     if(!closed) return closed;
-    const auto idle=impl_->wait(target);
+    const auto idle=impl_->wait(target,true);
     if(!idle && idle.error().code!=ThreadErrorCode::work_failed) return idle;
     {
         std::lock_guard lock(impl_->mutex);
         for(auto& slot:impl_->targets) if(slot==target) { slot.reset(); --impl_->statistics.targets; break; }
+        for(auto& group:impl_->groups) if(group.targets && group.id==target->options.group) { --group.targets; break; }
     }
     return idle;
 }
@@ -276,11 +364,11 @@ ThreadResult LoadBalancer::close(ShutdownMode mode) {
         for(std::size_t i=0;i<impl_->targets.size();++i) {
             std::shared_ptr<Target> target;
             { std::lock_guard lock(impl_->mutex); target=impl_->targets[i]; }
-            if(target) target->scope.request_close();
+            if(target) { target->stop.request_stop(); target->scope.request_close(); }
         }
     }
     if(mode==ShutdownMode::drain) {
-        const auto idle=impl_->wait();
+        const auto idle=impl_->wait({},true);
         if(!idle && idle.error().code!=ThreadErrorCode::work_failed) return idle;
     }
     // stopped prevents registration and lifecycle serializes removal. Only
@@ -293,13 +381,17 @@ ThreadResult LoadBalancer::close(ShutdownMode mode) {
             if(!closed) return closed;
         }
     }
-    const auto idle=impl_->wait();
+    const auto idle=impl_->wait({},true);
     if(!idle && idle.error().code!=ThreadErrorCode::work_failed) return idle;
     for(auto& slot:impl_->targets) {
         std::shared_ptr<Target> retired;
         { std::lock_guard lock(impl_->mutex); retired.swap(slot); }
     }
-    { std::lock_guard lock(impl_->mutex); impl_->statistics.targets=0; }
+    {
+        std::lock_guard lock(impl_->mutex);
+        impl_->statistics.targets=0;
+        for(auto& group:impl_->groups) group.targets=0;
+    }
     return idle;
 }
 LoadBalancerStats LoadBalancer::stats() const {
@@ -316,4 +408,27 @@ std::optional<LoadTargetStats> LoadBalancer::target_stats(LoadTarget id) const {
     const auto target=impl_->find(id);
     return target ? std::optional(target->statistics) : std::nullopt;
 }
+LoadLease::~LoadLease()=default;
+LoadLease::LoadLease(LoadLease&&) noexcept=default;
+LoadLease& LoadLease::operator=(LoadLease&&) noexcept=default;
+LoadTarget LoadLease::target() const noexcept { return ticket_ ? ticket_->target->statistics.target : LoadTarget{}; }
+std::stop_token LoadLease::stop_token() const noexcept { return ticket_ ? ticket_->target->stop.get_token() : std::stop_token{}; }
+Submission LoadLease::post(Task task,Priority priority) const {
+    if(!task || (priority!=Priority::high && priority!=Priority::normal && priority!=Priority::background))
+        return {{},SubmitError::invalid};
+    if(!ticket_) return {{},SubmitError::stopped};
+    auto delivery=std::make_shared<LoadBalancer::Ticket::Delivery>(ticket_,std::move(task));
+    return ticket_->target->scope.post(*ticket_->target,[delivery]{delivery->run();},priority);
+}
+void LoadLease::complete() noexcept {
+    if(ticket_) {
+        auto expected=LoadBalancer::Ticket::Outcome::cancelled;
+        (void)ticket_->outcome.compare_exchange_strong(expected,LoadBalancer::Ticket::Outcome::completed);
+        ticket_.reset();
+    }
+}
+void LoadLease::fail(std::exception_ptr cause) noexcept {
+    if(ticket_) { ticket_->fail(std::move(cause)); ticket_.reset(); }
+}
+void LoadLease::cancel() noexcept { ticket_.reset(); }
 } // namespace ii::runtime

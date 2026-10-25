@@ -224,9 +224,12 @@ public:
         if (!submitted) state->finish({OperationStatus::rejected,{},{},SideEffects::none});
         return Operation<T>(std::move(state));
     }
+    void request_close() const {
+        stop_.request_stop(); lifetime_.request_close();
+    }
     [[nodiscard]] ThreadResult close() const {
         if (lifetime_.is_current()) return std::unexpected(ThreadError{ThreadErrorCode::self_join,{}});
-        stop_.request_stop(); return lifetime_.close();
+        request_close(); return lifetime_.close();
     }
 private:
     mutable std::stop_source stop_;
