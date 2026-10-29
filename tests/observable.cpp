@@ -2,10 +2,38 @@
 #include <cstdlib>
 #include <iostream>
 #include <thread>
+#include <utility>
 #include <vector>
 using namespace ii::core;
 #define CHECK(x) do{if(!(x)){std::cerr<<__LINE__<<": " #x "\n";std::exit(1);}}while(false)
+template<class T>concept CanObserve=requires(T& value){value.observe([](const auto&,std::uint64_t){});};
+template<class T>concept CanSet=requires(T& value){value.set(1);};
+static_assert(CanObserve<const Observable<int>>,"Readonly Observable must allow observation");
+static_assert(!CanSet<const Observable<int>>,"Readonly observation must not grant mutation");
 int main(){
+    {
+        struct Record final {std::string name;int count;};
+        Observable<Record> record{{"Initial",1}};int calls=0;
+        auto watch=std::as_const(record).observe([&](const Record& value,auto){++calls;CHECK(value.name=="Changed");});
+        CHECK(record.set({"Changed",2})&&record.set({"Changed",2})&&record.revision()==2&&calls==2);
+        Record target{"Referenced",3};Observable<std::reference_wrapper<const Record>> reference{std::cref(target)};
+        int shown=0;auto changed=std::as_const(reference).observe([&](auto value,auto){shown=value.get().count;});
+        target.count=7;CHECK(reference.set(std::cref(target))&&shown==7&&reference.revision()==1);
+        int scalar=3;Observable<std::reference_wrapper<const int>> comparable{std::cref(scalar)};
+        scalar=7;CHECK(!comparable.set(std::cref(scalar))&&comparable.get().get()==7&&comparable.revision()==0);
+    }
+    {
+        Observable<int> source{7};const auto& readonly=source;std::vector<int> changes;
+        auto lease=readonly.observe([&](int value,std::uint64_t){changes.push_back(value);},true);
+        CHECK(readonly.get()==7&&readonly.revision()==0&&changes==std::vector<int>{7});
+        source.set(9);CHECK((changes==std::vector<int>{7,9})&&readonly.revision()==1);
+        bool wrong=false;std::thread other([&]{try{auto bad=readonly.observe([](auto,auto){});}catch(const std::logic_error&){wrong=true;}});other.join();
+        CHECK(wrong&&source.get()==9);lease.reset();source.set(11);CHECK(changes.size()==2);
+        Observable<int> moved{std::move(source)};const auto& moved_readonly=moved;
+        bool retired=false;try{auto bad=readonly.observe([](auto,auto){});}catch(const std::logic_error&){retired=true;}
+        auto active=moved_readonly.observe([&](auto value,auto){changes.push_back(value);});
+        CHECK(retired&&moved.set(13)&&changes.back()==13&&active.active());
+    }
     Observable<int> value{1};std::vector<int> seen;
     auto first=value.observe([&](const int& n,std::uint64_t){seen.push_back(n);});
     CHECK(!value.set(1)&&value.revision()==0);CHECK(value.set(2)&&seen==std::vector<int>{2});

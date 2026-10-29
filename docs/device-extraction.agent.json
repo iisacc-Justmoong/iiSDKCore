@@ -1,0 +1,198 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:1f64ea903940955d67df46a3eb6a21f594c8a1d9c4f42fcab925a85b92fbe852",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/device-extraction.md",
+    "sha256": "c7d79f3f5722a8461bb3ac6be99abbe4fd35b56376f215193c5a06655c45463e",
+    "bytes": 2961,
+    "line_count": 56,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Independent runtime and device modules",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Independent runtime and device modules\n",
+      "level": 1,
+      "title": "Independent runtime and device modules"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 7,
+      "raw": "Core 0.12 owns EventLoop, FrameLoop, Runtime, QueryPort, TaskScope, Thread,\nserialization, generic Channel and AsyncIO. iiDeviceMultimedia 0.2 independently\nowns USB/HID, BLE central/GATT, float32 PCM, MIDI UMP and their native bridges.\nNeither package includes, imports, configures, links or calls the other.\nApplications explicitly select both when they need both responsibilities:\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "fenced_code",
+      "start_line": 9,
+      "end_line": 14,
+      "raw": "```cmake\nfind_package(iiSDKCore 0.12 CONFIG REQUIRED)\nfind_package(iiDeviceMultimedia 0.2 CONFIG REQUIRED)\ntarget_link_libraries(app PRIVATE\n    iiSDKCore::iiSDKCore iiDeviceMultimedia::iiDeviceMultimedia)\n```\n",
+      "language": "cmake",
+      "code": "find_package(iiSDKCore 0.12 CONFIG REQUIRED)\nfind_package(iiDeviceMultimedia 0.2 CONFIG REQUIRED)\ntarget_link_libraries(app PRIVATE\n    iiSDKCore::iiSDKCore iiDeviceMultimedia::iiDeviceMultimedia)\n",
+      "closed": true
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 15,
+      "end_line": 15,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "fenced_code",
+      "start_line": 16,
+      "end_line": 27,
+      "raw": "```cpp\n#include <iiSDKCore/Runtime/EventLoop.h>\n#include <iiDeviceMultimedia/IO/Hardware.h>\n\nii::runtime::EventLoop loop;\nii::device::Hardware devices([](ii::device::HardwareEvent) {});\nconst auto driver = loop.every(std::chrono::milliseconds(2), [&] {\n    const auto result = devices.poll();\n    // Inspect the independent device result.\n});\n// Pump on the host; later cancel and retire this driver before closing devices.\n```\n",
+      "language": "cpp",
+      "code": "#include <iiSDKCore/Runtime/EventLoop.h>\n#include <iiDeviceMultimedia/IO/Hardware.h>\n\nii::runtime::EventLoop loop;\nii::device::Hardware devices([](ii::device::HardwareEvent) {});\nconst auto driver = loop.every(std::chrono::milliseconds(2), [&] {\n    const auto result = devices.poll();\n    // Inspect the independent device result.\n});\n// Pump on the host; later cancel and retire this driver before closing devices.\n",
+      "closed": true
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 28,
+      "end_line": 28,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 29,
+      "end_line": 34,
+      "raw": "Device errors/codecs live in `ii::device` / `ii::device::protocol`; they never\nredefine or alias `ii::io::Error` or Core scheduling types. The device module\nprovides explicit host-driven polling and no generic scheduler or Core adapter.\nIt works independently, and Core can continue after it has closed. The\napplication owns timer cadence and borrowed lifetime. Follow the\n[complete composition/shutdown contract](../../iiDeviceMultimedia/docs/independence.md).\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 35,
+      "end_line": 35,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 36,
+      "end_line": 42,
+      "raw": "The earlier 0.1 extraction moved implementations out of Core but still depended\non Core's error, TaskScope, Thread and EventLoop APIs. Version 0.2 removes all\nthose dependencies. Existing device consumers replace `ii::io` device names with\n`ii::device`, remove the loop constructor argument and own their polling driver.\nThe 0.1 embedded-Core option and automatic dispatch interval are removed. Device\nSOVERSION 0.2 and SameMinorVersion package checks require rebuilding 0.1 consumers.\nCore's generic C++ implementation is unchanged by this refactor.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 43,
+      "end_line": 43,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 44,
+      "end_line": 51,
+      "raw": "Core still removes only its obsolete generated/installed Hardware.h and\nProtocols.h files when upgrading from the former integrated device API. The\ninstallation prefix and unrelated data are preserved. No forwarding header,\nupper dependency, compatibility error alias or shared SDK base is introduced.\nCore's existing device-boundary guard remains active. The device package has its\nown independence guard and a standalone installed consumer with Core lookup\ndisabled. A separate application consumer finds both in both package/include\norders and verifies FrameLoop, byte I/O and native UMP delivery via a Core timer.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 52,
+      "end_line": 52,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 53,
+      "end_line": 56,
+      "raw": "See [Core verification](validation.md),\n[device verification](../../iiDeviceMultimedia/docs/validation.md) and the\n[original extraction history](../../iiDeviceMultimedia/docs/extraction.md).\nCross-builds are distinguished from target/device runtime execution.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Independent runtime and device modules",
+      "anchor": "independent-runtime-and-device-modules",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000009",
+        "line": 29,
+        "text": "Device errors/codecs live in `ii::device` / `ii::device::protocol`; they never",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000009",
+        "label": "complete composition/shutdown contract",
+        "target": "../../iiDeviceMultimedia/docs/independence.md",
+        "kind": "relative",
+        "line": 34
+      },
+      {
+        "block_id": "b000015",
+        "label": "Core verification",
+        "target": "validation.md",
+        "kind": "relative",
+        "line": 53
+      },
+      {
+        "block_id": "b000015",
+        "label": "device verification",
+        "target": "../../iiDeviceMultimedia/docs/validation.md",
+        "kind": "relative",
+        "line": 54
+      },
+      {
+        "block_id": "b000015",
+        "label": "original extraction history",
+        "target": "../../iiDeviceMultimedia/docs/extraction.md",
+        "kind": "relative",
+        "line": 55
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

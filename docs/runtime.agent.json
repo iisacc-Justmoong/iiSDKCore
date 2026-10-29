@@ -1,0 +1,916 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:7e3459ae41da93c6666a43b4a813aea64a97c1c77b8cf1840738daf6feeab383",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/runtime.md",
+    "sha256": "dfb58aad29b40527c9514f005898c8ff9c3a9401b8d6c3daaf1b3b576684b23a",
+    "bytes": 14405,
+    "line_count": 106,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "런타임 설계와 계약",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# 런타임 설계와 계약\n",
+      "level": 1,
+      "title": "런타임 설계와 계약"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "heading",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "## 책임과 의존성\n",
+      "level": 2,
+      "title": "책임과 의존성"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 5,
+      "end_line": 6,
+      "raw": "애플리케이션의 기본 실행 모델은 [Runtime의 멀티스레드·병렬·비동기 처리](parallel-runtime.md)이다. 객체별 SerialQueue에 연결한 쿼리를 기본으로 사용한다. 이 문서의 EventLoop는 단일 실행 영역의 예약·프레임·호스트 이벤트 의미론을 정의하며, 전체 애플리케이션을 하나의 스레드로 제한하지 않는다.\n이번 요구사항에 따라 Core에 최소 실행·중단·재개·종료 의미론을 포함한다. `AGENT.md`의 application lifecycle 범위는 “명확한 필요성이 확인되기 전까지” 제외하는 원칙이므로, 제품 공통 실행 상태만 여기서 제공한다. UIKit/AppKit/Win32/Android의 전체 앱 생명주기를 재구현하지 않는다.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "0.11.0은 앱·게임 공용 프레임 실행을 [FrameLoop](frame-loop.md)로 제공한다. EventLoop에 인스턴스로 조합하며 입력, 고정 갱신 전·중·후, 일반 갱신, 후처리, 표시 준비·표시, 종료 단계를 구분한다. 고정 시간 누적·보간·제한된 따라잡기, 실제/배속 시간, 일시정지, 콜백별 주기·활성화 및 선행 조건을 제공한다. 이벤트 중심 앱은 EventLoop만 사용하며 연속 프레임을 강제하지 않는다. Unity·Unreal의 공식 실행 모델을 참고하되 엔진·Qt·VM 의존성은 추가하지 않는다.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 10,
+      "end_line": 10,
+      "raw": "의존 방향은 제품/상위 SDK → EventLoop·Stream → Core/Time·C++ 표준 라이브러리 및 OS이다. [Thread](thread.md)는 작업 스레드 수명을 소유하고 선택적으로 EventLoop를 구동하며, 외부 HostLoop 연결은 준비 대기를 위해 관리형 Thread를 조합하며 기본 EventLoop는 자체 스레드를 생성하지 않는다. Core/Time은 Runtime을 참조하지 않는다. Emscripten에서는 BrowserLoop와 스레드 호스트 검사가 브라우저 C ABI를 사용한다. Core는 상위 SDK와 Qt를 참조하지 않는다. 장치·미디어 네이티브 API는 독립 동위 모듈 iiDeviceMultimedia가 사용한다. 두 모듈은 서로 의존하지 않으며, 앱이 자체 장치 poll() 호출을 EventLoop·FrameLoop·TaskScope와 조합한다.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 11,
+      "end_line": 11,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 12,
+      "end_line": 12,
+      "raw": "객체 간 통신은 [QueryPort](query.md)로 표현한다. 지속 데이터 구독은 [QueryStream](query-stream.md)이 쿼리별 필터·선택 출력·버전·bounded 큐를 조합하여 같은 실행 경로로 전달한다. QueryPort의 비동기 전달이 EventLoop의 실행 단위로 내려가며, EventLoop가 수신 객체나 쿼리 타입에 의존하지 않는다.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 13,
+      "end_line": 13,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 14,
+      "end_line": 14,
+      "raw": "생성 이후에도 변경할 멤버 스키마는 [ObjectProperties](object-properties.md)를 인스턴스로 소유한다. 이 계층이 PropertyQuery를 처리하며, QueryPort와 EventLoop는 동적 속성 구현에 의존하지 않는다. 동적 설계·스냅샷의 할당 비용은 아래 고정 큐/버퍼 재사용 보장과 구분한다.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 15,
+      "end_line": 15,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 16,
+      "end_line": 16,
+      "raw": "공개 클래스는 `final` 인스턴스이다. 가상 함수, 사용자 상속 계층, 전역 앱 싱글턴은 없다. 객체를 직접 소유하고 참조로 연결한다. 객체는 복사하거나 이동하지 않아 참조의 주소를 안정적으로 유지한다.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 17,
+      "end_line": 17,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "heading",
+      "start_line": 18,
+      "end_line": 18,
+      "raw": "## 실행·수명·동시성\n",
+      "level": 2,
+      "title": "실행·수명·동시성"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 19,
+      "end_line": 19,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "list",
+      "start_line": 20,
+      "end_line": 25,
+      "raw": "- 제출, 취소, 상태 변경, 통계 조회는 다중 스레드에서 호출할 수 있다.\n- `poll` 또는 `run`은 한 번에 하나만 실행할 수 있다. 재귀 호출과 동시 호출은 `std::logic_error`이다. 다른 스레드에서 순차 호출은 허용하므로 GUI 스레드 affinity는 호스트가 유지한다.\n- 콜백은 실행자를 호출한 스레드에서 직렬 실행된다. 내부 큐 잠금 없이 호출하므로 새 작업 제출이나 타이머 취소가 가능하다.\n- 객체 파괴 전에 생산자와 실행 스레드를 종료/join하고 브라우저 드라이버를 정지해야 한다. 콜백 실행 중 자기 루프/드라이버를 파괴하지 않으며, 객체 소멸 중 그 객체로 재진입하지 않는다.\n- 참조 캡처는 실행·취소 및 콜백 해제까지 살아 있어야 한다. 콜백은 복사 가능한 `std::function<void()>`이다. 소유권이 필요한 payload는 값으로 캡처한다.\n- 큐의 콜백 캡처를 폐기할 때 잠금을 잡지 않는다. `std::function` 이동 후 원본이 비었다고 가정하지 않으며, 빈 함수와 `swap`해 슬롯에 캡처가 잔류하지 않도록 한다.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "제출, 취소, 상태 변경, 통계 조회는 다중 스레드에서 호출할 수 있다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "`poll` 또는 `run`은 한 번에 하나만 실행할 수 있다. 재귀 호출과 동시 호출은 `std::logic_error`이다. 다른 스레드에서 순차 호출은 허용하므로 GUI 스레드 affinity는 호스트가 유지한다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "콜백은 실행자를 호출한 스레드에서 직렬 실행된다. 내부 큐 잠금 없이 호출하므로 새 작업 제출이나 타이머 취소가 가능하다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "객체 파괴 전에 생산자와 실행 스레드를 종료/join하고 브라우저 드라이버를 정지해야 한다. 콜백 실행 중 자기 루프/드라이버를 파괴하지 않으며, 객체 소멸 중 그 객체로 재진입하지 않는다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "참조 캡처는 실행·취소 및 콜백 해제까지 살아 있어야 한다. 콜백은 복사 가능한 `std::function<void()>`이다. 소유권이 필요한 payload는 값으로 캡처한다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "큐의 콜백 캡처를 폐기할 때 잠금을 잡지 않는다. `std::function` 이동 후 원본이 비었다고 가정하지 않으며, 빈 함수와 `swap`해 슬롯에 캡처가 잔류하지 않도록 한다.",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 26,
+      "end_line": 26,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "heading",
+      "start_line": 27,
+      "end_line": 27,
+      "raw": "## 예약, 공정성, 예산\n",
+      "level": 2,
+      "title": "예약, 공정성, 예산"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 28,
+      "end_line": 28,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 29,
+      "end_line": 29,
+      "raw": "0.7.0의 [시간 기반 런타임](realtime.md)은 주기·상대 마감·주기별 실행량·quantum으로 시간 작업을 예약한다. 준비된 예약은 절대 마감 순서로 실행하고, 동일 마감에서는 continuation을 순환시킨다. 아래의 기존 우선순위 정책은 실행 가능한 시간 예약이 없을 때 적용한다. TimeSlice의 종료 검사와 yield는 협력적 실행이며, 임의 콜백의 강제 선점은 아니다. LiveStream은 같은 예약 경로로 재생 시각과 지연 한도를 적용한다.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 30,
+      "end_line": 30,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 31,
+      "end_line": 31,
+      "raw": "`post`는 즉시 작업, `at`은 단조 시계 절대 시각, `after`는 상대 지연, `every`는 양수 주기이다. 과거 deadline과 0 이하 지연은 즉시 실행 가능하다. 비어 있는 콜백, 잘못된 우선순위, 0 이하 주기는 `SubmitError::invalid`이다. 표현 범위를 넘는 미래 시각은 최대 시각으로 포화시킨다.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 32,
+      "end_line": 32,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 33,
+      "end_line": 33,
+      "raw": "세 등급이 모두 준비되면 high:normal:background를 4:2:1로 서비스한다. 준비되지 않은 등급은 건너뛰고, 같은 등급 안에서는 제출 순서를 보존한다. 높은 우선순위 작업이 계속 들어와도 background가 굶지 않는다. 실행 중 새로 제출된 작업도 남은 예산 내에서 처리할 수 있다.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 34,
+      "end_line": 34,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 35,
+      "end_line": 35,
+      "raw": "`PumpBudget`의 콜백 수 또는 시간 한도에 도달하면 호스트로 반환한다. `poll`의 0 예산은 아무것도 실행하지 않으며 음수 시간은 예외이다. `run`과 `BrowserLoop`의 0 예산은 무한 공회전을 막기 위해 예외이다. 콜백을 선점하지 않으므로 단일 콜백과 큐 검색 시간이 예산을 넘을 수 있다. 긴 계산과 blocking I/O는 외부 작업 스레드에서 수행하고 완료를 `post`한다. 오디오 하드 리얼타임 콜백용 무잠금 런타임이 아니다.\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 36,
+      "end_line": 36,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "paragraph",
+      "start_line": 37,
+      "end_line": 37,
+      "raw": "주기 작업은 최초 위상을 유지하고 지연된 횟수를 `missed_ticks`로 기록해 건너뛴다. 과거 타이머를 한꺼번에 실행하지 않는다. 고정 시간 갱신이 필요한 소비자는 FrameLoop의 제한된 누적기를 사용한다. 적분·물리 계산 자체와 미디어 타임스탬프 동기화의 도메인 의미는 상위 모듈에서 구현한다.\n"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 38,
+      "end_line": 38,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 39,
+      "end_line": 39,
+      "raw": "현재 scheduler는 고정 슬롯을 순회한다. 작업 선택당 O(capacity), 저장 공간 O(capacity)이다. 소규모 코어의 명확한 의미론을 우선했으며, 타이머 수가 커질 때 heap/wheel 최적화는 실측 후 내부 구현을 교체할 수 있는 경계이다.\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 40,
+      "end_line": 40,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "heading",
+      "start_line": 41,
+      "end_line": 41,
+      "raw": "## 취소, 예외, 종료\n",
+      "level": 2,
+      "title": "취소, 예외, 종료"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 42,
+      "end_line": 42,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 43,
+      "end_line": 43,
+      "raw": "토큰은 루프 식별자·슬롯·세대를 가진 불투명 값이다. 다른 루프의 토큰과 재사용 전 슬롯 토큰은 무효이다. token.cancel()/pending()은 실행자 제거 후 안전하게 false를 반환한다. 예약된 작업 취소는 내부 잠금 밖에서 캡처를 파괴하고, 파괴 완료 후 슬롯을 해제한다. 이미 선택되어 실행 중인 콜백은 선점할 수 없으며 취소 시 다음 주기만 막는다. 실행과 캡처 파괴 중 슬롯도 capacity에 포함하므로 capacity=1인 콜백·소멸자가 새 작업을 넣으면 `full`일 수 있다.\n"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 44,
+      "end_line": 44,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "paragraph",
+      "start_line": 45,
+      "end_line": 45,
+      "raw": "콜백 예외는 해당 작업을 해제한 뒤 `poll`/`run` 호출자에게 전달된다. 실패한 주기 작업은 재예약하지 않는다. 다른 작업은 유지되며 호출자가 재실행 또는 종료를 결정한다. BrowserLoop는 C 콜백 경계를 넘어 예외를 던지지 않고 예외를 저장하고 루프를 종료한다. 호스트는 `rethrow_if_failed()`로 확인한다.\n"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 46,
+      "end_line": 46,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "paragraph",
+      "start_line": 47,
+      "end_line": 47,
+      "raw": "상태는 `ready → suspended → ready` 또는 `ready/suspended → stopped`이다. 중단은 큐를 보존하고 새 제출도 받지만 콜백을 실행하지 않는다. 진행 중 콜백은 끝까지 실행된다. 중단 중 시간은 계속 흐르므로 재개 시 만료된 주기 작업은 한 번 실행하고 놓친 tick을 건너뛴다.\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 48,
+      "end_line": 48,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "paragraph",
+      "start_line": 49,
+      "end_line": 49,
+      "raw": "`request_stop()`은 최종 상태이다. 새 작업을 거절하고 대기 중 실행자를 깨우며, 이후 dispatch를 막는다. 미실행 작업과 타이머의 캡처를 즉시 취소·파괴하고 슬롯을 반환한다. 진행 중 콜백은 끝까지 실행되고 이후 캡처와 슬롯을 해제한다. 외부 실행 드라이버를 정지·join한 뒤 EventLoop를 파괴한다. 종료 후 재시작은 새 EventLoop 인스턴스로 한다. 객체별 작업만 제거할 때는 [TaskScope](cleanup.md)를 사용한다.\n"
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 50,
+      "end_line": 50,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "heading",
+      "start_line": 51,
+      "end_line": 51,
+      "raw": "## 메모리 재사용과 스트림\n",
+      "level": 2,
+      "title": "메모리 재사용과 스트림"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 52,
+      "end_line": 52,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "paragraph",
+      "start_line": 53,
+      "end_line": 53,
+      "raw": "생성 시 EventLoop의 슬롯·free-list, Stream의 순환 버퍼 용량을 확보한다. 실행/취소/소비 후 같은 저장 공간을 재사용하고 자동 증설하지 않는다. 포화는 `SubmitError::full` 또는 `try_push`의 `false`로 반환한다. 호출자가 폐기·재시도·생산 속도 조정을 결정한다.\n"
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 54,
+      "end_line": 54,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "paragraph",
+      "start_line": 55,
+      "end_line": 55,
+      "raw": "`Stream<T>`는 mutex로 보호한 다중 생산자·다중 소비자 FIFO이다. `reject`는 가득 차면 새 값을 거절하고, `drop_oldest`는 가장 오래된 값을 버려 최신 샘플을 유지한다. 폐기/거절 횟수를 조회할 수 있다. `close` 후 생산은 거절하지만 남은 데이터는 소비한다. `drained`는 닫혔고 비어 있음을 뜻한다. 생산 함수는 값 인자를 받으므로 실패하더라도 전달한 값이 소비될 수 있다. 재시도할 payload는 호출자가 보존한다.\n"
+    },
+    {
+      "id": "b000050",
+      "kind": "blank",
+      "start_line": 56,
+      "end_line": 56,
+      "raw": "\n"
+    },
+    {
+      "id": "b000051",
+      "kind": "paragraph",
+      "start_line": 57,
+      "end_line": 57,
+      "raw": "T는 noexcept 이동 생성·이동 대입이 필요하다. T의 이동/소멸은 버퍼 잠금 중 실행될 수 있으므로 같은 Stream으로 재진입하지 않아야 한다. `std::array`로 고정 크기 프레임을 보관하거나, 수명을 외부에서 보장할 때 `std::reference_wrapper`로 이미 할당한 데이터를 전달할 수 있다.\n"
+    },
+    {
+      "id": "b000052",
+      "kind": "blank",
+      "start_line": 58,
+      "end_line": 58,
+      "raw": "\n"
+    },
+    {
+      "id": "b000053",
+      "kind": "paragraph",
+      "start_line": 59,
+      "end_line": 59,
+      "raw": "큐/버퍼 재사용과 전체 애플리케이션 무할당은 다른 보장이다. 콜백 캡처와 T 내부 메모리, 브라우저 및 OS는 별도이다. `tests/reuse.cpp`는 준비된 루프와 int 스트림을 1만 회 사용해 일반 `operator new` 추가 호출이 0인지 검증한다. malloc 전체나 임의 payload의 무할당을 검사하는 벤치마크는 아니다.\n"
+    },
+    {
+      "id": "b000054",
+      "kind": "blank",
+      "start_line": 60,
+      "end_line": 60,
+      "raw": "\n"
+    },
+    {
+      "id": "b000055",
+      "kind": "heading",
+      "start_line": 61,
+      "end_line": 61,
+      "raw": "## 호스트와 플랫폼\n",
+      "level": 2,
+      "title": "호스트와 플랫폼"
+    },
+    {
+      "id": "b000056",
+      "kind": "blank",
+      "start_line": 62,
+      "end_line": 62,
+      "raw": "\n"
+    },
+    {
+      "id": "b000057",
+      "kind": "paragraph",
+      "start_line": 63,
+      "end_line": 63,
+      "raw": "독립 네이티브 프로세스는 `run()`을 사용한다. 조건 변수는 가장 이른 deadline까지 대기하고 제출·취소·상태 변경에 깨어난다. iOS·Android 및 OS 이벤트 루프를 소유한 GUI에서는 프레임/타이머/이벤트 처리 지점에서 `poll()`한다. `next_deadline()`은 다음 wake 시각을 정하는 참고 스냅샷이며 다른 스레드의 제출로 바뀔 수 있다. 외부 루프의 wake 연결은 호스트가 제공해야 한다. 이 버전은 CFRunLoop/Win32 메시지/ALooper/epoll 등록기를 포함하지 않는다.\n"
+    },
+    {
+      "id": "b000058",
+      "kind": "blank",
+      "start_line": 64,
+      "end_line": 64,
+      "raw": "\n"
+    },
+    {
+      "id": "b000059",
+      "kind": "paragraph",
+      "start_line": 65,
+      "end_line": 65,
+      "raw": "BrowserLoop는 requestAnimationFrame으로 `poll()`을 호출한다. 객체는 main 반환 후에도 살아 있어야 하며 브라우저 메인 스레드에서 start/stop/조회한다. 여러 루프를 독립적으로 연결할 수 있다. 브라우저가 백그라운드 탭의 프레임을 제한하면 실행도 제한된다. 지속 백그라운드 실행은 보장하지 않는다. Node 테스트는 공통 poll 계약을, 실제 브라우저 예제는 프레임 드라이버를 검증한다.\n"
+    },
+    {
+      "id": "b000060",
+      "kind": "blank",
+      "start_line": 66,
+      "end_line": 66,
+      "raw": "\n"
+    },
+    {
+      "id": "b000061",
+      "kind": "paragraph",
+      "start_line": 67,
+      "end_line": 67,
+      "raw": "공식 플랫폼 근거:\n"
+    },
+    {
+      "id": "b000062",
+      "kind": "blank",
+      "start_line": 68,
+      "end_line": 68,
+      "raw": "\n"
+    },
+    {
+      "id": "b000063",
+      "kind": "list",
+      "start_line": 69,
+      "end_line": 72,
+      "raw": "- [Emscripten runtime environment](https://emscripten.org/docs/porting/emscripten-runtime-environment.html): 브라우저에 제어권을 돌려주는 반복 실행.\n- [Emscripten HTML5 API](https://emscripten.org/docs/api_reference/html5.h.html): animation frame 등록과 취소.\n- [Apple CFRunLoopWakeUp](https://developer.apple.com/documentation/corefoundation/cfrunloopwakeup(_:)): native host의 source와 wake 관리 경계.\n- [Android NDK Looper](https://developer.android.com/ndk/reference/group/looper): Activity 호스트의 native event polling 경계.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "[Emscripten runtime environment](https://emscripten.org/docs/porting/emscripten-runtime-environment.html): 브라우저에 제어권을 돌려주는 반복 실행.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "[Emscripten HTML5 API](https://emscripten.org/docs/api_reference/html5.h.html): animation frame 등록과 취소.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "[Apple CFRunLoopWakeUp](https://developer.apple.com/documentation/corefoundation/cfrunloopwakeup(_:)): native host의 source와 wake 관리 경계.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "[Android NDK Looper](https://developer.android.com/ndk/reference/group/looper): Activity 호스트의 native event polling 경계.",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000064",
+      "kind": "blank",
+      "start_line": 73,
+      "end_line": 73,
+      "raw": "\n"
+    },
+    {
+      "id": "b000065",
+      "kind": "heading",
+      "start_line": 74,
+      "end_line": 74,
+      "raw": "## 교차 빌드\n",
+      "level": 2,
+      "title": "교차 빌드"
+    },
+    {
+      "id": "b000066",
+      "kind": "blank",
+      "start_line": 75,
+      "end_line": 75,
+      "raw": "\n"
+    },
+    {
+      "id": "b000067",
+      "kind": "paragraph",
+      "start_line": 76,
+      "end_line": 76,
+      "raw": "각 구성이 독립적인 `build/` 디렉터리를 갖도록 루트 `build/` 아래에 둔다.\n"
+    },
+    {
+      "id": "b000068",
+      "kind": "blank",
+      "start_line": 77,
+      "end_line": 77,
+      "raw": "\n"
+    },
+    {
+      "id": "b000069",
+      "kind": "fenced_code",
+      "start_line": 78,
+      "end_line": 100,
+      "raw": "```sh\n# 브라우저 / Node\nemcmake cmake -S . -B build/wasm/build -DCMAKE_BUILD_TYPE=Release\ncmake --build build/wasm/build --parallel 4\nctest --test-dir build/wasm/build --output-on-failure\npython3 -m http.server 8765 --bind 127.0.0.1 --directory build/wasm/build\n# http://127.0.0.1:8765/iiSDKCoreLive.html\n# http://127.0.0.1:8765/iiSDKCoreBrowserTests.html\n\n# iOS 기기 라이브러리\ncmake -S . -B build/ios-arm64/build -DCMAKE_SYSTEM_NAME=iOS \\\n  -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64 \\\n  -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DBUILD_TESTING=OFF \\\n  -DIISDKCORE_BUILD_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release\ncmake --build build/ios-arm64/build --parallel 4\n\n# Android. ANDROID_NDK는 설치된 NDK 디렉터리이다.\ncmake -S . -B build/android-arm64/build \\\n  -DCMAKE_TOOLCHAIN_FILE=\"$ANDROID_NDK/build/cmake/android.toolchain.cmake\" \\\n  -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-26 \\\n  -DCMAKE_BUILD_TYPE=Release\ncmake --build build/android-arm64/build --parallel 4\n```\n",
+      "language": "sh",
+      "code": "# 브라우저 / Node\nemcmake cmake -S . -B build/wasm/build -DCMAKE_BUILD_TYPE=Release\ncmake --build build/wasm/build --parallel 4\nctest --test-dir build/wasm/build --output-on-failure\npython3 -m http.server 8765 --bind 127.0.0.1 --directory build/wasm/build\n# http://127.0.0.1:8765/iiSDKCoreLive.html\n# http://127.0.0.1:8765/iiSDKCoreBrowserTests.html\n\n# iOS 기기 라이브러리\ncmake -S . -B build/ios-arm64/build -DCMAKE_SYSTEM_NAME=iOS \\\n  -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64 \\\n  -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DBUILD_TESTING=OFF \\\n  -DIISDKCORE_BUILD_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release\ncmake --build build/ios-arm64/build --parallel 4\n\n# Android. ANDROID_NDK는 설치된 NDK 디렉터리이다.\ncmake -S . -B build/android-arm64/build \\\n  -DCMAKE_TOOLCHAIN_FILE=\"$ANDROID_NDK/build/cmake/android.toolchain.cmake\" \\\n  -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-26 \\\n  -DCMAKE_BUILD_TYPE=Release\ncmake --build build/android-arm64/build --parallel 4\n",
+      "closed": true
+    },
+    {
+      "id": "b000070",
+      "kind": "blank",
+      "start_line": 101,
+      "end_line": 101,
+      "raw": "\n"
+    },
+    {
+      "id": "b000071",
+      "kind": "paragraph",
+      "start_line": 102,
+      "end_line": 102,
+      "raw": "WASM은 Emscripten 대상이며 IISDKCORE_WASM_THREADS 기본값은 ON이다. pthread 워커에서는 Runtime, Thread와 EventLoop::run을 사용할 수 있으며 브라우저 메인 스레드에서는 BrowserLoop/poll을 사용한다. 단일 스레드 제한 구성은 명시적으로 OFF를 지정한다. 빌드·호스트 설정은 [스레드 계약](thread.md), 실제 실행 결과는 [검증 기록](validation.md)에 정의한다. WASI는 미지원이며 iOS·Android Core 빌드는 앱 스토어 배포 또는 물리 장치 검증과 동일하지 않다.\n"
+    },
+    {
+      "id": "b000072",
+      "kind": "blank",
+      "start_line": 103,
+      "end_line": 103,
+      "raw": "\n"
+    },
+    {
+      "id": "b000073",
+      "kind": "heading",
+      "start_line": 104,
+      "end_line": 104,
+      "raw": "## 외부 호스트 연결 (0.16)\n",
+      "level": 2,
+      "title": "외부 호스트 연결 (0.16)"
+    },
+    {
+      "id": "b000074",
+      "kind": "blank",
+      "start_line": 105,
+      "end_line": 105,
+      "raw": "\n"
+    },
+    {
+      "id": "b000075",
+      "kind": "paragraph",
+      "start_line": 106,
+      "end_line": 106,
+      "raw": "HostLoop는 기존 EventLoop에 외부 호스트의 깨우기 함수를 연결하고 펌프의 소유 스레드를 고정한다. 직접 제출·토큰 취소·일시정지·재개·종료와 I/O 준비가 같은 통지 경로를 사용한다. 기본 EventLoop는 스레드를 생성하지 않으며, HostLoop의 선택적 준비 대기만 관리형 Thread를 사용한다. 완료 콜백은 여전히 호스트 스레드에서 실행한다. 상세 계약은 [host-loop.md](host-loop.md)이다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "런타임 설계와 계약",
+      "anchor": "런타임-설계와-계약",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000003",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "책임과 의존성",
+      "anchor": "책임과-의존성",
+      "start_line": 3
+    },
+    {
+      "block_id": "b000017",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "실행·수명·동시성",
+      "anchor": "실행수명동시성",
+      "start_line": 18
+    },
+    {
+      "block_id": "b000021",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "예약, 공정성, 예산",
+      "anchor": "예약-공정성-예산",
+      "start_line": 27
+    },
+    {
+      "block_id": "b000035",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "취소, 예외, 종료",
+      "anchor": "취소-예외-종료",
+      "start_line": 41
+    },
+    {
+      "block_id": "b000045",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "메모리 재사용과 스트림",
+      "anchor": "메모리-재사용과-스트림",
+      "start_line": 51
+    },
+    {
+      "block_id": "b000055",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "호스트와 플랫폼",
+      "anchor": "호스트와-플랫폼",
+      "start_line": 61
+    },
+    {
+      "block_id": "b000065",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "교차 빌드",
+      "anchor": "교차-빌드",
+      "start_line": 74
+    },
+    {
+      "block_id": "b000073",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "외부 호스트 연결 (0.16)",
+      "anchor": "외부-호스트-연결-016",
+      "start_line": 104
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000005",
+        "line": 5,
+        "text": "애플리케이션의 기본 실행 모델은 [Runtime의 멀티스레드·병렬·비동기 처리](parallel-runtime.md)이다. 객체별 SerialQueue에 연결한 쿼리를 기본으로 사용한다. 이 문서의 EventLoop는 단일 실행 영역의 예약·프레임·호스트 이벤트 의미론을 정의하며, 전체 애플리케이션을 하나의 스레드로 제한하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000005",
+        "line": 6,
+        "text": "이번 요구사항에 따라 Core에 최소 실행·중단·재개·종료 의미론을 포함한다. `AGENT.md`의 application lifecycle 범위는 “명확한 필요성이 확인되기 전까지” 제외하는 원칙이므로, 제품 공통 실행 상태만 여기서 제공한다. UIKit/AppKit/Win32/Android의 전체 앱 생명주기를 재구현하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000007",
+        "line": 8,
+        "text": "0.11.0은 앱·게임 공용 프레임 실행을 [FrameLoop](frame-loop.md)로 제공한다. EventLoop에 인스턴스로 조합하며 입력, 고정 갱신 전·중·후, 일반 갱신, 후처리, 표시 준비·표시, 종료 단계를 구분한다. 고정 시간 누적·보간·제한된 따라잡기, 실제/배속 시간, 일시정지, 콜백별 주기·활성화 및 선행 조건을 제공한다. 이벤트 중심 앱은 EventLoop만 사용하며 연속 프레임을 강제하지 않는다. Unity·Unreal의 공식 실행 모델을 참고하되 엔진·Qt·VM 의존성은 추가하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000009",
+        "line": 10,
+        "text": "의존 방향은 제품/상위 SDK → EventLoop·Stream → Core/Time·C++ 표준 라이브러리 및 OS이다. [Thread](thread.md)는 작업 스레드 수명을 소유하고 선택적으로 EventLoop를 구동하며, 외부 HostLoop 연결은 준비 대기를 위해 관리형 Thread를 조합하며 기본 EventLoop는 자체 스레드를 생성하지 않는다. Core/Time은 Runtime을 참조하지 않는다. Emscripten에서는 BrowserLoop와 스레드 호스트 검사가 브라우저 C ABI를 사용한다. Core는 상위 SDK와 Qt를 참조하지 않는다. 장치·미디어 네이티브 API는 독립 동위 모듈 iiDeviceMultimedia가 사용한다. 두 모듈은 서로 의존하지 않으며, 앱이 자체 장치 poll() 호출을 EventLoop·FrameLoop·TaskScope와 조합한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000011",
+        "line": 12,
+        "text": "객체 간 통신은 [QueryPort](query.md)로 표현한다. 지속 데이터 구독은 [QueryStream](query-stream.md)이 쿼리별 필터·선택 출력·버전·bounded 큐를 조합하여 같은 실행 경로로 전달한다. QueryPort의 비동기 전달이 EventLoop의 실행 단위로 내려가며, EventLoop가 수신 객체나 쿼리 타입에 의존하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000013",
+        "line": 14,
+        "text": "생성 이후에도 변경할 멤버 스키마는 [ObjectProperties](object-properties.md)를 인스턴스로 소유한다. 이 계층이 PropertyQuery를 처리하며, QueryPort와 EventLoop는 동적 속성 구현에 의존하지 않는다. 동적 설계·스냅샷의 할당 비용은 아래 고정 큐/버퍼 재사용 보장과 구분한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000019",
+        "line": 23,
+        "text": "- 객체 파괴 전에 생산자와 실행 스레드를 종료/join하고 브라우저 드라이버를 정지해야 한다. 콜백 실행 중 자기 루프/드라이버를 파괴하지 않으며, 객체 소멸 중 그 객체로 재진입하지 않는다.",
+        "basis": "lexical_match",
+        "context": "list"
+      },
+      {
+        "block_id": "b000031",
+        "line": 37,
+        "text": "주기 작업은 최초 위상을 유지하고 지연된 횟수를 `missed_ticks`로 기록해 건너뛴다. 과거 타이머를 한꺼번에 실행하지 않는다. 고정 시간 갱신이 필요한 소비자는 FrameLoop의 제한된 누적기를 사용한다. 적분·물리 계산 자체와 미디어 타임스탬프 동기화의 도메인 의미는 상위 모듈에서 구현한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000039",
+        "line": 45,
+        "text": "콜백 예외는 해당 작업을 해제한 뒤 `poll`/`run` 호출자에게 전달된다. 실패한 주기 작업은 재예약하지 않는다. 다른 작업은 유지되며 호출자가 재실행 또는 종료를 결정한다. BrowserLoop는 C 콜백 경계를 넘어 예외를 던지지 않고 예외를 저장하고 루프를 종료한다. 호스트는 `rethrow_if_failed()`로 확인한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000041",
+        "line": 47,
+        "text": "상태는 `ready → suspended → ready` 또는 `ready/suspended → stopped`이다. 중단은 큐를 보존하고 새 제출도 받지만 콜백을 실행하지 않는다. 진행 중 콜백은 끝까지 실행된다. 중단 중 시간은 계속 흐르므로 재개 시 만료된 주기 작업은 한 번 실행하고 놓친 tick을 건너뛴다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000047",
+        "line": 53,
+        "text": "생성 시 EventLoop의 슬롯·free-list, Stream의 순환 버퍼 용량을 확보한다. 실행/취소/소비 후 같은 저장 공간을 재사용하고 자동 증설하지 않는다. 포화는 `SubmitError::full` 또는 `try_push`의 `false`로 반환한다. 호출자가 폐기·재시도·생산 속도 조정을 결정한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000057",
+        "line": 63,
+        "text": "독립 네이티브 프로세스는 `run()`을 사용한다. 조건 변수는 가장 이른 deadline까지 대기하고 제출·취소·상태 변경에 깨어난다. iOS·Android 및 OS 이벤트 루프를 소유한 GUI에서는 프레임/타이머/이벤트 처리 지점에서 `poll()`한다. `next_deadline()`은 다음 wake 시각을 정하는 참고 스냅샷이며 다른 스레드의 제출로 바뀔 수 있다. 외부 루프의 wake 연결은 호스트가 제공해야 한다. 이 버전은 CFRunLoop/Win32 메시지/ALooper/epoll 등록기를 포함하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000059",
+        "line": 65,
+        "text": "BrowserLoop는 requestAnimationFrame으로 `poll()`을 호출한다. 객체는 main 반환 후에도 살아 있어야 하며 브라우저 메인 스레드에서 start/stop/조회한다. 여러 루프를 독립적으로 연결할 수 있다. 브라우저가 백그라운드 탭의 프레임을 제한하면 실행도 제한된다. 지속 백그라운드 실행은 보장하지 않는다. Node 테스트는 공통 poll 계약을, 실제 브라우저 예제는 프레임 드라이버를 검증한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [
+      {
+        "block_id": "b000069",
+        "language": "sh",
+        "code": "# 브라우저 / Node\nemcmake cmake -S . -B build/wasm/build -DCMAKE_BUILD_TYPE=Release\ncmake --build build/wasm/build --parallel 4\nctest --test-dir build/wasm/build --output-on-failure\npython3 -m http.server 8765 --bind 127.0.0.1 --directory build/wasm/build\n# http://127.0.0.1:8765/iiSDKCoreLive.html\n# http://127.0.0.1:8765/iiSDKCoreBrowserTests.html\n\n# iOS 기기 라이브러리\ncmake -S . -B build/ios-arm64/build -DCMAKE_SYSTEM_NAME=iOS \\\n  -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64 \\\n  -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DBUILD_TESTING=OFF \\\n  -DIISDKCORE_BUILD_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=Release\ncmake --build build/ios-arm64/build --parallel 4\n\n# Android. ANDROID_NDK는 설치된 NDK 디렉터리이다.\ncmake -S . -B build/android-arm64/build \\\n  -DCMAKE_TOOLCHAIN_FILE=\"$ANDROID_NDK/build/cmake/android.toolchain.cmake\" \\\n  -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-26 \\\n  -DCMAKE_BUILD_TYPE=Release\ncmake --build build/android-arm64/build --parallel 4\n"
+      }
+    ],
+    "links": [
+      {
+        "block_id": "b000005",
+        "label": "Runtime의 멀티스레드·병렬·비동기 처리",
+        "target": "parallel-runtime.md",
+        "kind": "relative",
+        "line": 5
+      },
+      {
+        "block_id": "b000007",
+        "label": "FrameLoop",
+        "target": "frame-loop.md",
+        "kind": "relative",
+        "line": 8
+      },
+      {
+        "block_id": "b000009",
+        "label": "Thread",
+        "target": "thread.md",
+        "kind": "relative",
+        "line": 10
+      },
+      {
+        "block_id": "b000011",
+        "label": "QueryPort",
+        "target": "query.md",
+        "kind": "relative",
+        "line": 12
+      },
+      {
+        "block_id": "b000011",
+        "label": "QueryStream",
+        "target": "query-stream.md",
+        "kind": "relative",
+        "line": 12
+      },
+      {
+        "block_id": "b000013",
+        "label": "ObjectProperties",
+        "target": "object-properties.md",
+        "kind": "relative",
+        "line": 14
+      },
+      {
+        "block_id": "b000023",
+        "label": "시간 기반 런타임",
+        "target": "realtime.md",
+        "kind": "relative",
+        "line": 29
+      },
+      {
+        "block_id": "b000043",
+        "label": "TaskScope",
+        "target": "cleanup.md",
+        "kind": "relative",
+        "line": 49
+      },
+      {
+        "block_id": "b000063",
+        "label": "Emscripten runtime environment",
+        "target": "https://emscripten.org/docs/porting/emscripten-runtime-environment.html",
+        "kind": "external",
+        "line": 69
+      },
+      {
+        "block_id": "b000063",
+        "label": "Emscripten HTML5 API",
+        "target": "https://emscripten.org/docs/api_reference/html5.h.html",
+        "kind": "external",
+        "line": 70
+      },
+      {
+        "block_id": "b000063",
+        "label": "Apple CFRunLoopWakeUp",
+        "target": "https://developer.apple.com/documentation/corefoundation/cfrunloopwakeup(_:)",
+        "kind": "external",
+        "line": 71
+      },
+      {
+        "block_id": "b000063",
+        "label": "Android NDK Looper",
+        "target": "https://developer.android.com/ndk/reference/group/looper",
+        "kind": "external",
+        "line": 72
+      },
+      {
+        "block_id": "b000071",
+        "label": "스레드 계약",
+        "target": "thread.md",
+        "kind": "relative",
+        "line": 102
+      },
+      {
+        "block_id": "b000071",
+        "label": "검증 기록",
+        "target": "validation.md",
+        "kind": "relative",
+        "line": 102
+      },
+      {
+        "block_id": "b000075",
+        "label": "host-loop.md",
+        "target": "host-loop.md",
+        "kind": "relative",
+        "line": 106
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

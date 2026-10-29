@@ -1,0 +1,135 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:425decf9d7080627a615da0d4de36289341a7909e83338c8564a9fbdeffc67c3",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/text.md",
+    "sha256": "5f5d2f4b784ce8e291396f41e48e9dc77a8ecb4cd3d0d472ac823d058f81b3c0",
+    "bytes": 2212,
+    "line_count": 34,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Text, bytes and native paths (0.14.0)",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Text, bytes and native paths (0.14.0)\n",
+      "level": 1,
+      "title": "Text, bytes and native paths (0.14.0)"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 5,
+      "raw": "UTF-8 text uses std::string/string_view; binary data uses Bytes = vector<byte>\nand ByteView = span<const byte>; native paths use filesystem::path. Container\nchoices remain standard C++23. No iiString/container or locale runtime is added.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 7,
+      "end_line": 11,
+      "raw": "`Core/Text/Text.h` adds `to_utf16`, `to_utf8`, `path_from_utf8`, `path_to_utf8`.\nText conversions default to strict rejection and return TextError with the input\noffset. UTF-8 offsets/lengths are bytes; UTF-16 offsets/lengths are code units.\nAstral characters occupy four UTF-8 bytes and two UTF-16 units. Neither count is\na grapheme index. Code must not reuse a former QString index as a byte position.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 12,
+      "end_line": 12,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 13,
+      "end_line": 19,
+      "raw": "Explicit TextPolicy::replace replaces each invalid input byte or isolated UTF-16\ncode unit with U+FFFD. This deterministic per-unit policy does not promise Qt's\nmaximal-subpart replacement behavior. Valid text, combining sequences and NUL\nare preserved without normalization, case folding or terminator truncation.\nNormalization/extended encodings belong to specialized modules. Invalid UTF-8,\noverlong encodings, surrogates, truncated sequences and values above U+10FFFF\nare covered by `tests/text.cpp`.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 20,
+      "end_line": 20,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 21,
+      "end_line": 27,
+      "raw": "Native filesystem paths retain native representation unless the caller requests\na conversion. UTF-8 path creation rejects invalid UTF-8 and embedded NUL; native\npath conversion rejects paths that cannot be represented as valid UTF-8. POSIX\narbitrary-byte names can therefore remain filesystem::path values without being\nmislabelled as text. Windows uses filesystem's char8_t/native conversion; no ANSI\ncode-page conversion is used. This performs no filesystem access or file creation.\nURL parsing, normalization and percent encoding are separate URI/network work.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 28,
+      "end_line": 28,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 29,
+      "end_line": 34,
+      "raw": "QueryPort copies a request but cannot own the data referenced by nested spans or\nstring_views. Callers transfer owned strings/Bytes or an explicit shared owner\nacross an asynchronous boundary. iiCSMIDI::decodeAsync accepts owned Bytes and\nkeeps them until the task capture is retired, including queued cancellation.\nReturned document/value views borrow their lvalue owner and cannot be taken from\na temporary. Allocation errors remain standard exceptions.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Text, bytes and native paths (0.14.0)",
+      "anchor": "text-bytes-and-native-paths-0140",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000005",
+        "line": 11,
+        "text": "a grapheme index. Code must not reuse a former QString index as a byte position.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

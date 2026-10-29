@@ -1,0 +1,32 @@
+add_library(iiSDKCoreEmbedded STATIC src/Embedded/Embedded.cpp)
+add_library(iiSDKCore::Embedded ALIAS iiSDKCoreEmbedded)
+set_target_properties(iiSDKCoreEmbedded PROPERTIES EXPORT_NAME Embedded CXX_STANDARD 23 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
+target_compile_features(iiSDKCoreEmbedded PUBLIC cxx_std_23)
+configure_file(src/Embedded/Embedded.h "${CMAKE_CURRENT_BINARY_DIR}/include/iiSDKCore/Embedded/Embedded.h" COPYONLY)
+target_include_directories(iiSDKCoreEmbedded PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+install(TARGETS iiSDKCoreEmbedded EXPORT iiSDKCoreEmbeddedTargets ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(EXPORT iiSDKCoreEmbeddedTargets NAMESPACE iiSDKCore:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSDKCore)
+install(FILES src/Embedded/Embedded.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSDKCore/Embedded)
+if(BUILD_TESTING)
+    add_executable(iiSDKCoreEmbeddedTests tests/embedded.cpp)
+    target_link_libraries(iiSDKCoreEmbeddedTests PRIVATE iiSDKCore::Embedded)
+    set_target_properties(iiSDKCoreEmbeddedTests PROPERTIES CXX_STANDARD 23 CXX_EXTENSIONS OFF)
+    add_test(NAME iiSDKCore.Embedded COMMAND iiSDKCoreEmbeddedTests)
+    set_tests_properties(iiSDKCore.Embedded PROPERTIES TIMEOUT 20)
+    add_executable(iiSDKCoreEmbeddedLanguageMacroTests tests/embedded_language_macro.cpp)
+    target_link_libraries(iiSDKCoreEmbeddedLanguageMacroTests PRIVATE iiSDKCore::Embedded)
+    add_test(NAME iiSDKCore.EmbeddedLanguageMacro COMMAND iiSDKCoreEmbeddedLanguageMacroTests)
+    set_tests_properties(iiSDKCore.EmbeddedLanguageMacro PROPERTIES TIMEOUT 20)
+endif()
+if(IISDKCORE_EMBEDDED_ONLY)
+    configure_package_config_file(cmake/EmbeddedConfig.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/iiSDKCoreConfig.cmake"
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSDKCore)
+    write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/iiSDKCoreConfigVersion.cmake"
+        VERSION ${PROJECT_VERSION} COMPATIBILITY SameMajorVersion)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/iiSDKCoreConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/iiSDKCoreConfigVersion.cmake"
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSDKCore)
+    install(FILES docs/embedded.md DESTINATION ${CMAKE_INSTALL_DATADIR}/iiSDKCore/docs)
+    iisdkcore_enforce_architecture()
+endif()

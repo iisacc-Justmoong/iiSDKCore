@@ -21,7 +21,7 @@ struct Gate final {
     std::mutex mutex;
     std::condition_variable changed;
     bool entered=false,released=false;
-    void run() { std::unique_lock lock(mutex); entered=true; changed.notify_all(); changed.wait(lock,[&]{return released;}); }
+    void run() { std::unique_lock lock(mutex); entered=true; changed.notify_all(); check(changed.wait_for(lock,5s,[&]{return released;}),"gate release timed out"); }
     void wait() { std::unique_lock lock(mutex); check(changed.wait_for(lock,5s,[&]{return entered;}),"gate did not start"); }
     void release() { std::lock_guard lock(mutex); released=true; changed.notify_all(); }
 };
@@ -166,6 +166,19 @@ void native_processes(const std::string& fixture) {
     const auto& bytes=result->value->output;
     check(std::string(reinterpret_cast<const char*>(bytes.data()),bytes.size())=="routed","real child output crosses the routed operation");
     launch.arguments={fixture,"sleep"};
+    auto cancelled=router.route_process(router.default_scope(),launch).value();
+    until([&]{return cancelled.native_id()!=0;});
+    check(cancelled.operation().cancel() && cancelled.operation().wait_for(5s)==OperationWait::ready,"operation cancellation reaches a live child");
+    const auto cancelled_result=cancelled.operation().result();
+    check(cancelled_result && cancelled_result->value && cancelled_result->value->exit.reason==ii::process::ExitReason::cancelled,
+          "cancellation retains the actual process exit result");
+    ii::process::CommunicationOptions timed_options;
+    timed_options.deadline=ii::core::Deadline::after(50ms);
+    auto timed=router.route_process(router.default_scope(),launch,{},timed_options).value();
+    check(timed.operation().wait_for(5s)==OperationWait::ready,"routed process deadline settles");
+    const auto timed_result=timed.operation().result();
+    check(timed_result && ((timed_result->value && timed_result->value->exit.reason==ii::process::ExitReason::timed_out) ||
+          timed_result->status==OperationStatus::timed_out),"deadline applies before or after native launch");
     auto active=router.route_process(router.default_scope(),launch).value();
     until([&]{return active.native_id()!=0;});
     check(target(router.monitor(),id).active_processes==1,"active native process is monitored");
@@ -173,6 +186,17 @@ void native_processes(const std::string& fixture) {
     auto stopped=active.operation().result();
     check(stopped && stopped->value && stopped->value->exit.reason==ii::process::ExitReason::owner_removed,"owner removal survives process cleanup");
     check(router.monitor().load.in_flight==0,"native process resources return after reaping");
+
+    ComputeRouter failures;
+    const auto failure_zone=failures.add_zone({.name="spawn-errors"}).value();
+    (void)failures.add_target(runtime,failure_zone).value();
+    launch.arguments={fixture+".does-not-exist"};
+    auto failed=failures.route_process(failures.default_scope(),launch).value();
+    check(failed.operation().wait_for(5s)==OperationWait::ready && failed.operation().result()->status==OperationStatus::failed && !failed.native_id(),
+          "spawn failure remains an observable operation error");
+    const auto closed=failures.close();
+    check(!closed && closed.error().code==ThreadErrorCode::work_failed && failures.monitor().load.in_flight==0,
+          "failed process allocation still completes resource cleanup");
 }
 }
 static_assert(TaskExecutor<ComputeRouter>);

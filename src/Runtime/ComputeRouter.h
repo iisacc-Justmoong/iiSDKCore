@@ -21,16 +21,16 @@ struct ComputeLimits final {
     // Zero leaves this dimension unlimited; the router's global bound remains.
     std::size_t jobs=0,units=0,memory_bytes=0;
 };
-struct AvailabilityZoneOptions final { std::string name; bool enabled=true; ComputeLimits limits; };
+struct AvailabilityZoneOptions final { std::string name={}; bool enabled=true; ComputeLimits limits={}; };
 struct ComputeScopeOptions final {
-    std::string name;
-    std::vector<AvailabilityZone> zones; // empty covers all current/future zones
+    std::string name={};
+    std::vector<AvailabilityZone> zones={}; // empty covers all current/future zones
     bool enabled=true;
-    ComputeLimits limits;
+    ComputeLimits limits={};
 };
 struct ComputeRouterOptions final { std::size_t max_zones=16,max_scopes=32,max_targets=64,capacity=1024; };
 struct ComputeTargetOptions final {
-    LoadTargetOptions load{.capacity=0}; // zero derives Runtime queue capacity
+    LoadTargetOptions load{.name={},.capacity=0}; // zero derives Runtime queue capacity
     bool require_observation=false;
     double cpu_ceiling=1.0;
 };
@@ -41,7 +41,7 @@ struct ComputeObservation final {
     Clock::duration valid_for=std::chrono::seconds(1);
 };
 struct ComputeRequest final {
-    LoadRequest work;
+    LoadRequest work={};
     std::optional<AvailabilityZone> preferred_zone={};
     bool cross_zone=true;
 };

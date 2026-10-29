@@ -5,7 +5,7 @@ set(CMAKE_DISABLE_FIND_PACKAGE_Threads TRUE)
 set(CMAKE_DISABLE_FIND_PACKAGE_iiFileProviderNative TRUE)
 set(CMAKE_DISABLE_FIND_PACKAGE_iiFileProviderCoreIO TRUE)
 find_package(iiSDKCore 0.14 CONFIG REQUIRED COMPONENTS Contracts)
-if(TARGET iiSDKCore::iiSDKCore OR TARGET iiSDKCore::Runtime OR TARGET iiSDKCore::Values
+if(TARGET iiSDKCore::iiSDKCore OR TARGET iiSDKCore::Runtime OR TARGET iiSDKCore::Values OR TARGET iiSDKCore::Observation
     OR TARGET Qt6::Core OR TARGET Threads::Threads OR TARGET iiFileProvider::Native OR TARGET iiFileProvider::CoreIO)
     message(FATAL_ERROR "Contract import pulled an implementation dependency")
 endif()

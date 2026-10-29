@@ -1,0 +1,3823 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:f6be27107a2b986b25b99162a857a062824a078f264daafc5fee293733c24c2f",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "AGENT.md",
+    "sha256": "79ec379793f5db3e228854adacc7e450071cd0c94082ad388d6c7ed131e1b2e8",
+    "bytes": 31983,
+    "line_count": 489,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "AGENT.md — iiSDKCore",
+    "role": "instructions",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# AGENT.md — iiSDKCore\n",
+      "level": 1,
+      "title": "AGENT.md — iiSDKCore"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "heading",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "## 0. iiSDK란\n",
+      "level": 2,
+      "title": "0. iiSDK란"
+    },
+    {
+      "id": "b000004",
+      "kind": "paragraph",
+      "start_line": 4,
+      "end_line": 8,
+      "raw": "iiSDK는 iisacc이 일관된 애플리케이션을 개발하기 위한 도구로, Qt에서 벗어나 독립적인 애플리케이션 개발 플랫폼을 구축하여 외부 의존성을 제거하기 위해 고안되었다.\n크로스플랫폼 애플리케이션을 단일 코드베이스 프로젝트로 빌드하고 사용할 수 있게 만드는 것을 목표로 한다.\n매 제품마다 Qt나 별도의 게임 엔진 같은 상위 프레임워크에 제품 아키텍처를 종속시키는 대신, 장기적으로 windowing, input, concurrency, I/O, graphics, audio, resource management 같은 공통 기반을 자체적으로 소유하고 그 위에 application과 world에 특화된 상위 framework를 구성하려는 것이다. 목적은 NIH(Not Invented Here)가 아니라 제품 수가 늘어날수록 공통 기반에 대한 투자를 재사용하는 데 있다.\niiSDK를 사용함으로써 궁극적으로 개발자가 단일 코드로 데스크탑, 모바일을 전부 포함하는 크로스플랫폼 GUI앱을 작성할 수 있게 한다.\n모티브는 Qt, Swift, SwiftUI, Cargo, Unreal Engine, Flutter이다. 그러나 이들을 모방하는 구조는 채택하지 않는다.\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "blank",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "heading",
+      "start_line": 10,
+      "end_line": 10,
+      "raw": "## 1. 프로젝트 정의\n",
+      "level": 2,
+      "title": "1. 프로젝트 정의"
+    },
+    {
+      "id": "b000007",
+      "kind": "blank",
+      "start_line": 11,
+      "end_line": 11,
+      "raw": "\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "paragraph",
+      "start_line": 12,
+      "end_line": 12,
+      "raw": "iiSDKCore는 iiSDK의 최하위 기반 모듈이다.\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "blank",
+      "start_line": 13,
+      "end_line": 13,
+      "raw": "\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "paragraph",
+      "start_line": 14,
+      "end_line": 14,
+      "raw": "iiSDKCore의 목적은 특정 종류의 애플리케이션, UI 프레임워크, 게임 엔진 또는 제품을 구현하는 것이 아니다. iiSDK의 여러 상위 모듈과 이를 사용하는 소프트웨어가 공통으로 필요로 하는 최소한의 기반 기능을 제공하는 것이 목적이다.\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "blank",
+      "start_line": 15,
+      "end_line": 15,
+      "raw": "\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "paragraph",
+      "start_line": 16,
+      "end_line": 16,
+      "raw": "iiSDKCore는 장기간 유지될 기반 계층이므로 기능의 양보다 작은 책임 범위, 명확한 의존성 방향, 변경 가능성, 플랫폼 독립성을 우선한다.\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "blank",
+      "start_line": 17,
+      "end_line": 17,
+      "raw": "\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "paragraph",
+      "start_line": 18,
+      "end_line": 18,
+      "raw": "현재 프로젝트는 초기 단계이다. 현재의 구조와 API를 완성된 설계로 간주하지 않는다.\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "blank",
+      "start_line": 19,
+      "end_line": 20,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "heading",
+      "start_line": 21,
+      "end_line": 21,
+      "raw": "## 2. 핵심 원칙\n",
+      "level": 2,
+      "title": "2. 핵심 원칙"
+    },
+    {
+      "id": "b000017",
+      "kind": "blank",
+      "start_line": 22,
+      "end_line": 22,
+      "raw": "\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "heading",
+      "start_line": 23,
+      "end_line": 23,
+      "raw": "### 2.1 변경 가능성을 우선한다\n",
+      "level": 3,
+      "title": "2.1 변경 가능성을 우선한다"
+    },
+    {
+      "id": "b000019",
+      "kind": "blank",
+      "start_line": 24,
+      "end_line": 24,
+      "raw": "\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "paragraph",
+      "start_line": 25,
+      "end_line": 25,
+      "raw": "미래의 요구사항을 정확하게 예측하려 하지 않는다.\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "blank",
+      "start_line": 26,
+      "end_line": 26,
+      "raw": "\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "paragraph",
+      "start_line": 27,
+      "end_line": 27,
+      "raw": "현재 요구사항을 충족하는 가장 단순한 구조를 우선하며, 이후 요구사항이 변경되었을 때 구현을 교체하거나 확장하기 쉬운 구조를 지향한다.\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "blank",
+      "start_line": 28,
+      "end_line": 28,
+      "raw": "\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "paragraph",
+      "start_line": 29,
+      "end_line": 29,
+      "raw": "성능, 범용성, 확장성을 추측하여 불필요한 복잡성을 미리 추가하지 않는다.\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "blank",
+      "start_line": 30,
+      "end_line": 30,
+      "raw": "\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "paragraph",
+      "start_line": 31,
+      "end_line": 31,
+      "raw": "확실한 것은 구현하되, 불확실한 것은 가능한 한 고정하지 않는다.\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "blank",
+      "start_line": 32,
+      "end_line": 33,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "heading",
+      "start_line": 34,
+      "end_line": 34,
+      "raw": "### 2.2 iiSDKCore를 작게 유지한다\n",
+      "level": 3,
+      "title": "2.2 iiSDKCore를 작게 유지한다"
+    },
+    {
+      "id": "b000029",
+      "kind": "blank",
+      "start_line": 35,
+      "end_line": 35,
+      "raw": "\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "paragraph",
+      "start_line": 36,
+      "end_line": 36,
+      "raw": "어떤 기능이 유용하다는 이유만으로 iiSDKCore에 추가하지 않는다.\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "blank",
+      "start_line": 37,
+      "end_line": 37,
+      "raw": "\n"
+    },
+    {
+      "id": "b000032",
+      "kind": "paragraph",
+      "start_line": 38,
+      "end_line": 38,
+      "raw": "Core에 포함되는 기능은 여러 상위 계층에서 공통으로 필요하며, 특정 도메인에 종속되지 않는 기반 기능이어야 한다.\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "blank",
+      "start_line": 39,
+      "end_line": 39,
+      "raw": "\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "paragraph",
+      "start_line": 40,
+      "end_line": 40,
+      "raw": "기능의 소속이 불분명하다면 우선 Core 밖에 두는 것을 선호한다.\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "blank",
+      "start_line": 41,
+      "end_line": 41,
+      "raw": "\n"
+    },
+    {
+      "id": "b000036",
+      "kind": "paragraph",
+      "start_line": 42,
+      "end_line": 42,
+      "raw": "실제 사용 과정에서 공통성이 확인된 후 Core로 이동할 수 있다.\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "blank",
+      "start_line": 43,
+      "end_line": 44,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000038",
+      "kind": "heading",
+      "start_line": 45,
+      "end_line": 45,
+      "raw": "### 2.3 추상화를 추측하지 않는다\n",
+      "level": 3,
+      "title": "2.3 추상화를 추측하지 않는다"
+    },
+    {
+      "id": "b000039",
+      "kind": "blank",
+      "start_line": 46,
+      "end_line": 46,
+      "raw": "\n"
+    },
+    {
+      "id": "b000040",
+      "kind": "paragraph",
+      "start_line": 47,
+      "end_line": 47,
+      "raw": "실제 소비자가 존재하지 않는 추상화를 미래를 예상하여 만들지 않는다.\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "blank",
+      "start_line": 48,
+      "end_line": 48,
+      "raw": "\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "paragraph",
+      "start_line": 49,
+      "end_line": 49,
+      "raw": "interface, adapter, factory, wrapper 등의 추가는 그 자체로 좋은 설계가 아니다. 이들은 실제로 변경 경계를 형성하거나 플랫폼 차이를 격리하거나 여러 구현을 수용할 필요가 있을 때 도입한다.\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "blank",
+      "start_line": 50,
+      "end_line": 50,
+      "raw": "\n"
+    },
+    {
+      "id": "b000044",
+      "kind": "paragraph",
+      "start_line": 51,
+      "end_line": 51,
+      "raw": "한 번만 사용되는 구현을 미래에 여러 구현이 생길 것이라는 추측만으로 일반화하지 않는다.\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "blank",
+      "start_line": 52,
+      "end_line": 53,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000046",
+      "kind": "heading",
+      "start_line": 54,
+      "end_line": 54,
+      "raw": "## 3. C++ 정책\n",
+      "level": 2,
+      "title": "3. C++ 정책"
+    },
+    {
+      "id": "b000047",
+      "kind": "blank",
+      "start_line": 55,
+      "end_line": 55,
+      "raw": "\n"
+    },
+    {
+      "id": "b000048",
+      "kind": "paragraph",
+      "start_line": 56,
+      "end_line": 56,
+      "raw": "C++는 iiSDKCore의 주 구현 언어이다.\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "blank",
+      "start_line": 57,
+      "end_line": 57,
+      "raw": "\n"
+    },
+    {
+      "id": "b000050",
+      "kind": "paragraph",
+      "start_line": 58,
+      "end_line": 58,
+      "raw": "다중 상속은 구조적으로 금지한다. 프로젝트가 정의한 class/struct의 직접 기반 클래스는 최대 하나이며, 기반 클래스 팩 확장도 금지한다. public 헤더의 완전한 class/struct 정의는 모두 final로 선언하여 SDK 타입을 상속의 기반으로 사용할 수 없게 한다. 값·행동·통신 기능의 결합은 인스턴스 조합으로 구현한다. 이 규칙은 테스트 비활성 빌드를 포함한 필수 iiSDKCoreArchitectureCheck에서 원본과 전처리 결과를 검사하여 강제한다. 검사 우회 옵션을 추가하지 않는다. 세부 계약과 검증은 `docs/inheritance.md`, `tests/architecture_policy.py`를 따른다.\n"
+    },
+    {
+      "id": "b000051",
+      "kind": "blank",
+      "start_line": 59,
+      "end_line": 59,
+      "raw": "\n"
+    },
+    {
+      "id": "b000052",
+      "kind": "paragraph",
+      "start_line": 60,
+      "end_line": 60,
+      "raw": "현대적인 C++를 적극적으로 활용하되, 새로운 언어 기능을 사용하는 것 자체를 목적으로 삼지 않는다.\n"
+    },
+    {
+      "id": "b000053",
+      "kind": "blank",
+      "start_line": 61,
+      "end_line": 61,
+      "raw": "\n"
+    },
+    {
+      "id": "b000054",
+      "kind": "paragraph",
+      "start_line": 62,
+      "end_line": 62,
+      "raw": "C++ 표준 라이브러리가 문제를 충분히 해결한다면 자체 구현보다 표준 라이브러리를 우선한다.\n"
+    },
+    {
+      "id": "b000055",
+      "kind": "blank",
+      "start_line": 63,
+      "end_line": 63,
+      "raw": "\n"
+    },
+    {
+      "id": "b000056",
+      "kind": "paragraph",
+      "start_line": 64,
+      "end_line": 64,
+      "raw": "예를 들어 특별한 이유가 없다면 다음과 같은 표준 기능을 다시 구현하지 않는다.\n"
+    },
+    {
+      "id": "b000057",
+      "kind": "blank",
+      "start_line": 65,
+      "end_line": 65,
+      "raw": "\n"
+    },
+    {
+      "id": "b000058",
+      "kind": "list",
+      "start_line": 66,
+      "end_line": 74,
+      "raw": "- 표준 컨테이너\n- 스마트 포인터\n- string 및 string view\n- 스팬\n- 크로노\n- 파일 시스템\n- thread 및 synchronization primitive\n- 유형 특성\n- 일반적인 algorithm\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "표준 컨테이너",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "스마트 포인터",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "string 및 string view",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "스팬",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "크로노",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "파일 시스템",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "thread 및 synchronization primitive",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "유형 특성",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "일반적인 algorithm",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000059",
+      "kind": "blank",
+      "start_line": 75,
+      "end_line": 75,
+      "raw": "\n"
+    },
+    {
+      "id": "b000060",
+      "kind": "paragraph",
+      "start_line": 76,
+      "end_line": 76,
+      "raw": "`iiString`, `iiVector`, `iiSharedPtr` 등의 타입을 단순히 iiSDK 고유 타입을 만들기 위한 목적으로 추가하지 않는다.\n"
+    },
+    {
+      "id": "b000061",
+      "kind": "blank",
+      "start_line": 77,
+      "end_line": 77,
+      "raw": "\n"
+    },
+    {
+      "id": "b000062",
+      "kind": "paragraph",
+      "start_line": 78,
+      "end_line": 78,
+      "raw": "자체 타입은 iiSDK에 필요한 별도의 의미론, 기능 또는 플랫폼 추상화가 존재할 때만 도입한다.\n"
+    },
+    {
+      "id": "b000063",
+      "kind": "blank",
+      "start_line": 79,
+      "end_line": 80,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000064",
+      "kind": "heading",
+      "start_line": 81,
+      "end_line": 81,
+      "raw": "## 4. Qt 독립성\n",
+      "level": 2,
+      "title": "4. Qt 독립성"
+    },
+    {
+      "id": "b000065",
+      "kind": "blank",
+      "start_line": 82,
+      "end_line": 82,
+      "raw": "\n"
+    },
+    {
+      "id": "b000066",
+      "kind": "paragraph",
+      "start_line": 83,
+      "end_line": 83,
+      "raw": "iiSDKCore는 Qt로부터 완전히 독립적이어야 한다.\n"
+    },
+    {
+      "id": "b000067",
+      "kind": "blank",
+      "start_line": 84,
+      "end_line": 84,
+      "raw": "\n"
+    },
+    {
+      "id": "b000068",
+      "kind": "paragraph",
+      "start_line": 85,
+      "end_line": 85,
+      "raw": "Qt는 iiSDKCore의 dependency가 될 수 없다.\n"
+    },
+    {
+      "id": "b000069",
+      "kind": "blank",
+      "start_line": 86,
+      "end_line": 86,
+      "raw": "\n"
+    },
+    {
+      "id": "b000070",
+      "kind": "paragraph",
+      "start_line": 87,
+      "end_line": 87,
+      "raw": "다음을 포함한 Qt 타입과 시스템을 iiSDKCore의 public API 또는 implementation dependency로 사용하지 않는다.\n"
+    },
+    {
+      "id": "b000071",
+      "kind": "blank",
+      "start_line": 88,
+      "end_line": 88,
+      "raw": "\n"
+    },
+    {
+      "id": "b000072",
+      "kind": "list",
+      "start_line": 89,
+      "end_line": 98,
+      "raw": "- QObject\n- QString\n- QByteArray\n- QVariant\n- Qt 컨테이너\n- 신호/슬롯\n- Qt 이벤트 시스템\n- Qt 파일 시스템 추상화\n- Qt 스레딩 추상화\n- 기타 Qt 모듈\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "QObject",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "QString",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "QByteArray",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "QVariant",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Qt 컨테이너",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "신호/슬롯",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Qt 이벤트 시스템",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Qt 파일 시스템 추상화",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Qt 스레딩 추상화",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "기타 Qt 모듈",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000073",
+      "kind": "blank",
+      "start_line": 99,
+      "end_line": 99,
+      "raw": "\n"
+    },
+    {
+      "id": "b000074",
+      "kind": "paragraph",
+      "start_line": 100,
+      "end_line": 100,
+      "raw": "기존 iisacc 프로젝트가 Qt를 사용한다는 사실은 iiSDKCore의 설계 근거가 되지 않는다.\n"
+    },
+    {
+      "id": "b000075",
+      "kind": "blank",
+      "start_line": 101,
+      "end_line": 101,
+      "raw": "\n"
+    },
+    {
+      "id": "b000076",
+      "kind": "paragraph",
+      "start_line": 102,
+      "end_line": 102,
+      "raw": "Qt 소스코드는 크로스플랫폼 프레임워크가 해결해야 했던 문제, 플랫폼별 edge case, 아키텍처 선택을 연구하기 위한 참고 자료로 사용할 수 있다.\n"
+    },
+    {
+      "id": "b000077",
+      "kind": "blank",
+      "start_line": 103,
+      "end_line": 103,
+      "raw": "\n"
+    },
+    {
+      "id": "b000078",
+      "kind": "paragraph",
+      "start_line": 104,
+      "end_line": 104,
+      "raw": "그러나 Qt의 API, class hierarchy, naming, architecture 또는 implementation을 iiSDKCore의 명세로 취급하지 않는다.\n"
+    },
+    {
+      "id": "b000079",
+      "kind": "blank",
+      "start_line": 105,
+      "end_line": 105,
+      "raw": "\n"
+    },
+    {
+      "id": "b000080",
+      "kind": "paragraph",
+      "start_line": 106,
+      "end_line": 106,
+      "raw": "Qt의 구현을 분석할 때는 다음 순서를 따른다.\n"
+    },
+    {
+      "id": "b000081",
+      "kind": "blank",
+      "start_line": 107,
+      "end_line": 107,
+      "raw": "\n"
+    },
+    {
+      "id": "b000082",
+      "kind": "list",
+      "start_line": 108,
+      "end_line": 111,
+      "raw": "1. Qt가 해결하려는 실제 문제를 파악한다.\n2. 플랫폼 또는 애플리케이션의 근본적인 요구사항을 추출한다.\n3. Qt의 해결 방법과 요구사항을 분리한다.\n4. iiSDKCore의 조건에서 문제를 다시 설계한다.\n",
+      "items": [
+        {
+          "marker": "1.",
+          "text": "Qt가 해결하려는 실제 문제를 파악한다.",
+          "checked": null
+        },
+        {
+          "marker": "2.",
+          "text": "플랫폼 또는 애플리케이션의 근본적인 요구사항을 추출한다.",
+          "checked": null
+        },
+        {
+          "marker": "3.",
+          "text": "Qt의 해결 방법과 요구사항을 분리한다.",
+          "checked": null
+        },
+        {
+          "marker": "4.",
+          "text": "iiSDKCore의 조건에서 문제를 다시 설계한다.",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000083",
+      "kind": "blank",
+      "start_line": 112,
+      "end_line": 112,
+      "raw": "\n"
+    },
+    {
+      "id": "b000084",
+      "kind": "paragraph",
+      "start_line": 113,
+      "end_line": 113,
+      "raw": "Qt와 다른 구조를 만드는 것 자체도 목표가 아니다. 독립적인 분석 결과 동일하거나 유사한 구조가 합리적이라면 사용할 수 있다.\n"
+    },
+    {
+      "id": "b000085",
+      "kind": "blank",
+      "start_line": 114,
+      "end_line": 115,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000086",
+      "kind": "heading",
+      "start_line": 116,
+      "end_line": 116,
+      "raw": "## 5. 플랫폼 정책\n",
+      "level": 2,
+      "title": "5. 플랫폼 정책"
+    },
+    {
+      "id": "b000087",
+      "kind": "blank",
+      "start_line": 117,
+      "end_line": 117,
+      "raw": "\n"
+    },
+    {
+      "id": "b000088",
+      "kind": "paragraph",
+      "start_line": 118,
+      "end_line": 118,
+      "raw": "iiSDKCore는 크로스플랫폼 사용을 전제로 한다.\n"
+    },
+    {
+      "id": "b000089",
+      "kind": "blank",
+      "start_line": 119,
+      "end_line": 119,
+      "raw": "\n"
+    },
+    {
+      "id": "b000090",
+      "kind": "paragraph",
+      "start_line": 120,
+      "end_line": 120,
+      "raw": "주요 대상 플랫폼은 다음과 같다.\n"
+    },
+    {
+      "id": "b000091",
+      "kind": "blank",
+      "start_line": 121,
+      "end_line": 121,
+      "raw": "\n"
+    },
+    {
+      "id": "b000092",
+      "kind": "list",
+      "start_line": 122,
+      "end_line": 126,
+      "raw": "- macOS\n- Windows\n- Linux\n- iOS\n- Android\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "macOS",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Windows",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Linux",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "iOS",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Android",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000093",
+      "kind": "blank",
+      "start_line": 127,
+      "end_line": 127,
+      "raw": "\n"
+    },
+    {
+      "id": "b000094",
+      "kind": "paragraph",
+      "start_line": 128,
+      "end_line": 128,
+      "raw": "공통 public API에 특정 운영체제의 API 또는 타입이 불필요하게 노출되어서는 안 된다.\n"
+    },
+    {
+      "id": "b000095",
+      "kind": "blank",
+      "start_line": 129,
+      "end_line": 129,
+      "raw": "\n"
+    },
+    {
+      "id": "b000096",
+      "kind": "paragraph",
+      "start_line": 130,
+      "end_line": 130,
+      "raw": "플랫폼별 구현은 내부적으로 native user-space API를 직접 사용할 수 있다.\n"
+    },
+    {
+      "id": "b000097",
+      "kind": "blank",
+      "start_line": 131,
+      "end_line": 131,
+      "raw": "\n"
+    },
+    {
+      "id": "b000098",
+      "kind": "paragraph",
+      "start_line": 132,
+      "end_line": 132,
+      "raw": "예:\n"
+    },
+    {
+      "id": "b000099",
+      "kind": "blank",
+      "start_line": 133,
+      "end_line": 133,
+      "raw": "\n"
+    },
+    {
+      "id": "b000100",
+      "kind": "list",
+      "start_line": 134,
+      "end_line": 136,
+      "raw": "- macOS 네이티브 API\n- Windows 네이티브 API\n- Linux/POSIX 및 필요한 user-space platform APIs\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "macOS 네이티브 API",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Windows 네이티브 API",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Linux/POSIX 및 필요한 user-space platform APIs",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000101",
+      "kind": "blank",
+      "start_line": 137,
+      "end_line": 137,
+      "raw": "\n"
+    },
+    {
+      "id": "b000102",
+      "kind": "paragraph",
+      "start_line": 138,
+      "end_line": 138,
+      "raw": "운영체제 API를 무조건 1:1 wrapper로 변환하지 않는다.\n"
+    },
+    {
+      "id": "b000103",
+      "kind": "blank",
+      "start_line": 139,
+      "end_line": 139,
+      "raw": "\n"
+    },
+    {
+      "id": "b000104",
+      "kind": "paragraph",
+      "start_line": 140,
+      "end_line": 140,
+      "raw": "iiSDK에서 실제로 필요한 의미론을 먼저 정의하고, 각 플랫폼 backend가 이를 구현하는 방식을 선호한다.\n"
+    },
+    {
+      "id": "b000105",
+      "kind": "blank",
+      "start_line": 141,
+      "end_line": 141,
+      "raw": "\n"
+    },
+    {
+      "id": "b000106",
+      "kind": "paragraph",
+      "start_line": 142,
+      "end_line": 142,
+      "raw": "단, C++ 표준 라이브러리만으로 충분히 이식 가능한 기능은 불필요하게 플랫폼별로 다시 구현하지 않는다.\n"
+    },
+    {
+      "id": "b000107",
+      "kind": "blank",
+      "start_line": 143,
+      "end_line": 144,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000108",
+      "kind": "heading",
+      "start_line": 145,
+      "end_line": 145,
+      "raw": "## 6. 의존성 규칙\n",
+      "level": 2,
+      "title": "6. 의존성 규칙"
+    },
+    {
+      "id": "b000109",
+      "kind": "blank",
+      "start_line": 146,
+      "end_line": 146,
+      "raw": "\n"
+    },
+    {
+      "id": "b000110",
+      "kind": "paragraph",
+      "start_line": 147,
+      "end_line": 147,
+      "raw": "iiSDKCore는 iiSDK dependency graph의 최하위 계층이다.\n"
+    },
+    {
+      "id": "b000111",
+      "kind": "blank",
+      "start_line": 148,
+      "end_line": 148,
+      "raw": "\n"
+    },
+    {
+      "id": "b000112",
+      "kind": "paragraph",
+      "start_line": 149,
+      "end_line": 149,
+      "raw": "상위 iiSDK 모듈은 iiSDKCore에 의존할 수 있다.\n"
+    },
+    {
+      "id": "b000113",
+      "kind": "blank",
+      "start_line": 150,
+      "end_line": 150,
+      "raw": "\n"
+    },
+    {
+      "id": "b000114",
+      "kind": "paragraph",
+      "start_line": 151,
+      "end_line": 151,
+      "raw": "iiSDKCore는 상위 iiSDK 모듈에 의존해서는 안 된다.\n"
+    },
+    {
+      "id": "b000115",
+      "kind": "blank",
+      "start_line": 152,
+      "end_line": 152,
+      "raw": "\n"
+    },
+    {
+      "id": "b000116",
+      "kind": "paragraph",
+      "start_line": 153,
+      "end_line": 153,
+      "raw": "개념적으로 다음 방향을 유지한다.\n"
+    },
+    {
+      "id": "b000117",
+      "kind": "blank",
+      "start_line": 154,
+      "end_line": 154,
+      "raw": "\n"
+    },
+    {
+      "id": "b000118",
+      "kind": "indented_code",
+      "start_line": 155,
+      "end_line": 164,
+      "raw": "    응용\n         ↓\n    상위 iiSDK 모듈\n         ↓\n      iiSDKCore\n         ↓\n    C++ 표준 라이브러리\n         +\n    네이티브 플랫폼 API\n\n"
+    },
+    {
+      "id": "b000119",
+      "kind": "paragraph",
+      "start_line": 165,
+      "end_line": 165,
+      "raw": "순환 dependency를 만들지 않는다.\n"
+    },
+    {
+      "id": "b000120",
+      "kind": "blank",
+      "start_line": 166,
+      "end_line": 166,
+      "raw": "\n"
+    },
+    {
+      "id": "b000121",
+      "kind": "paragraph",
+      "start_line": 167,
+      "end_line": 167,
+      "raw": "Core의 편의를 위해 상위 모듈의 개념을 Core로 역수입하지 않는다.\n"
+    },
+    {
+      "id": "b000122",
+      "kind": "blank",
+      "start_line": 168,
+      "end_line": 169,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000123",
+      "kind": "heading",
+      "start_line": 170,
+      "end_line": 170,
+      "raw": "## 7. iiSDKCore가 기본적으로 책임지지 않는 영역\n",
+      "level": 2,
+      "title": "7. iiSDKCore가 기본적으로 책임지지 않는 영역"
+    },
+    {
+      "id": "b000124",
+      "kind": "blank",
+      "start_line": 171,
+      "end_line": 171,
+      "raw": "\n"
+    },
+    {
+      "id": "b000125",
+      "kind": "paragraph",
+      "start_line": 172,
+      "end_line": 172,
+      "raw": "다음 영역은 명확한 필요성이 확인되기 전까지 iiSDKCore의 책임으로 간주하지 않는다.\n"
+    },
+    {
+      "id": "b000126",
+      "kind": "blank",
+      "start_line": 173,
+      "end_line": 173,
+      "raw": "\n"
+    },
+    {
+      "id": "b000127",
+      "kind": "list",
+      "start_line": 174,
+      "end_line": 193,
+      "raw": "- 보기\n- 위젯\n- UI 레이아웃\n- .ihtml\n- 윈도잉\n- 애플리케이션 수명주기\n- GPU 렌더링\n- 2D/3D 그래픽\n- 셰이더\n- 이미지 처리\n- Font rendering 및 text shaping\n- 오디오\n- MIDI\n- 게임 세계\n- ECS\n- 물리학\n- 자산 파이프라인\n- 특정 network protocol\n- 특정 document model\n- 제품별 business logic\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "보기",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "위젯",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "UI 레이아웃",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": ".ihtml",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "윈도잉",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "애플리케이션 수명주기",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "GPU 렌더링",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "2D/3D 그래픽",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "셰이더",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "이미지 처리",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Font rendering 및 text shaping",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "오디오",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "MIDI",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "게임 세계",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "ECS",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "물리학",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "자산 파이프라인",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "특정 network protocol",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "특정 document model",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "제품별 business logic",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000128",
+      "kind": "blank",
+      "start_line": 194,
+      "end_line": 194,
+      "raw": "\n"
+    },
+    {
+      "id": "b000129",
+      "kind": "paragraph",
+      "start_line": 195,
+      "end_line": 195,
+      "raw": "2026-10-15의 모듈 독립 요구에 따라 USB/HID 열거·hotplug·제어 전송·report 처리, Bluetooth LE central/GATT, float32 PCM 입출력, MIDI UMP 전송·해석과 플랫폼 백엔드는 독립 동위 모듈 iiDeviceMultimedia가 소유한다. 두 모듈은 서로의 헤더·타입·심볼·타깃·설치 패키지·런타임을 참조하지 않는다. EventLoop·FrameLoop·Runtime·TaskScope·Thread와 일반 Channel·AsyncIO는 Core에 유지한다. 장치 모듈은 자체 ii::device 오류 타입과 poll()을 제공하며, 이를 Core 이벤트 루프에서 호출하는 연결은 앱이 소유한다. Core 의존 그래프의 통상적인 상위 SDK 규칙과 달리 이 모듈에는 양방향 의존성이 모두 없다. 호환 shim이나 선택적 어댑터를 Core에 추가하지 않는다. 현재 조합·마이그레이션 계약은 `docs/device-extraction.md`를 따른다.\n"
+    },
+    {
+      "id": "b000130",
+      "kind": "blank",
+      "start_line": 196,
+      "end_line": 196,
+      "raw": "\n"
+    },
+    {
+      "id": "b000131",
+      "kind": "paragraph",
+      "start_line": 197,
+      "end_line": 197,
+      "raw": "이 목록은 영구적인 금지 목록이 아니다.\n"
+    },
+    {
+      "id": "b000132",
+      "kind": "blank",
+      "start_line": 198,
+      "end_line": 198,
+      "raw": "\n"
+    },
+    {
+      "id": "b000133",
+      "kind": "paragraph",
+      "start_line": 199,
+      "end_line": 199,
+      "raw": "향후 아키텍처가 발전하면서 공통 primitive가 발견될 경우 적절한 검토 후 Core의 책임이 변경될 수 있다.\n"
+    },
+    {
+      "id": "b000134",
+      "kind": "blank",
+      "start_line": 200,
+      "end_line": 201,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000135",
+      "kind": "heading",
+      "start_line": 202,
+      "end_line": 202,
+      "raw": "## 8. API 설계\n",
+      "level": 2,
+      "title": "8. API 설계"
+    },
+    {
+      "id": "b000136",
+      "kind": "blank",
+      "start_line": 203,
+      "end_line": 203,
+      "raw": "\n"
+    },
+    {
+      "id": "b000137",
+      "kind": "paragraph",
+      "start_line": 204,
+      "end_line": 205,
+      "raw": "멀티스레드·병렬·비동기 처리는 런타임의 기본 전제이다. 애플리케이션은 Runtime의 지속 워커 집합에 작업을 제출하며 작업마다 스레드를 생성하지 않는다. 가변 상태를 가진 객체는 SerialQueue를 소유하고 쿼리 포트를 같은 실행 영역에 연결한다. 같은 객체의 상태 접근은 순서를 보장하고 독립 객체·작업은 병렬로 실행한다. 객체 간 기본 통신은 비동기 post이며 직접 send는 명시적인 저수준/같은 실행 영역의 호출이다. WASM도 pthread를 기본으로 하고 제한된 단일 스레드 구성은 명시적으로 선택한다. 현재 계약은 `docs/parallel-runtime.md`에 정의한다.\niiSDK의 객체 간 통신 모델은 쿼리 전달이다. 객체는 다른 객체의 쿼리 포트에 타입이 정해진 쿼리를 전달한다. 쿼리는 조회뿐 아니라 명령과 알림을 포함하며, 처리 결과가 필요한 경우 응답 타입을 명시한다. 수신 객체는 쿼리 포트를 인스턴스로 소유하고 송신 객체는 포트 참조를 사용한다. 상속, 문자열 메서드 검색, Qt signal/slot 또는 전역 객체 레지스트리를 전제로 하지 않는다. 현재 계약은 `docs/query.md`에 정의한다.\n"
+    },
+    {
+      "id": "b000138",
+      "kind": "blank",
+      "start_line": 206,
+      "end_line": 206,
+      "raw": "\n"
+    },
+    {
+      "id": "b000139",
+      "kind": "paragraph",
+      "start_line": 207,
+      "end_line": 207,
+      "raw": "쿼리는 GraphQL처럼 필요한 입력 값과 응답 필드만 명시적으로 전달하는 경량 계약을 기본으로 한다. 객체 간 통신이라는 사실이 객체 전체의 전달을 뜻하지 않는다. 객체 전체의 값·스냅샷·참조는 쿼리 계약에서 명시적으로 선택할 때만 포함한다. 포트 참조는 전달 경로이고 payload가 아니다. 미선택 필드는 응답 데이터로 만들지 않으며, 부분 갱신에서는 필드 생략과 명시적인 0·false·빈 값의 전달을 구분한다.\n"
+    },
+    {
+      "id": "b000140",
+      "kind": "blank",
+      "start_line": 208,
+      "end_line": 208,
+      "raw": "\n"
+    },
+    {
+      "id": "b000141",
+      "kind": "paragraph",
+      "start_line": 209,
+      "end_line": 209,
+      "raw": "iiSDK 객체의 멤버는 중첩 인스턴스로 트리를 구성한다. 각 노드는 값, 일반 메서드, QueryPort 및 자식 노드를 함께 가질 수 있으며 public과 private 모두 동일한 구조를 지원한다. 각 계층의 C++ 접근 제어를 보존하고, private 조상 아래의 멤버를 외부에 자동 노출하지 않는다. 쿼리의 선택 조건과 응답도 필요한 중첩 구조를 보존하며 전체 객체를 평탄한 필드 목록으로 변환하도록 강제하지 않는다. 표준 C++ 구성으로 충분한 경우 이를 감싸는 별도 객체 베이스 클래스나 리플렉션 레지스트리를 추가하지 않는다. 상세 계약은 `docs/member-tree.md`에 정의한다.\n"
+    },
+    {
+      "id": "b000142",
+      "kind": "blank",
+      "start_line": 210,
+      "end_line": 210,
+      "raw": "\n"
+    },
+    {
+      "id": "b000143",
+      "kind": "paragraph",
+      "start_line": 211,
+      "end_line": 211,
+      "raw": "Public API는 명시적이고 예측 가능해야 한다.\n"
+    },
+    {
+      "id": "b000144",
+      "kind": "blank",
+      "start_line": 212,
+      "end_line": 212,
+      "raw": "\n"
+    },
+    {
+      "id": "b000145",
+      "kind": "paragraph",
+      "start_line": 213,
+      "end_line": 213,
+      "raw": "EventLoop는 Channel의 준비 상태를 감지하고 read/write 완료를 같은 dispatch 실행 영역에서 전달한다. 감시·전송은 일반 작업과 같은 bounded 슬롯·우선순위·취소 계약을 사용하며, 네이티브 대기의 핸들 참조와 콜백 자원을 정리한 뒤 슬롯을 반환한다. 느린 동기 드라이버·파일 호출의 워커 격리는 AsyncIO로 유지한다. 하드웨어 프로토콜·열거·권한·USB/Bluetooth 등 호스트 브리지를 구현 근거 없이 지원한다고 선언하지 않는다. 계약은 `docs/loop-io.md`에 정의한다.\n"
+    },
+    {
+      "id": "b000146",
+      "kind": "blank",
+      "start_line": 214,
+      "end_line": 214,
+      "raw": "\n"
+    },
+    {
+      "id": "b000147",
+      "kind": "paragraph",
+      "start_line": 215,
+      "end_line": 215,
+      "raw": "생성 이후 멤버 스키마와 동작을 인스턴스별로 확장·변경하는 요구에는 `ObjectProperties`를 조합한다. 등록한 동적 노드의 값·메서드·자식을 queryable/designable 정책으로 다루며, 소유자 권한과 외부 쿼리 포트 권한을 분리한다. private 또는 잠긴 자손의 접근 제한을 부모의 교체·삭제로 우회해서는 안 된다. 정적 C++ 객체의 메모리 배치나 모든 멤버의 자동 반사는 요구하지 않는다. 이 기능의 현재 계약은 `docs/object-properties.md`에 정의한다.\n"
+    },
+    {
+      "id": "b000148",
+      "kind": "blank",
+      "start_line": 216,
+      "end_line": 216,
+      "raw": "\n"
+    },
+    {
+      "id": "b000149",
+      "kind": "paragraph",
+      "start_line": 217,
+      "end_line": 217,
+      "raw": "가능한 한 다음 특성을 지향한다.\n"
+    },
+    {
+      "id": "b000150",
+      "kind": "blank",
+      "start_line": 218,
+      "end_line": 218,
+      "raw": "\n"
+    },
+    {
+      "id": "b000151",
+      "kind": "list",
+      "start_line": 219,
+      "end_line": 226,
+      "raw": "- ownership이 명확하다.\n- lifetime이 추론 가능하다.\n- side effect가 예상 가능하다.\n- 오류가 숨겨지지 않는다.\n- 타입을 통해 잘못된 사용을 가능한 한 방지한다.\n- 전역 mutable state를 최소화한다.\n- 암묵적인 초기화 순서에 의존하지 않는다.\n- 구현 세부사항이 public API로 누출되지 않는다.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "ownership이 명확하다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "lifetime이 추론 가능하다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "side effect가 예상 가능하다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "오류가 숨겨지지 않는다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "타입을 통해 잘못된 사용을 가능한 한 방지한다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "전역 mutable state를 최소화한다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "암묵적인 초기화 순서에 의존하지 않는다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "구현 세부사항이 public API로 누출되지 않는다.",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000152",
+      "kind": "blank",
+      "start_line": 227,
+      "end_line": 227,
+      "raw": "\n"
+    },
+    {
+      "id": "b000153",
+      "kind": "paragraph",
+      "start_line": 228,
+      "end_line": 228,
+      "raw": "API의 간결함을 위해 중요한 의미론을 숨기지 않는다.\n"
+    },
+    {
+      "id": "b000154",
+      "kind": "blank",
+      "start_line": 229,
+      "end_line": 229,
+      "raw": "\n"
+    },
+    {
+      "id": "b000155",
+      "kind": "paragraph",
+      "start_line": 230,
+      "end_line": 230,
+      "raw": "편리함과 제어 가능성이 충돌한다면 고수준 편의 API와 저수준 접근 방법을 분리하는 것을 고려한다.\n"
+    },
+    {
+      "id": "b000156",
+      "kind": "blank",
+      "start_line": 231,
+      "end_line": 231,
+      "raw": "\n"
+    },
+    {
+      "id": "b000157",
+      "kind": "paragraph",
+      "start_line": 232,
+      "end_line": 232,
+      "raw": "C++ 사용자가 필요한 경우 추상화 아래의 기능을 사용할 수 있는 escape hatch를 남길 수 있다.\n"
+    },
+    {
+      "id": "b000158",
+      "kind": "blank",
+      "start_line": 233,
+      "end_line": 234,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000159",
+      "kind": "paragraph",
+      "start_line": 235,
+      "end_line": 235,
+      "raw": "시간 민감 작업은 Core/Time의 단조 시간축과 EventLoop의 주기·마감·예산·quantum 예약으로 실행한다. 임의 C++ 콜백을 강제 선점한다고 선언하지 않는다. 예산 초과·마감 누락·놓친 주기를 관측하고, 지연된 실행을 무제한 따라잡지 않는다. LiveStream은 재생 시각·지연 한도·제한된 저장소를 조합하며 제거 시 실행 전달과 payload를 정리한다. 계약은 `docs/realtime.md`를 따른다.\n"
+    },
+    {
+      "id": "b000160",
+      "kind": "blank",
+      "start_line": 236,
+      "end_line": 236,
+      "raw": "\n"
+    },
+    {
+      "id": "b000161",
+      "kind": "paragraph",
+      "start_line": 237,
+      "end_line": 237,
+      "raw": "2026-10-14의 앱·게임 공용 런타임 요구에 따라 프레임 단계, 고정 시간 갱신·제한된 따라잡기·보간, 실제/배속 시간, 일시정지와 tick 선행 조건을 FrameLoop의 공통 책임으로 포함한다. EventLoop와 기존 DependencyGraph를 조합하며 물리·렌더러·세계·GUI 구현은 상위 모듈에 둔다. Unity·Unreal은 요구사항 참고 자료이며 의존성이 아니다. EventLoop만 사용하는 앱에 연속 프레임을 강제하지 않는다. 호스트 스레드·수명·변경·실패 계약은 `docs/frame-loop.md`를 따른다.\n"
+    },
+    {
+      "id": "b000162",
+      "kind": "blank",
+      "start_line": 238,
+      "end_line": 238,
+      "raw": "\n"
+    },
+    {
+      "id": "b000163",
+      "kind": "paragraph",
+      "start_line": 239,
+      "end_line": 239,
+      "raw": "2026-10-16의 라이브 데이터 선택 방출 요구에 따라 QueryStream은 타입 쿼리·프로젝터·구독별 bounded 출력·기존 실행기를 조합한다. 구독은 자체 QueryPort로 선택을 교체하고 버전으로 이전 대기/계산 결과를 차단한다. 선택·콜백·캡처 파괴 뒤 할당량을 반환하며 객체 전체 자동 노출, 새 전용 스레드, 전역 브로커, 네트워크/미디어 프로토콜은 추가하지 않는다. 수명·역압력·재시도 계약은 docs/query-stream.md를 따른다.\n"
+    },
+    {
+      "id": "b000164",
+      "kind": "blank",
+      "start_line": 240,
+      "end_line": 240,
+      "raw": "\n"
+    },
+    {
+      "id": "b000165",
+      "kind": "heading",
+      "start_line": 241,
+      "end_line": 241,
+      "raw": "## 9. 성능 정책\n",
+      "level": 2,
+      "title": "9. 성능 정책"
+    },
+    {
+      "id": "b000166",
+      "kind": "blank",
+      "start_line": 242,
+      "end_line": 242,
+      "raw": "\n"
+    },
+    {
+      "id": "b000167",
+      "kind": "paragraph",
+      "start_line": 243,
+      "end_line": 243,
+      "raw": "2026-10-16의 앱 에셋·리소스 네이티브 최적화 요구에 따라 Core 0.17은 불변 바이트 팩, 정렬·중복 제거·색인, 공유 뷰 수명과 기존 Channel의 읽기 전용 네이티브 매핑을 공통 기반으로 제공한다. 경로를 통한 파일 생성·제공은 iiFileProvider가, 대상 플랫폼 선택·생성 C++·depfile·팩 출력은 iiSDKBuilder가 담당한다. 이미지·텍스처·오디오·셰이더 변환기나 GPU·스토리지 모듈을 Core로 역수입하지 않는다. 팩의 공개 계약·예산·버전 형식·메모리 매핑 제한은 docs/resources.md를 따른다.\n"
+    },
+    {
+      "id": "b000168",
+      "kind": "blank",
+      "start_line": 244,
+      "end_line": 244,
+      "raw": "\n"
+    },
+    {
+      "id": "b000169",
+      "kind": "paragraph",
+      "start_line": 245,
+      "end_line": 245,
+      "raw": "iiSDKCore는 기반 소프트웨어이므로 성능을 중요하게 취급한다.\n"
+    },
+    {
+      "id": "b000170",
+      "kind": "blank",
+      "start_line": 246,
+      "end_line": 246,
+      "raw": "\n"
+    },
+    {
+      "id": "b000171",
+      "kind": "paragraph",
+      "start_line": 247,
+      "end_line": 247,
+      "raw": "그러나 측정되지 않은 성능 문제를 해결하기 위해 복잡성을 추가하지 않는다.\n"
+    },
+    {
+      "id": "b000172",
+      "kind": "blank",
+      "start_line": 248,
+      "end_line": 248,
+      "raw": "\n"
+    },
+    {
+      "id": "b000173",
+      "kind": "paragraph",
+      "start_line": 249,
+      "end_line": 249,
+      "raw": "다음을 피한다.\n"
+    },
+    {
+      "id": "b000174",
+      "kind": "blank",
+      "start_line": 250,
+      "end_line": 250,
+      "raw": "\n"
+    },
+    {
+      "id": "b000175",
+      "kind": "list",
+      "start_line": 251,
+      "end_line": 256,
+      "raw": "- 근거 없는 micro-optimization\n- 필요성이 검증되지 않은 lock-free 구조\n- 불필요한 custom allocator\n- 추측에 기반한 cache optimization\n- 유지보수성을 크게 희생하는 최적화\n- profiler 없이 이루어지는 대규모 성능 재설계\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "근거 없는 micro-optimization",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "필요성이 검증되지 않은 lock-free 구조",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "불필요한 custom allocator",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "추측에 기반한 cache optimization",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "유지보수성을 크게 희생하는 최적화",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "profiler 없이 이루어지는 대규모 성능 재설계",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000176",
+      "kind": "blank",
+      "start_line": 257,
+      "end_line": 257,
+      "raw": "\n"
+    },
+    {
+      "id": "b000177",
+      "kind": "paragraph",
+      "start_line": 258,
+      "end_line": 258,
+      "raw": "초기 구현은 올바름과 단순성을 우선한다.\n"
+    },
+    {
+      "id": "b000178",
+      "kind": "blank",
+      "start_line": 259,
+      "end_line": 259,
+      "raw": "\n"
+    },
+    {
+      "id": "b000179",
+      "kind": "paragraph",
+      "start_line": 260,
+      "end_line": 260,
+      "raw": "실제 workload에서 병목이 확인되면 benchmark와 profiler를 근거로 최적화한다.\n"
+    },
+    {
+      "id": "b000180",
+      "kind": "blank",
+      "start_line": 261,
+      "end_line": 261,
+      "raw": "\n"
+    },
+    {
+      "id": "b000181",
+      "kind": "paragraph",
+      "start_line": 262,
+      "end_line": 262,
+      "raw": "다만 나중에 최적화할 수 없게 만드는 불필요한 구조적 제약 역시 피한다.\n"
+    },
+    {
+      "id": "b000182",
+      "kind": "blank",
+      "start_line": 263,
+      "end_line": 264,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000183",
+      "kind": "heading",
+      "start_line": 265,
+      "end_line": 265,
+      "raw": "## 10. 메모리와 자원\n",
+      "level": 2,
+      "title": "10. 메모리와 자원"
+    },
+    {
+      "id": "b000184",
+      "kind": "blank",
+      "start_line": 266,
+      "end_line": 266,
+      "raw": "\n"
+    },
+    {
+      "id": "b000185",
+      "kind": "paragraph",
+      "start_line": 267,
+      "end_line": 267,
+      "raw": "하드웨어 I/O의 공통 기반은 `ii::io::Channel`과 `AsyncIO`이다. OS가 공개한 파일·시리얼 바이트 I/O를 사용자 공간에서 수행하고 public API에 네이티브 핸들을 노출하지 않는다. 같은 채널의 비동기 요청은 하나의 SerialQueue로 관리하며 버퍼는 완료 이후 재사용한다. 플랫폼 capability와 오류를 명시하고 WASM 가상 파일 성공을 물리 장치 접근으로 간주하지 않는다. 현재 지원 범위와 수명·취소 계약은 `docs/io.md`를 따른다.\n"
+    },
+    {
+      "id": "b000186",
+      "kind": "blank",
+      "start_line": 268,
+      "end_line": 268,
+      "raw": "\n"
+    },
+    {
+      "id": "b000187",
+      "kind": "paragraph",
+      "start_line": 269,
+      "end_line": 269,
+      "raw": "런타임의 작업 스레드는 플랫폼 독립적인 `Thread` 인스턴스로 관리한다. 작업 수명, 협력적 중단, 종료 대기와 실패 전달의 계약은 `docs/thread.md`를 따른다. 제품 코드에 OS 스레드 핸들·분리된 detach 스레드·상속 기반 실행자를 요구하지 않는다. 표준 스레드 구현은 이 클래스 내부에 두고, EventLoop와 참조로 조합한다. WASM 단일 스레드와 pthread 호스트의 지원 차이는 명시적으로 처리한다.\n"
+    },
+    {
+      "id": "b000188",
+      "kind": "blank",
+      "start_line": 270,
+      "end_line": 270,
+      "raw": "\n"
+    },
+    {
+      "id": "b000189",
+      "kind": "paragraph",
+      "start_line": 271,
+      "end_line": 271,
+      "raw": "소유권과 lifetime은 명시적으로 설계한다.\n"
+    },
+    {
+      "id": "b000190",
+      "kind": "blank",
+      "start_line": 272,
+      "end_line": 272,
+      "raw": "\n"
+    },
+    {
+      "id": "b000191",
+      "kind": "paragraph",
+      "start_line": 273,
+      "end_line": 273,
+      "raw": "객체 제거는 신규 작업 차단, 미실행 작업 취소, 활성 작업·완료 콜백 대기, 소유 자원 파괴, 할당량 반환 순서로 수행한다. 작업 캡처의 파괴가 끝나기 전에 슬롯을 다음 객체에 제공하지 않는다. 객체별 작업은 TaskScope·QueryPort·SerialQueue의 제거 경계에 등록하며, 상태를 사용하는 작업을 닫은 뒤 상태를 해제한다. 외부 공유 소유자와 영속 데이터는 해당 소유권 계약을 보존한다. 세부 계약과 회귀 검증은 `docs/cleanup.md`, `tests/cleanup.cpp`를 따른다.\n"
+    },
+    {
+      "id": "b000192",
+      "kind": "blank",
+      "start_line": 274,
+      "end_line": 274,
+      "raw": "\n"
+    },
+    {
+      "id": "b000193",
+      "kind": "paragraph",
+      "start_line": 275,
+      "end_line": 275,
+      "raw": "가능하면 RAII를 기본 자원 관리 방식으로 사용한다.\n"
+    },
+    {
+      "id": "b000194",
+      "kind": "blank",
+      "start_line": 276,
+      "end_line": 276,
+      "raw": "\n"
+    },
+    {
+      "id": "b000195",
+      "kind": "paragraph",
+      "start_line": 277,
+      "end_line": 277,
+      "raw": "raw pointer의 존재 자체를 금지하지 않는다. pointer의 의미가 ownership인지 observation인지 명확하게 유지한다.\n"
+    },
+    {
+      "id": "b000196",
+      "kind": "blank",
+      "start_line": 278,
+      "end_line": 278,
+      "raw": "\n"
+    },
+    {
+      "id": "b000197",
+      "kind": "paragraph",
+      "start_line": 279,
+      "end_line": 279,
+      "raw": "불필요한 heap allocation을 피하되 zero-allocation을 보편적인 목표로 강제하지 않는다.\n"
+    },
+    {
+      "id": "b000198",
+      "kind": "blank",
+      "start_line": 280,
+      "end_line": 280,
+      "raw": "\n"
+    },
+    {
+      "id": "b000199",
+      "kind": "paragraph",
+      "start_line": 281,
+      "end_line": 281,
+      "raw": "플랫폼 자원은 가능한 한 안전한 C++ lifetime model 안에 포함한다.\n"
+    },
+    {
+      "id": "b000200",
+      "kind": "blank",
+      "start_line": 282,
+      "end_line": 283,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000201",
+      "kind": "heading",
+      "start_line": 284,
+      "end_line": 284,
+      "raw": "## 11. 오류 처리\n",
+      "level": 2,
+      "title": "11. 오류 처리"
+    },
+    {
+      "id": "b000202",
+      "kind": "blank",
+      "start_line": 285,
+      "end_line": 285,
+      "raw": "\n"
+    },
+    {
+      "id": "b000203",
+      "kind": "paragraph",
+      "start_line": 286,
+      "end_line": 286,
+      "raw": "오류를 무시하거나 정상 상태처럼 위장하지 않는다.\n"
+    },
+    {
+      "id": "b000204",
+      "kind": "blank",
+      "start_line": 287,
+      "end_line": 287,
+      "raw": "\n"
+    },
+    {
+      "id": "b000205",
+      "kind": "paragraph",
+      "start_line": 288,
+      "end_line": 288,
+      "raw": "programming error와 runtime failure를 구분한다.\n"
+    },
+    {
+      "id": "b000206",
+      "kind": "blank",
+      "start_line": 289,
+      "end_line": 289,
+      "raw": "\n"
+    },
+    {
+      "id": "b000207",
+      "kind": "paragraph",
+      "start_line": 290,
+      "end_line": 290,
+      "raw": "assertion, exception, error value 등의 사용 방식은 각 문제의 성격을 고려하여 결정한다.\n"
+    },
+    {
+      "id": "b000208",
+      "kind": "blank",
+      "start_line": 291,
+      "end_line": 291,
+      "raw": "\n"
+    },
+    {
+      "id": "b000209",
+      "kind": "paragraph",
+      "start_line": 292,
+      "end_line": 292,
+      "raw": "모든 오류를 하나의 처리 방식으로 강제하지 않는다.\n"
+    },
+    {
+      "id": "b000210",
+      "kind": "blank",
+      "start_line": 293,
+      "end_line": 293,
+      "raw": "\n"
+    },
+    {
+      "id": "b000211",
+      "kind": "paragraph",
+      "start_line": 294,
+      "end_line": 294,
+      "raw": "오류 메시지는 인간뿐 아니라 코딩 에이전트가 원인을 파악할 수 있도록 구체적으로 작성한다.\n"
+    },
+    {
+      "id": "b000212",
+      "kind": "blank",
+      "start_line": 295,
+      "end_line": 295,
+      "raw": "\n"
+    },
+    {
+      "id": "b000213",
+      "kind": "paragraph",
+      "start_line": 296,
+      "end_line": 296,
+      "raw": "가능하다면 다음 정보를 보존한다.\n"
+    },
+    {
+      "id": "b000214",
+      "kind": "blank",
+      "start_line": 297,
+      "end_line": 297,
+      "raw": "\n"
+    },
+    {
+      "id": "b000215",
+      "kind": "list",
+      "start_line": 298,
+      "end_line": 302,
+      "raw": "- 실패한 operation\n- 오류 category\n- 관련 resource 또는 argument\n- platform error가 존재한다면 그 원인\n- 호출자가 취할 수 있는 조치\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "실패한 operation",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "오류 category",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "관련 resource 또는 argument",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "platform error가 존재한다면 그 원인",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "호출자가 취할 수 있는 조치",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000216",
+      "kind": "blank",
+      "start_line": 303,
+      "end_line": 304,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000217",
+      "kind": "heading",
+      "start_line": 305,
+      "end_line": 305,
+      "raw": "## 12. 에이전틱 코딩\n",
+      "level": 2,
+      "title": "12. 에이전틱 코딩"
+    },
+    {
+      "id": "b000218",
+      "kind": "blank",
+      "start_line": 306,
+      "end_line": 306,
+      "raw": "\n"
+    },
+    {
+      "id": "b000219",
+      "kind": "paragraph",
+      "start_line": 307,
+      "end_line": 307,
+      "raw": "iiSDKCore는 처음부터 인간과 코딩 에이전트가 함께 개발하는 코드베이스를 전제로 한다.\n"
+    },
+    {
+      "id": "b000220",
+      "kind": "blank",
+      "start_line": 308,
+      "end_line": 308,
+      "raw": "\n"
+    },
+    {
+      "id": "b000221",
+      "kind": "paragraph",
+      "start_line": 309,
+      "end_line": 309,
+      "raw": "에이전트가 코드를 탐색하고 변경하기 쉽도록 다음을 지향한다.\n"
+    },
+    {
+      "id": "b000222",
+      "kind": "blank",
+      "start_line": 310,
+      "end_line": 310,
+      "raw": "\n"
+    },
+    {
+      "id": "b000223",
+      "kind": "list",
+      "start_line": 311,
+      "end_line": 320,
+      "raw": "- 일관된 directory structure\n- 일관된 naming\n- 작은 translation unit\n- 명확한 module boundary\n- 명시적인 dependency\n- 자동화된 build\n- 자동화된 test\n- 결정적인 test result\n- 구체적인 compiler diagnostic\n- 필요한 곳의 간결한 architecture documentation\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "일관된 directory structure",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "일관된 naming",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "작은 translation unit",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "명확한 module boundary",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "명시적인 dependency",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "자동화된 build",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "자동화된 test",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "결정적인 test result",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "구체적인 compiler diagnostic",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "필요한 곳의 간결한 architecture documentation",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000224",
+      "kind": "blank",
+      "start_line": 321,
+      "end_line": 321,
+      "raw": "\n"
+    },
+    {
+      "id": "b000225",
+      "kind": "paragraph",
+      "start_line": 322,
+      "end_line": 322,
+      "raw": "코드의 중요한 동작을 에이전트가 추론하기 어려운 암묵적인 convention에만 의존시키지 않는다.\n"
+    },
+    {
+      "id": "b000226",
+      "kind": "blank",
+      "start_line": 323,
+      "end_line": 323,
+      "raw": "\n"
+    },
+    {
+      "id": "b000227",
+      "kind": "paragraph",
+      "start_line": 324,
+      "end_line": 324,
+      "raw": "반복적으로 필요한 프로젝트 지식은 문서화한다.\n"
+    },
+    {
+      "id": "b000228",
+      "kind": "blank",
+      "start_line": 325,
+      "end_line": 325,
+      "raw": "\n"
+    },
+    {
+      "id": "b000229",
+      "kind": "paragraph",
+      "start_line": 326,
+      "end_line": 326,
+      "raw": "에이전트에게 전체 코드베이스를 읽어야만 이해할 수 있는 구조를 가능한 한 만들지 않는다.\n"
+    },
+    {
+      "id": "b000230",
+      "kind": "blank",
+      "start_line": 327,
+      "end_line": 328,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000231",
+      "kind": "heading",
+      "start_line": 329,
+      "end_line": 329,
+      "raw": "## 13. 에이전트의 작업 규칙\n",
+      "level": 2,
+      "title": "13. 에이전트의 작업 규칙"
+    },
+    {
+      "id": "b000232",
+      "kind": "blank",
+      "start_line": 330,
+      "end_line": 330,
+      "raw": "\n"
+    },
+    {
+      "id": "b000233",
+      "kind": "paragraph",
+      "start_line": 331,
+      "end_line": 331,
+      "raw": "코드를 수정하기 전에 관련 코드와 dependency를 먼저 확인한다.\n"
+    },
+    {
+      "id": "b000234",
+      "kind": "blank",
+      "start_line": 332,
+      "end_line": 332,
+      "raw": "\n"
+    },
+    {
+      "id": "b000235",
+      "kind": "paragraph",
+      "start_line": 333,
+      "end_line": 333,
+      "raw": "기존 architecture를 이해하지 않은 상태에서 대규모 구조 변경을 수행하지 않는다.\n"
+    },
+    {
+      "id": "b000236",
+      "kind": "blank",
+      "start_line": 334,
+      "end_line": 334,
+      "raw": "\n"
+    },
+    {
+      "id": "b000237",
+      "kind": "paragraph",
+      "start_line": 335,
+      "end_line": 335,
+      "raw": "새 dependency를 추가하기 전에 기존 C++ 표준 기능 또는 현재 dependency로 해결할 수 있는지 확인한다.\n"
+    },
+    {
+      "id": "b000238",
+      "kind": "blank",
+      "start_line": 336,
+      "end_line": 336,
+      "raw": "\n"
+    },
+    {
+      "id": "b000239",
+      "kind": "paragraph",
+      "start_line": 337,
+      "end_line": 337,
+      "raw": "새 abstraction을 추가할 때는 실제 소비자가 존재하는지 확인한다.\n"
+    },
+    {
+      "id": "b000240",
+      "kind": "blank",
+      "start_line": 338,
+      "end_line": 338,
+      "raw": "\n"
+    },
+    {
+      "id": "b000241",
+      "kind": "paragraph",
+      "start_line": 339,
+      "end_line": 339,
+      "raw": "기존 public API를 변경할 때는 영향을 받는 사용처를 확인한다.\n"
+    },
+    {
+      "id": "b000242",
+      "kind": "blank",
+      "start_line": 340,
+      "end_line": 340,
+      "raw": "\n"
+    },
+    {
+      "id": "b000243",
+      "kind": "paragraph",
+      "start_line": 341,
+      "end_line": 341,
+      "raw": "플랫폼별 코드를 수정할 때는 다른 지원 플랫폼의 의미론이 달라지지 않는지 고려한다.\n"
+    },
+    {
+      "id": "b000244",
+      "kind": "blank",
+      "start_line": 342,
+      "end_line": 342,
+      "raw": "\n"
+    },
+    {
+      "id": "b000245",
+      "kind": "paragraph",
+      "start_line": 343,
+      "end_line": 343,
+      "raw": "변경 후 가능한 범위에서 build와 관련 test를 수행한다.\n"
+    },
+    {
+      "id": "b000246",
+      "kind": "blank",
+      "start_line": 344,
+      "end_line": 344,
+      "raw": "\n"
+    },
+    {
+      "id": "b000247",
+      "kind": "paragraph",
+      "start_line": 345,
+      "end_line": 345,
+      "raw": "test를 통과시키기 위해 제품 요구사항이나 assertion을 임의로 약화하지 않는다.\n"
+    },
+    {
+      "id": "b000248",
+      "kind": "blank",
+      "start_line": 346,
+      "end_line": 346,
+      "raw": "\n"
+    },
+    {
+      "id": "b000249",
+      "kind": "paragraph",
+      "start_line": 347,
+      "end_line": 347,
+      "raw": "문제를 숨기기 위한 fallback을 임의로 추가하지 않는다.\n"
+    },
+    {
+      "id": "b000250",
+      "kind": "blank",
+      "start_line": 348,
+      "end_line": 348,
+      "raw": "\n"
+    },
+    {
+      "id": "b000251",
+      "kind": "paragraph",
+      "start_line": 349,
+      "end_line": 349,
+      "raw": "불확실한 architecture decision이 필요한 경우 임의로 거대한 시스템을 확정하기보다 작은 변경 가능한 구현을 우선한다.\n"
+    },
+    {
+      "id": "b000252",
+      "kind": "blank",
+      "start_line": 350,
+      "end_line": 351,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000253",
+      "kind": "heading",
+      "start_line": 352,
+      "end_line": 352,
+      "raw": "## 14. 테스트\n",
+      "level": 2,
+      "title": "14. 테스트"
+    },
+    {
+      "id": "b000254",
+      "kind": "blank",
+      "start_line": 353,
+      "end_line": 353,
+      "raw": "\n"
+    },
+    {
+      "id": "b000255",
+      "kind": "paragraph",
+      "start_line": 354,
+      "end_line": 354,
+      "raw": "Core 기능은 가능한 한 자동 테스트가 가능하도록 설계한다.\n"
+    },
+    {
+      "id": "b000256",
+      "kind": "blank",
+      "start_line": 355,
+      "end_line": 355,
+      "raw": "\n"
+    },
+    {
+      "id": "b000257",
+      "kind": "paragraph",
+      "start_line": 356,
+      "end_line": 356,
+      "raw": "특히 다음 종류의 기능은 테스트를 중요하게 취급한다.\n"
+    },
+    {
+      "id": "b000258",
+      "kind": "blank",
+      "start_line": 357,
+      "end_line": 357,
+      "raw": "\n"
+    },
+    {
+      "id": "b000259",
+      "kind": "list",
+      "start_line": 358,
+      "end_line": 364,
+      "raw": "- 평생\n- 소유권\n- 동시성\n- 오류 전파\n- 플랫폼 추상화\n- serialization이 존재하는 경우 format stability\n- public API의 핵심 invariant\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "평생",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "소유권",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "동시성",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "오류 전파",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "플랫폼 추상화",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "serialization이 존재하는 경우 format stability",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "public API의 핵심 invariant",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000260",
+      "kind": "blank",
+      "start_line": 365,
+      "end_line": 365,
+      "raw": "\n"
+    },
+    {
+      "id": "b000261",
+      "kind": "paragraph",
+      "start_line": 366,
+      "end_line": 366,
+      "raw": "플랫폼 독립 API는 가능한 경우 동일한 test suite를 각 지원 플랫폼에서 실행한다.\n"
+    },
+    {
+      "id": "b000262",
+      "kind": "blank",
+      "start_line": 367,
+      "end_line": 367,
+      "raw": "\n"
+    },
+    {
+      "id": "b000263",
+      "kind": "paragraph",
+      "start_line": 368,
+      "end_line": 368,
+      "raw": "플랫폼별 동작 차이가 의도된 경우 이를 명시적으로 기록한다.\n"
+    },
+    {
+      "id": "b000264",
+      "kind": "blank",
+      "start_line": 369,
+      "end_line": 370,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000265",
+      "kind": "heading",
+      "start_line": 371,
+      "end_line": 371,
+      "raw": "## 15. 호환성\n",
+      "level": 2,
+      "title": "15. 호환성"
+    },
+    {
+      "id": "b000266",
+      "kind": "blank",
+      "start_line": 372,
+      "end_line": 372,
+      "raw": "\n"
+    },
+    {
+      "id": "b000267",
+      "kind": "paragraph",
+      "start_line": 373,
+      "end_line": 373,
+      "raw": "iiSDKCore는 현재 초기 개발 단계이다.\n"
+    },
+    {
+      "id": "b000268",
+      "kind": "blank",
+      "start_line": 374,
+      "end_line": 374,
+      "raw": "\n"
+    },
+    {
+      "id": "b000269",
+      "kind": "paragraph",
+      "start_line": 375,
+      "end_line": 375,
+      "raw": "1.0 이전에는 좋은 구조를 얻기 위해 breaking change를 허용한다.\n"
+    },
+    {
+      "id": "b000270",
+      "kind": "blank",
+      "start_line": 376,
+      "end_line": 376,
+      "raw": "\n"
+    },
+    {
+      "id": "b000271",
+      "kind": "paragraph",
+      "start_line": 377,
+      "end_line": 377,
+      "raw": "잘못된 초기 API를 보존하기 위해 장기적인 기술 부채를 만들지 않는다.\n"
+    },
+    {
+      "id": "b000272",
+      "kind": "blank",
+      "start_line": 378,
+      "end_line": 378,
+      "raw": "\n"
+    },
+    {
+      "id": "b000273",
+      "kind": "paragraph",
+      "start_line": 379,
+      "end_line": 379,
+      "raw": "그러나 breaking change 자체를 가볍게 취급하지 않는다. 변경에는 명확한 기술적 이유가 있어야 한다.\n"
+    },
+    {
+      "id": "b000274",
+      "kind": "blank",
+      "start_line": 380,
+      "end_line": 380,
+      "raw": "\n"
+    },
+    {
+      "id": "b000275",
+      "kind": "paragraph",
+      "start_line": 381,
+      "end_line": 381,
+      "raw": "ABI 안정성, 장기 source compatibility 및 deprecation 정책은 실제 배포 요구사항이 구체화되기 전에 과도하게 고정하지 않는다.\n"
+    },
+    {
+      "id": "b000276",
+      "kind": "blank",
+      "start_line": 382,
+      "end_line": 383,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000277",
+      "kind": "heading",
+      "start_line": 384,
+      "end_line": 384,
+      "raw": "## 16. 문서화\n",
+      "level": 2,
+      "title": "16. 문서화"
+    },
+    {
+      "id": "b000278",
+      "kind": "blank",
+      "start_line": 385,
+      "end_line": 385,
+      "raw": "\n"
+    },
+    {
+      "id": "b000279",
+      "kind": "paragraph",
+      "start_line": 386,
+      "end_line": 386,
+      "raw": "코드는 가능한 한 자체적으로 이해 가능해야 하지만, architecture와 invariant는 코드만으로 전달하려 하지 않는다.\n"
+    },
+    {
+      "id": "b000280",
+      "kind": "blank",
+      "start_line": 387,
+      "end_line": 387,
+      "raw": "\n"
+    },
+    {
+      "id": "b000281",
+      "kind": "paragraph",
+      "start_line": 388,
+      "end_line": 388,
+      "raw": "문서에는 주로 다음을 기록한다.\n"
+    },
+    {
+      "id": "b000282",
+      "kind": "blank",
+      "start_line": 389,
+      "end_line": 389,
+      "raw": "\n"
+    },
+    {
+      "id": "b000283",
+      "kind": "list",
+      "start_line": 390,
+      "end_line": 397,
+      "raw": "- 왜 이 abstraction이 존재하는가\n- 어떤 책임을 가지는가\n- 무엇을 의도적으로 책임지지 않는가\n- ownership과 lifetime 규칙\n- dependency 방향\n- 플랫폼별 의미 차이\n- 쉽게 깨질 수 있는 invariant\n- 설계 결정의 중요한 이유\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "왜 이 abstraction이 존재하는가",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "어떤 책임을 가지는가",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "무엇을 의도적으로 책임지지 않는가",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "ownership과 lifetime 규칙",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "dependency 방향",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "플랫폼별 의미 차이",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "쉽게 깨질 수 있는 invariant",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "설계 결정의 중요한 이유",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000284",
+      "kind": "blank",
+      "start_line": 398,
+      "end_line": 398,
+      "raw": "\n"
+    },
+    {
+      "id": "b000285",
+      "kind": "paragraph",
+      "start_line": 399,
+      "end_line": 399,
+      "raw": "코드를 그대로 설명하는 주석은 최소화한다.\n"
+    },
+    {
+      "id": "b000286",
+      "kind": "blank",
+      "start_line": 400,
+      "end_line": 400,
+      "raw": "\n"
+    },
+    {
+      "id": "b000287",
+      "kind": "paragraph",
+      "start_line": 401,
+      "end_line": 401,
+      "raw": "\"What\"보다 \"Why\"를 기록한다.\n"
+    },
+    {
+      "id": "b000288",
+      "kind": "blank",
+      "start_line": 402,
+      "end_line": 403,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000289",
+      "kind": "heading",
+      "start_line": 404,
+      "end_line": 404,
+      "raw": "## 17. 설계 판단 기준\n",
+      "level": 2,
+      "title": "17. 설계 판단 기준"
+    },
+    {
+      "id": "b000290",
+      "kind": "blank",
+      "start_line": 405,
+      "end_line": 405,
+      "raw": "\n"
+    },
+    {
+      "id": "b000291",
+      "kind": "paragraph",
+      "start_line": 406,
+      "end_line": 406,
+      "raw": "새로운 기능이나 abstraction을 추가하기 전에 다음을 검토한다.\n"
+    },
+    {
+      "id": "b000292",
+      "kind": "blank",
+      "start_line": 407,
+      "end_line": 407,
+      "raw": "\n"
+    },
+    {
+      "id": "b000293",
+      "kind": "list",
+      "start_line": 408,
+      "end_line": 417,
+      "raw": "1. 현재 실제 사용처가 존재하는가?\n2. 이것은 정말 Core의 책임인가?\n3. C++ 표준 라이브러리로 충분하지 않은가?\n4. 특정 제품이나 상위 모듈의 요구사항이 Core로 누출되고 있지 않은가?\n5. 특정 운영체제의 개념을 공통 API로 잘못 일반화하고 있지 않은가?\n6. 구현을 나중에 교체할 수 있는가?\n7. 지금 필요한 것보다 지나치게 일반화하고 있지 않은가?\n8. 성능 최적화라면 실제 측정 근거가 있는가?\n9. 에이전트와 인간이 API의 의미를 쉽게 파악할 수 있는가?\n10. 이 코드가 없어도 현재 요구사항을 만족할 수 있는가?\n",
+      "items": [
+        {
+          "marker": "1.",
+          "text": "현재 실제 사용처가 존재하는가?",
+          "checked": null
+        },
+        {
+          "marker": "2.",
+          "text": "이것은 정말 Core의 책임인가?",
+          "checked": null
+        },
+        {
+          "marker": "3.",
+          "text": "C++ 표준 라이브러리로 충분하지 않은가?",
+          "checked": null
+        },
+        {
+          "marker": "4.",
+          "text": "특정 제품이나 상위 모듈의 요구사항이 Core로 누출되고 있지 않은가?",
+          "checked": null
+        },
+        {
+          "marker": "5.",
+          "text": "특정 운영체제의 개념을 공통 API로 잘못 일반화하고 있지 않은가?",
+          "checked": null
+        },
+        {
+          "marker": "6.",
+          "text": "구현을 나중에 교체할 수 있는가?",
+          "checked": null
+        },
+        {
+          "marker": "7.",
+          "text": "지금 필요한 것보다 지나치게 일반화하고 있지 않은가?",
+          "checked": null
+        },
+        {
+          "marker": "8.",
+          "text": "성능 최적화라면 실제 측정 근거가 있는가?",
+          "checked": null
+        },
+        {
+          "marker": "9.",
+          "text": "에이전트와 인간이 API의 의미를 쉽게 파악할 수 있는가?",
+          "checked": null
+        },
+        {
+          "marker": "10.",
+          "text": "이 코드가 없어도 현재 요구사항을 만족할 수 있는가?",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000294",
+      "kind": "blank",
+      "start_line": 418,
+      "end_line": 418,
+      "raw": "\n"
+    },
+    {
+      "id": "b000295",
+      "kind": "paragraph",
+      "start_line": 419,
+      "end_line": 419,
+      "raw": "10번의 답이 \"그렇다\"라면 추가하지 않는 것을 우선 고려한다.\n"
+    },
+    {
+      "id": "b000296",
+      "kind": "blank",
+      "start_line": 420,
+      "end_line": 421,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000297",
+      "kind": "heading",
+      "start_line": 422,
+      "end_line": 422,
+      "raw": "## 18. 현재의 최우선 목표\n",
+      "level": 2,
+      "title": "18. 현재의 최우선 목표"
+    },
+    {
+      "id": "b000298",
+      "kind": "blank",
+      "start_line": 423,
+      "end_line": 423,
+      "raw": "\n"
+    },
+    {
+      "id": "b000299",
+      "kind": "paragraph",
+      "start_line": 424,
+      "end_line": 424,
+      "raw": "iiSDKCore의 초기 목표는 거대한 범용 프레임워크를 완성하는 것이 아니다.\n"
+    },
+    {
+      "id": "b000300",
+      "kind": "blank",
+      "start_line": 425,
+      "end_line": 425,
+      "raw": "\n"
+    },
+    {
+      "id": "b000301",
+      "kind": "paragraph",
+      "start_line": 426,
+      "end_line": 426,
+      "raw": "작고 신뢰할 수 있으며 Qt에 의존하지 않는 기반을 만들고, 실제 iiSDK 상위 모듈과 iisacc 소프트웨어가 사용하면서 필요한 기능을 발견하는 것이다.\n"
+    },
+    {
+      "id": "b000302",
+      "kind": "blank",
+      "start_line": 427,
+      "end_line": 427,
+      "raw": "\n"
+    },
+    {
+      "id": "b000303",
+      "kind": "paragraph",
+      "start_line": 428,
+      "end_line": 428,
+      "raw": "iiSDKCore는 실제 사용처와 함께 성장한다.\n"
+    },
+    {
+      "id": "b000304",
+      "kind": "blank",
+      "start_line": 429,
+      "end_line": 429,
+      "raw": "\n"
+    },
+    {
+      "id": "b000305",
+      "kind": "paragraph",
+      "start_line": 430,
+      "end_line": 430,
+      "raw": "미래의 iiSDK 전체 구조를 현재 시점에서 완벽하게 예측하려 하지 않는다.\n"
+    },
+    {
+      "id": "b000306",
+      "kind": "blank",
+      "start_line": 431,
+      "end_line": 432,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000307",
+      "kind": "heading",
+      "start_line": 433,
+      "end_line": 433,
+      "raw": "## 19. 최종 원칙\n",
+      "level": 2,
+      "title": "19. 최종 원칙"
+    },
+    {
+      "id": "b000308",
+      "kind": "blank",
+      "start_line": 434,
+      "end_line": 434,
+      "raw": "\n"
+    },
+    {
+      "id": "b000309",
+      "kind": "paragraph",
+      "start_line": 435,
+      "end_line": 435,
+      "raw": "iiSDKCore의 좋은 설계는 처음부터 모든 요구사항을 해결하는 설계가 아니다.\n"
+    },
+    {
+      "id": "b000310",
+      "kind": "blank",
+      "start_line": 436,
+      "end_line": 436,
+      "raw": "\n"
+    },
+    {
+      "id": "b000311",
+      "kind": "paragraph",
+      "start_line": 437,
+      "end_line": 437,
+      "raw": "새로운 요구사항이 등장했을 때 기존 시스템 전체를 파괴하지 않고 변화할 수 있는 설계이다.\n"
+    },
+    {
+      "id": "b000312",
+      "kind": "blank",
+      "start_line": 438,
+      "end_line": 438,
+      "raw": "\n"
+    },
+    {
+      "id": "b000313",
+      "kind": "paragraph",
+      "start_line": 439,
+      "end_line": 439,
+      "raw": "선행 프레임워크에서는 문제와 경험을 배우되, 추상화와 구현은 iiSDKCore의 실제 요구사항에서 다시 도출한다.\n"
+    },
+    {
+      "id": "b000314",
+      "kind": "blank",
+      "start_line": 440,
+      "end_line": 440,
+      "raw": "\n"
+    },
+    {
+      "id": "b000315",
+      "kind": "paragraph",
+      "start_line": 441,
+      "end_line": 443,
+      "raw": "확실한 것은 구현한다.\n불확실한 것은 고정하지 않는다.\n필요하지 않은 것은 만들지 않는다.\n"
+    },
+    {
+      "id": "b000316",
+      "kind": "blank",
+      "start_line": 444,
+      "end_line": 444,
+      "raw": "\n"
+    },
+    {
+      "id": "b000317",
+      "kind": "heading",
+      "start_line": 445,
+      "end_line": 445,
+      "raw": "## 14. 공통 기능군 (0.8.0)\n",
+      "level": 2,
+      "title": "14. 공통 기능군 (0.8.0)"
+    },
+    {
+      "id": "b000318",
+      "kind": "blank",
+      "start_line": 446,
+      "end_line": 446,
+      "raw": "\n"
+    },
+    {
+      "id": "b000319",
+      "kind": "paragraph",
+      "start_line": 447,
+      "end_line": 447,
+      "raw": "애니메이션의 순차·병렬 트랙은 시간축 구성이고 CPU 병렬 작업은 Runtime에 제출한다. 표준 컨테이너·ranges·PMR·동기화·future는 직접 사용한다. 공유 값은 불변 스냅샷과 명시적 편집 커밋으로 처리하며 동시 수정 충돌을 숨기지 않는다. 플러그인은 버전이 있는 C ABI 함수 표와 인스턴스 조합을 사용하고, 실행 전달과 인스턴스를 제거한 뒤 모듈 참조를 해제한다. iOS/WASM은 정적 등록이다. 이벤트 필터는 QueryPort 알림 쿼리에 조합하며 별도 전역 버스를 만들지 않는다. AtomicFile은 임시 파일과 이름 교체로 저장하며 직접 덮어쓰기 fallback을 하지 않는다. 계약은 `docs/modern-core.md`를 따른다.\n"
+    },
+    {
+      "id": "b000320",
+      "kind": "blank",
+      "start_line": 448,
+      "end_line": 448,
+      "raw": "\n"
+    },
+    {
+      "id": "b000321",
+      "kind": "heading",
+      "start_line": 449,
+      "end_line": 449,
+      "raw": "## 데이터 타입 직렬화 (0.9.0)\n",
+      "level": 2,
+      "title": "데이터 타입 직렬화 (0.9.0)"
+    },
+    {
+      "id": "b000322",
+      "kind": "blank",
+      "start_line": 450,
+      "end_line": 450,
+      "raw": "\n"
+    },
+    {
+      "id": "b000323",
+      "kind": "paragraph",
+      "start_line": 451,
+      "end_line": 451,
+      "raw": "직렬화는 Core/Serialization의 표준 C++23 CBOR 프로파일과 명시적인 Codec<T>로 수행한다. 정적 직렬화는 Values 독립 타깃을 유지하고 Runtime을 참조하지 않는다. DynamicValue는 인스턴스별 안정적인 타입 ID·버전 등록을 사용하며 typeid 이름·주소·객체 메모리 배치를 wire format으로 만들지 않는다. 입력·출력·문자열·항목·깊이·요청 저장소 한도를 유지하고 실패한 입력은 기존 객체를 부분 변경하지 않는다. 사용자 코덱과 형식 변경에는 고정 바이트·범위·실패·소유권·설치 소비자 검사를 추가한다. 계약은 docs/serialization.md를 따른다.\n"
+    },
+    {
+      "id": "b000324",
+      "kind": "blank",
+      "start_line": 452,
+      "end_line": 452,
+      "raw": "\n"
+    },
+    {
+      "id": "b000325",
+      "kind": "heading",
+      "start_line": 453,
+      "end_line": 453,
+      "raw": "## 암시적 공유 (0.10.0)\n",
+      "level": 2,
+      "title": "암시적 공유 (0.10.0)"
+    },
+    {
+      "id": "b000326",
+      "kind": "blank",
+      "start_line": 454,
+      "end_line": 454,
+      "raw": "\n"
+    },
+    {
+      "id": "b000327",
+      "kind": "paragraph",
+      "start_line": 455,
+      "end_line": 455,
+      "raw": "SharedValue의 복사·대입은 데이터 복사 없이 저장소를 공유하고 modify에서 자동 분리한다. 단독 소유의 미공개 저장소와 noexcept 편집에서만 제자리 재사용하며, 공개한 Snapshot 저장소는 weak_ptr 업그레이드도 보호하도록 불변으로 유지한다. use_count만으로 수정 권한을 판정하지 않는다. update의 기존 낙관적 커밋·충돌 계약은 보존한다. mutable 참조·iterator를 편집 범위 밖으로 유출하지 않는다. 수정에는 복사 횟수·실패 롤백·약한 참조·동시성·제거·설치 소비자 검증을 유지한다. 계약은 docs/implicit-sharing.md를 따른다.\n"
+    },
+    {
+      "id": "b000328",
+      "kind": "blank",
+      "start_line": 456,
+      "end_line": 456,
+      "raw": "\n"
+    },
+    {
+      "id": "b000329",
+      "kind": "heading",
+      "start_line": 457,
+      "end_line": 457,
+      "raw": "## 공통 계약과 기능 모듈의 경계 (0.13.0)\n",
+      "level": 2,
+      "title": "공통 계약과 기능 모듈의 경계 (0.13.0)"
+    },
+    {
+      "id": "b000330",
+      "kind": "blank",
+      "start_line": 458,
+      "end_line": 458,
+      "raw": "\n"
+    },
+    {
+      "id": "b000331",
+      "kind": "paragraph",
+      "start_line": 459,
+      "end_line": 459,
+      "raw": "Core는 C++23 및 네이티브 플랫폼 런타임만 참조한다. iiFileProvider 등 기능 SDK의 헤더·링크·패키지 의존성을 추가하지 않는다. 최소 데이터·실행 계약은 독립 Contracts 타깃으로 제공하고, Values와 Runtime 구현의 소비 여부는 호스트가 명시한다. Qt 호환 계층은 Core 밖에 둔다.\n"
+    },
+    {
+      "id": "b000332",
+      "kind": "blank",
+      "start_line": 460,
+      "end_line": 460,
+      "raw": "\n"
+    },
+    {
+      "id": "b000333",
+      "kind": "paragraph",
+      "start_line": 461,
+      "end_line": 461,
+      "raw": "UTF-8 텍스트·소유 Bytes/차용 ByteView·구조화 Value의 정확한 타입·수명을 보존한다. Value는 JSON 파서가 아니며, 비유한 실수·잘못된 UTF-8·포인터의 암묵적 bool 변환을 허용하지 않는다. 임시 값에서 차용 뷰를 꺼내지 않는다. 기존 DynamicValue는 타입 지정 쿼리의 std::any 저장소로 유지한다. Runtime/Execution.h의 TaskExecutor·Submission·TaskToken 계약을 QueryPort와 TaskScope가 공유한다.\n"
+    },
+    {
+      "id": "b000334",
+      "kind": "blank",
+      "start_line": 462,
+      "end_line": 462,
+      "raw": "\n"
+    },
+    {
+      "id": "b000335",
+      "kind": "paragraph",
+      "start_line": 463,
+      "end_line": 463,
+      "raw": "파일 생성·독점 생성·초기화·원자적 공개·프리뷰 통지는 iiFileProvider CoreIO가 소유한다. 이 선택적 어댑터는 Core와 Native 공급자 위에 있고 두 하위 라이브러리는 서로를 참조하지 않는다. 이전 문단의 AtomicFile 구현 위치는 이 규칙으로 대체한다. Core는 NativeFile 플랫폼 확장으로 이미 확보한 일반 파일 자원을 인수하며, 실패·할당 예외·마지막 소유자 제거 때에도 수명을 정리한다. rooted File에는 opener를 주입한다. 테스트의 자원 준비는 테스트 전용 fixture이며, 이전 저장소 회귀 검사와 예제는 새 소유 모듈에서 계속 실행한다.\n"
+    },
+    {
+      "id": "b000336",
+      "kind": "blank",
+      "start_line": 464,
+      "end_line": 464,
+      "raw": "\n"
+    },
+    {
+      "id": "b000337",
+      "kind": "paragraph",
+      "start_line": 465,
+      "end_line": 465,
+      "raw": "이 경계는 테스트 비활성 빌드에도 필수 검사한다. 설치된 Contracts 소비자는 Threads·Qt·파일 공급자를 찾지 못하도록 하여 독립성을 검증한다. 모든 상위 SDK와 제품의 Qt 이전 완료를 기반 모듈의 성공으로 대체하지 않는다. 계약은 docs/foundation-architecture.md를 따른다.\n"
+    },
+    {
+      "id": "b000338",
+      "kind": "blank",
+      "start_line": 466,
+      "end_line": 466,
+      "raw": "\n"
+    },
+    {
+      "id": "b000339",
+      "kind": "heading",
+      "start_line": 467,
+      "end_line": 467,
+      "raw": "## 텍스트 경계와 추적 작업 (0.14.0)\n",
+      "level": 2,
+      "title": "텍스트 경계와 추적 작업 (0.14.0)"
+    },
+    {
+      "id": "b000340",
+      "kind": "blank",
+      "start_line": 468,
+      "end_line": 468,
+      "raw": "\n"
+    },
+    {
+      "id": "b000341",
+      "kind": "paragraph",
+      "start_line": 469,
+      "end_line": 469,
+      "raw": "텍스트 변환은 표준 문자열과 명시적인 UTF-8/UTF-16·네이티브 경로 의미론으로 제공한다. 바이트·코드 단위 인덱스와 차용 뷰의 수명을 혼동하지 않는다. JSON 문법·직렬화는 독립 기능 모듈 iiJson이 Contracts 위에서 담당하며 Core는 코덱에 의존하지 않는다.\n"
+    },
+    {
+      "id": "b000342",
+      "kind": "blank",
+      "start_line": 470,
+      "end_line": 470,
+      "raw": "\n"
+    },
+    {
+      "id": "b000343",
+      "kind": "paragraph",
+      "start_line": 471,
+      "end_line": 471,
+      "raw": "OperationOwner·Operation은 기존 TaskScope·실행기를 조합한다. 접수 실패, 실행 실패, 협력적 취소, 단조 마감, 소유자/실행기 제거, 외부 부작용 상태를 구분하며 최종 결과는 한 번만 확정한다. 대기 시간 초과가 작업 중단을 뜻하지 않는다. TaskScope::Sender는 제거된 수신 객체를 되살리지 않는 약한 접수 경계이다. 완료 전달 위치를 명시하고 SerialQueue의 순서 보장과 Thread+EventLoop의 고정 스레드 보장을 구분한다. 기존 QueryPort의 저수준 전달 동작은 유지한다. 실제 소비자는 iiCSMIDI의 소유 바이트 비동기 디코더이다. 계약은 docs/text.md·docs/operation.md·docs/qt-migration-p0.md를 따른다.\n"
+    },
+    {
+      "id": "b000344",
+      "kind": "blank",
+      "start_line": 472,
+      "end_line": 472,
+      "raw": "\n"
+    },
+    {
+      "id": "b000345",
+      "kind": "html",
+      "start_line": 473,
+      "end_line": 473,
+      "raw": "<!-- workspace-docs:agent:start -->\n"
+    },
+    {
+      "id": "b000346",
+      "kind": "heading",
+      "start_line": 474,
+      "end_line": 474,
+      "raw": "## 문서 구조와 에이전트 탐색\n",
+      "level": 2,
+      "title": "문서 구조와 에이전트 탐색"
+    },
+    {
+      "id": "b000347",
+      "kind": "blank",
+      "start_line": 475,
+      "end_line": 475,
+      "raw": "\n"
+    },
+    {
+      "id": "b000348",
+      "kind": "list",
+      "start_line": 476,
+      "end_line": 482,
+      "raw": "- 프로젝트 루트의 `README.md`는 사람용 영문 진입 문서이며 `AGENT.md`는 에이전트 진입점이다.\n- 하위 인간용 Markdown과 구조화된 agent JSON을 함께 유지한다. Markdown이 원본이며 JSON은 원문 해시와 줄 범위를 가진 파생 문서이다.\n- 먼저 [docs/agent-index.json](docs/agent-index.json)에서 관련 문서와 JSON 투영을 찾는다. 원문 SHA-256이 다르면 현재 Markdown을 읽고 투영을 갱신한다.\n- JSON의 규칙 후보는 검색용 어휘 일치 결과이다. 과거 기록·예제·실패 상태를 현재 지시나 검증 완료로 자동 해석하지 않는다.\n- 기존 프로젝트별 규칙, 동결된 증거, 라이선스, 외부 원본, 사용자 데이터와 다른 작업의 변경을 보존한다.\n- 이 문서 재편 지침은 과거 작업의 기능 구현·배포를 자동 재개하라는 요청이 아니다. 현재 사용자의 작업 범위를 우선한다.\n- 문서를 수정하면 JSON 쌍·색인을 함께 갱신하고 검증한다. 기존 소스 변경에 대한 빌드·테스트 규칙은 계속 따른다.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "프로젝트 루트의 `README.md`는 사람용 영문 진입 문서이며 `AGENT.md`는 에이전트 진입점이다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "하위 인간용 Markdown과 구조화된 agent JSON을 함께 유지한다. Markdown이 원본이며 JSON은 원문 해시와 줄 범위를 가진 파생 문서이다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "먼저 [docs/agent-index.json](docs/agent-index.json)에서 관련 문서와 JSON 투영을 찾는다. 원문 SHA-256이 다르면 현재 Markdown을 읽고 투영을 갱신한다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "JSON의 규칙 후보는 검색용 어휘 일치 결과이다. 과거 기록·예제·실패 상태를 현재 지시나 검증 완료로 자동 해석하지 않는다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "기존 프로젝트별 규칙, 동결된 증거, 라이선스, 외부 원본, 사용자 데이터와 다른 작업의 변경을 보존한다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "이 문서 재편 지침은 과거 작업의 기능 구현·배포를 자동 재개하라는 요청이 아니다. 현재 사용자의 작업 범위를 우선한다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "문서를 수정하면 JSON 쌍·색인을 함께 갱신하고 검증한다. 기존 소스 변경에 대한 빌드·테스트 규칙은 계속 따른다.",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000349",
+      "kind": "blank",
+      "start_line": 483,
+      "end_line": 483,
+      "raw": "\n"
+    },
+    {
+      "id": "b000350",
+      "kind": "paragraph",
+      "start_line": 484,
+      "end_line": 484,
+      "raw": "Workspace에서 이 프로젝트의 문서를 갱신하는 명령은 다음과 같다.\n"
+    },
+    {
+      "id": "b000351",
+      "kind": "blank",
+      "start_line": 485,
+      "end_line": 485,
+      "raw": "\n"
+    },
+    {
+      "id": "b000352",
+      "kind": "fenced_code",
+      "start_line": 486,
+      "end_line": 488,
+      "raw": "```sh\npython3 ../../Engineering/WorkspaceDocumentation/App/workspace_docs.py --workspace ../.. sync --project SDK/iiSDKCore\n```\n",
+      "language": "sh",
+      "code": "python3 ../../Engineering/WorkspaceDocumentation/App/workspace_docs.py --workspace ../.. sync --project SDK/iiSDKCore\n",
+      "closed": true
+    },
+    {
+      "id": "b000353",
+      "kind": "html",
+      "start_line": 489,
+      "end_line": 489,
+      "raw": "<!-- workspace-docs:agent:end -->\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "AGENT.md — iiSDKCore",
+      "anchor": "agentmd--iisdkcore",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000003",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "0. iiSDK란",
+      "anchor": "0-iisdk란",
+      "start_line": 3
+    },
+    {
+      "block_id": "b000006",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "1. 프로젝트 정의",
+      "anchor": "1-프로젝트-정의",
+      "start_line": 10
+    },
+    {
+      "block_id": "b000016",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "2. 핵심 원칙",
+      "anchor": "2-핵심-원칙",
+      "start_line": 21
+    },
+    {
+      "block_id": "b000018",
+      "parent_id": "b000016",
+      "level": 3,
+      "title": "2.1 변경 가능성을 우선한다",
+      "anchor": "21-변경-가능성을-우선한다",
+      "start_line": 23
+    },
+    {
+      "block_id": "b000028",
+      "parent_id": "b000016",
+      "level": 3,
+      "title": "2.2 iiSDKCore를 작게 유지한다",
+      "anchor": "22-iisdkcore를-작게-유지한다",
+      "start_line": 34
+    },
+    {
+      "block_id": "b000038",
+      "parent_id": "b000016",
+      "level": 3,
+      "title": "2.3 추상화를 추측하지 않는다",
+      "anchor": "23-추상화를-추측하지-않는다",
+      "start_line": 45
+    },
+    {
+      "block_id": "b000046",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "3. C++ 정책",
+      "anchor": "3-c-정책",
+      "start_line": 54
+    },
+    {
+      "block_id": "b000064",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "4. Qt 독립성",
+      "anchor": "4-qt-독립성",
+      "start_line": 81
+    },
+    {
+      "block_id": "b000086",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "5. 플랫폼 정책",
+      "anchor": "5-플랫폼-정책",
+      "start_line": 116
+    },
+    {
+      "block_id": "b000108",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "6. 의존성 규칙",
+      "anchor": "6-의존성-규칙",
+      "start_line": 145
+    },
+    {
+      "block_id": "b000123",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "7. iiSDKCore가 기본적으로 책임지지 않는 영역",
+      "anchor": "7-iisdkcore가-기본적으로-책임지지-않는-영역",
+      "start_line": 170
+    },
+    {
+      "block_id": "b000135",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "8. API 설계",
+      "anchor": "8-api-설계",
+      "start_line": 202
+    },
+    {
+      "block_id": "b000165",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "9. 성능 정책",
+      "anchor": "9-성능-정책",
+      "start_line": 241
+    },
+    {
+      "block_id": "b000183",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "10. 메모리와 자원",
+      "anchor": "10-메모리와-자원",
+      "start_line": 265
+    },
+    {
+      "block_id": "b000201",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "11. 오류 처리",
+      "anchor": "11-오류-처리",
+      "start_line": 284
+    },
+    {
+      "block_id": "b000217",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "12. 에이전틱 코딩",
+      "anchor": "12-에이전틱-코딩",
+      "start_line": 305
+    },
+    {
+      "block_id": "b000231",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "13. 에이전트의 작업 규칙",
+      "anchor": "13-에이전트의-작업-규칙",
+      "start_line": 329
+    },
+    {
+      "block_id": "b000253",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "14. 테스트",
+      "anchor": "14-테스트",
+      "start_line": 352
+    },
+    {
+      "block_id": "b000265",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "15. 호환성",
+      "anchor": "15-호환성",
+      "start_line": 371
+    },
+    {
+      "block_id": "b000277",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "16. 문서화",
+      "anchor": "16-문서화",
+      "start_line": 384
+    },
+    {
+      "block_id": "b000289",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "17. 설계 판단 기준",
+      "anchor": "17-설계-판단-기준",
+      "start_line": 404
+    },
+    {
+      "block_id": "b000297",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "18. 현재의 최우선 목표",
+      "anchor": "18-현재의-최우선-목표",
+      "start_line": 422
+    },
+    {
+      "block_id": "b000307",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "19. 최종 원칙",
+      "anchor": "19-최종-원칙",
+      "start_line": 433
+    },
+    {
+      "block_id": "b000317",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "14. 공통 기능군 (0.8.0)",
+      "anchor": "14-공통-기능군-080",
+      "start_line": 445
+    },
+    {
+      "block_id": "b000321",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "데이터 타입 직렬화 (0.9.0)",
+      "anchor": "데이터-타입-직렬화-090",
+      "start_line": 449
+    },
+    {
+      "block_id": "b000325",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "암시적 공유 (0.10.0)",
+      "anchor": "암시적-공유-0100",
+      "start_line": 453
+    },
+    {
+      "block_id": "b000329",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "공통 계약과 기능 모듈의 경계 (0.13.0)",
+      "anchor": "공통-계약과-기능-모듈의-경계-0130",
+      "start_line": 457
+    },
+    {
+      "block_id": "b000339",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "텍스트 경계와 추적 작업 (0.14.0)",
+      "anchor": "텍스트-경계와-추적-작업-0140",
+      "start_line": 467
+    },
+    {
+      "block_id": "b000346",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "문서 구조와 에이전트 탐색",
+      "anchor": "문서-구조와-에이전트-탐색",
+      "start_line": 474
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000004",
+        "line": 8,
+        "text": "모티브는 Qt, Swift, SwiftUI, Cargo, Unreal Engine, Flutter이다. 그러나 이들을 모방하는 구조는 채택하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000014",
+        "line": 18,
+        "text": "현재 프로젝트는 초기 단계이다. 현재의 구조와 API를 완성된 설계로 간주하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000020",
+        "line": 25,
+        "text": "미래의 요구사항을 정확하게 예측하려 하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000024",
+        "line": 29,
+        "text": "성능, 범용성, 확장성을 추측하여 불필요한 복잡성을 미리 추가하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000026",
+        "line": 31,
+        "text": "확실한 것은 구현하되, 불확실한 것은 가능한 한 고정하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000030",
+        "line": 36,
+        "text": "어떤 기능이 유용하다는 이유만으로 iiSDKCore에 추가하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000038",
+        "line": 45,
+        "text": "### 2.3 추상화를 추측하지 않는다",
+        "basis": "lexical_match",
+        "context": "heading"
+      },
+      {
+        "block_id": "b000044",
+        "line": 51,
+        "text": "한 번만 사용되는 구현을 미래에 여러 구현이 생길 것이라는 추측만으로 일반화하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000050",
+        "line": 58,
+        "text": "다중 상속은 구조적으로 금지한다. 프로젝트가 정의한 class/struct의 직접 기반 클래스는 최대 하나이며, 기반 클래스 팩 확장도 금지한다. public 헤더의 완전한 class/struct 정의는 모두 final로 선언하여 SDK 타입을 상속의 기반으로 사용할 수 없게 한다. 값·행동·통신 기능의 결합은 인스턴스 조합으로 구현한다. 이 규칙은 테스트 비활성 빌드를 포함한 필수 iiSDKCoreArchitectureCheck에서 원본과 전처리 결과를 검사하여 강제한다. 검사 우회 옵션을 추가하지 않는다. 세부 계약과 검증은 `docs/inheritance.md`, `tests/architecture_policy.py`를 따른다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000056",
+        "line": 64,
+        "text": "예를 들어 특별한 이유가 없다면 다음과 같은 표준 기능을 다시 구현하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000060",
+        "line": 76,
+        "text": "`iiString`, `iiVector`, `iiSharedPtr` 등의 타입을 단순히 iiSDK 고유 타입을 만들기 위한 목적으로 추가하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000070",
+        "line": 87,
+        "text": "다음을 포함한 Qt 타입과 시스템을 iiSDKCore의 public API 또는 implementation dependency로 사용하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000078",
+        "line": 104,
+        "text": "그러나 Qt의 API, class hierarchy, naming, architecture 또는 implementation을 iiSDKCore의 명세로 취급하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000102",
+        "line": 138,
+        "text": "운영체제 API를 무조건 1:1 wrapper로 변환하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000106",
+        "line": 142,
+        "text": "단, C++ 표준 라이브러리만으로 충분히 이식 가능한 기능은 불필요하게 플랫폼별로 다시 구현하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000114",
+        "line": 151,
+        "text": "iiSDKCore는 상위 iiSDK 모듈에 의존해서는 안 된다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000121",
+        "line": 167,
+        "text": "Core의 편의를 위해 상위 모듈의 개념을 Core로 역수입하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000125",
+        "line": 172,
+        "text": "다음 영역은 명확한 필요성이 확인되기 전까지 iiSDKCore의 책임으로 간주하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000129",
+        "line": 195,
+        "text": "2026-10-15의 모듈 독립 요구에 따라 USB/HID 열거·hotplug·제어 전송·report 처리, Bluetooth LE central/GATT, float32 PCM 입출력, MIDI UMP 전송·해석과 플랫폼 백엔드는 독립 동위 모듈 iiDeviceMultimedia가 소유한다. 두 모듈은 서로의 헤더·타입·심볼·타깃·설치 패키지·런타임을 참조하지 않는다. EventLoop·FrameLoop·Runtime·TaskScope·Thread와 일반 Channel·AsyncIO는 Core에 유지한다. 장치 모듈은 자체 ii::device 오류 타입과 poll()을 제공하며, 이를 Core 이벤트 루프에서 호출하는 연결은 앱이 소유한다. Core 의존 그래프의 통상적인 상위 SDK 규칙과 달리 이 모듈에는 양방향 의존성이 모두 없다. 호환 shim이나 선택적 어댑터를 Core에 추가하지 않는다. 현재 조합·마이그레이션 계약은 `docs/device-extraction.md`를 따른다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000131",
+        "line": 197,
+        "text": "이 목록은 영구적인 금지 목록이 아니다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000137",
+        "line": 204,
+        "text": "멀티스레드·병렬·비동기 처리는 런타임의 기본 전제이다. 애플리케이션은 Runtime의 지속 워커 집합에 작업을 제출하며 작업마다 스레드를 생성하지 않는다. 가변 상태를 가진 객체는 SerialQueue를 소유하고 쿼리 포트를 같은 실행 영역에 연결한다. 같은 객체의 상태 접근은 순서를 보장하고 독립 객체·작업은 병렬로 실행한다. 객체 간 기본 통신은 비동기 post이며 직접 send는 명시적인 저수준/같은 실행 영역의 호출이다. WASM도 pthread를 기본으로 하고 제한된 단일 스레드 구성은 명시적으로 선택한다. 현재 계약은 `docs/parallel-runtime.md`에 정의한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000137",
+        "line": 205,
+        "text": "iiSDK의 객체 간 통신 모델은 쿼리 전달이다. 객체는 다른 객체의 쿼리 포트에 타입이 정해진 쿼리를 전달한다. 쿼리는 조회뿐 아니라 명령과 알림을 포함하며, 처리 결과가 필요한 경우 응답 타입을 명시한다. 수신 객체는 쿼리 포트를 인스턴스로 소유하고 송신 객체는 포트 참조를 사용한다. 상속, 문자열 메서드 검색, Qt signal/slot 또는 전역 객체 레지스트리를 전제로 하지 않는다. 현재 계약은 `docs/query.md`에 정의한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000139",
+        "line": 207,
+        "text": "쿼리는 GraphQL처럼 필요한 입력 값과 응답 필드만 명시적으로 전달하는 경량 계약을 기본으로 한다. 객체 간 통신이라는 사실이 객체 전체의 전달을 뜻하지 않는다. 객체 전체의 값·스냅샷·참조는 쿼리 계약에서 명시적으로 선택할 때만 포함한다. 포트 참조는 전달 경로이고 payload가 아니다. 미선택 필드는 응답 데이터로 만들지 않으며, 부분 갱신에서는 필드 생략과 명시적인 0·false·빈 값의 전달을 구분한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000141",
+        "line": 209,
+        "text": "iiSDK 객체의 멤버는 중첩 인스턴스로 트리를 구성한다. 각 노드는 값, 일반 메서드, QueryPort 및 자식 노드를 함께 가질 수 있으며 public과 private 모두 동일한 구조를 지원한다. 각 계층의 C++ 접근 제어를 보존하고, private 조상 아래의 멤버를 외부에 자동 노출하지 않는다. 쿼리의 선택 조건과 응답도 필요한 중첩 구조를 보존하며 전체 객체를 평탄한 필드 목록으로 변환하도록 강제하지 않는다. 표준 C++ 구성으로 충분한 경우 이를 감싸는 별도 객체 베이스 클래스나 리플렉션 레지스트리를 추가하지 않는다. 상세 계약은 `docs/member-tree.md`에 정의한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000143",
+        "line": 211,
+        "text": "Public API는 명시적이고 예측 가능해야 한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000145",
+        "line": 213,
+        "text": "EventLoop는 Channel의 준비 상태를 감지하고 read/write 완료를 같은 dispatch 실행 영역에서 전달한다. 감시·전송은 일반 작업과 같은 bounded 슬롯·우선순위·취소 계약을 사용하며, 네이티브 대기의 핸들 참조와 콜백 자원을 정리한 뒤 슬롯을 반환한다. 느린 동기 드라이버·파일 호출의 워커 격리는 AsyncIO로 유지한다. 하드웨어 프로토콜·열거·권한·USB/Bluetooth 등 호스트 브리지를 구현 근거 없이 지원한다고 선언하지 않는다. 계약은 `docs/loop-io.md`에 정의한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000147",
+        "line": 215,
+        "text": "생성 이후 멤버 스키마와 동작을 인스턴스별로 확장·변경하는 요구에는 `ObjectProperties`를 조합한다. 등록한 동적 노드의 값·메서드·자식을 queryable/designable 정책으로 다루며, 소유자 권한과 외부 쿼리 포트 권한을 분리한다. private 또는 잠긴 자손의 접근 제한을 부모의 교체·삭제로 우회해서는 안 된다. 정적 C++ 객체의 메모리 배치나 모든 멤버의 자동 반사는 요구하지 않는다. 이 기능의 현재 계약은 `docs/object-properties.md`에 정의한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000151",
+        "line": 225,
+        "text": "- 암묵적인 초기화 순서에 의존하지 않는다.",
+        "basis": "lexical_match",
+        "context": "list"
+      },
+      {
+        "block_id": "b000159",
+        "line": 235,
+        "text": "시간 민감 작업은 Core/Time의 단조 시간축과 EventLoop의 주기·마감·예산·quantum 예약으로 실행한다. 임의 C++ 콜백을 강제 선점한다고 선언하지 않는다. 예산 초과·마감 누락·놓친 주기를 관측하고, 지연된 실행을 무제한 따라잡지 않는다. LiveStream은 재생 시각·지연 한도·제한된 저장소를 조합하며 제거 시 실행 전달과 payload를 정리한다. 계약은 `docs/realtime.md`를 따른다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000161",
+        "line": 237,
+        "text": "2026-10-14의 앱·게임 공용 런타임 요구에 따라 프레임 단계, 고정 시간 갱신·제한된 따라잡기·보간, 실제/배속 시간, 일시정지와 tick 선행 조건을 FrameLoop의 공통 책임으로 포함한다. EventLoop와 기존 DependencyGraph를 조합하며 물리·렌더러·세계·GUI 구현은 상위 모듈에 둔다. Unity·Unreal은 요구사항 참고 자료이며 의존성이 아니다. EventLoop만 사용하는 앱에 연속 프레임을 강제하지 않는다. 호스트 스레드·수명·변경·실패 계약은 `docs/frame-loop.md`를 따른다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000163",
+        "line": 239,
+        "text": "2026-10-16의 라이브 데이터 선택 방출 요구에 따라 QueryStream은 타입 쿼리·프로젝터·구독별 bounded 출력·기존 실행기를 조합한다. 구독은 자체 QueryPort로 선택을 교체하고 버전으로 이전 대기/계산 결과를 차단한다. 선택·콜백·캡처 파괴 뒤 할당량을 반환하며 객체 전체 자동 노출, 새 전용 스레드, 전역 브로커, 네트워크/미디어 프로토콜은 추가하지 않는다. 수명·역압력·재시도 계약은 docs/query-stream.md를 따른다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000167",
+        "line": 243,
+        "text": "2026-10-16의 앱 에셋·리소스 네이티브 최적화 요구에 따라 Core 0.17은 불변 바이트 팩, 정렬·중복 제거·색인, 공유 뷰 수명과 기존 Channel의 읽기 전용 네이티브 매핑을 공통 기반으로 제공한다. 경로를 통한 파일 생성·제공은 iiFileProvider가, 대상 플랫폼 선택·생성 C++·depfile·팩 출력은 iiSDKBuilder가 담당한다. 이미지·텍스처·오디오·셰이더 변환기나 GPU·스토리지 모듈을 Core로 역수입하지 않는다. 팩의 공개 계약·예산·버전 형식·메모리 매핑 제한은 docs/resources.md를 따른다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000171",
+        "line": 247,
+        "text": "그러나 측정되지 않은 성능 문제를 해결하기 위해 복잡성을 추가하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000185",
+        "line": 267,
+        "text": "하드웨어 I/O의 공통 기반은 `ii::io::Channel`과 `AsyncIO`이다. OS가 공개한 파일·시리얼 바이트 I/O를 사용자 공간에서 수행하고 public API에 네이티브 핸들을 노출하지 않는다. 같은 채널의 비동기 요청은 하나의 SerialQueue로 관리하며 버퍼는 완료 이후 재사용한다. 플랫폼 capability와 오류를 명시하고 WASM 가상 파일 성공을 물리 장치 접근으로 간주하지 않는다. 현재 지원 범위와 수명·취소 계약은 `docs/io.md`를 따른다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000187",
+        "line": 269,
+        "text": "런타임의 작업 스레드는 플랫폼 독립적인 `Thread` 인스턴스로 관리한다. 작업 수명, 협력적 중단, 종료 대기와 실패 전달의 계약은 `docs/thread.md`를 따른다. 제품 코드에 OS 스레드 핸들·분리된 detach 스레드·상속 기반 실행자를 요구하지 않는다. 표준 스레드 구현은 이 클래스 내부에 두고, EventLoop와 참조로 조합한다. WASM 단일 스레드와 pthread 호스트의 지원 차이는 명시적으로 처리한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000191",
+        "line": 273,
+        "text": "객체 제거는 신규 작업 차단, 미실행 작업 취소, 활성 작업·완료 콜백 대기, 소유 자원 파괴, 할당량 반환 순서로 수행한다. 작업 캡처의 파괴가 끝나기 전에 슬롯을 다음 객체에 제공하지 않는다. 객체별 작업은 TaskScope·QueryPort·SerialQueue의 제거 경계에 등록하며, 상태를 사용하는 작업을 닫은 뒤 상태를 해제한다. 외부 공유 소유자와 영속 데이터는 해당 소유권 계약을 보존한다. 세부 계약과 회귀 검증은 `docs/cleanup.md`, `tests/cleanup.cpp`를 따른다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000195",
+        "line": 277,
+        "text": "raw pointer의 존재 자체를 금지하지 않는다. pointer의 의미가 ownership인지 observation인지 명확하게 유지한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000197",
+        "line": 279,
+        "text": "불필요한 heap allocation을 피하되 zero-allocation을 보편적인 목표로 강제하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000203",
+        "line": 286,
+        "text": "오류를 무시하거나 정상 상태처럼 위장하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000209",
+        "line": 292,
+        "text": "모든 오류를 하나의 처리 방식으로 강제하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000235",
+        "line": 333,
+        "text": "기존 architecture를 이해하지 않은 상태에서 대규모 구조 변경을 수행하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000247",
+        "line": 345,
+        "text": "test를 통과시키기 위해 제품 요구사항이나 assertion을 임의로 약화하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000249",
+        "line": 347,
+        "text": "문제를 숨기기 위한 fallback을 임의로 추가하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000273",
+        "line": 379,
+        "text": "그러나 breaking change 자체를 가볍게 취급하지 않는다. 변경에는 명확한 기술적 이유가 있어야 한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000275",
+        "line": 381,
+        "text": "ABI 안정성, 장기 source compatibility 및 deprecation 정책은 실제 배포 요구사항이 구체화되기 전에 과도하게 고정하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000279",
+        "line": 386,
+        "text": "코드는 가능한 한 자체적으로 이해 가능해야 하지만, architecture와 invariant는 코드만으로 전달하려 하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000305",
+        "line": 430,
+        "text": "미래의 iiSDK 전체 구조를 현재 시점에서 완벽하게 예측하려 하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000315",
+        "line": 442,
+        "text": "불확실한 것은 고정하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000319",
+        "line": 447,
+        "text": "애니메이션의 순차·병렬 트랙은 시간축 구성이고 CPU 병렬 작업은 Runtime에 제출한다. 표준 컨테이너·ranges·PMR·동기화·future는 직접 사용한다. 공유 값은 불변 스냅샷과 명시적 편집 커밋으로 처리하며 동시 수정 충돌을 숨기지 않는다. 플러그인은 버전이 있는 C ABI 함수 표와 인스턴스 조합을 사용하고, 실행 전달과 인스턴스를 제거한 뒤 모듈 참조를 해제한다. iOS/WASM은 정적 등록이다. 이벤트 필터는 QueryPort 알림 쿼리에 조합하며 별도 전역 버스를 만들지 않는다. AtomicFile은 임시 파일과 이름 교체로 저장하며 직접 덮어쓰기 fallback을 하지 않는다. 계약은 `docs/modern-core.md`를 따른다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000323",
+        "line": 451,
+        "text": "직렬화는 Core/Serialization의 표준 C++23 CBOR 프로파일과 명시적인 Codec<T>로 수행한다. 정적 직렬화는 Values 독립 타깃을 유지하고 Runtime을 참조하지 않는다. DynamicValue는 인스턴스별 안정적인 타입 ID·버전 등록을 사용하며 typeid 이름·주소·객체 메모리 배치를 wire format으로 만들지 않는다. 입력·출력·문자열·항목·깊이·요청 저장소 한도를 유지하고 실패한 입력은 기존 객체를 부분 변경하지 않는다. 사용자 코덱과 형식 변경에는 고정 바이트·범위·실패·소유권·설치 소비자 검사를 추가한다. 계약은 docs/serialization.md를 따른다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000327",
+        "line": 455,
+        "text": "SharedValue의 복사·대입은 데이터 복사 없이 저장소를 공유하고 modify에서 자동 분리한다. 단독 소유의 미공개 저장소와 noexcept 편집에서만 제자리 재사용하며, 공개한 Snapshot 저장소는 weak_ptr 업그레이드도 보호하도록 불변으로 유지한다. use_count만으로 수정 권한을 판정하지 않는다. update의 기존 낙관적 커밋·충돌 계약은 보존한다. mutable 참조·iterator를 편집 범위 밖으로 유출하지 않는다. 수정에는 복사 횟수·실패 롤백·약한 참조·동시성·제거·설치 소비자 검증을 유지한다. 계약은 docs/implicit-sharing.md를 따른다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000331",
+        "line": 459,
+        "text": "Core는 C++23 및 네이티브 플랫폼 런타임만 참조한다. iiFileProvider 등 기능 SDK의 헤더·링크·패키지 의존성을 추가하지 않는다. 최소 데이터·실행 계약은 독립 Contracts 타깃으로 제공하고, Values와 Runtime 구현의 소비 여부는 호스트가 명시한다. Qt 호환 계층은 Core 밖에 둔다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000333",
+        "line": 461,
+        "text": "UTF-8 텍스트·소유 Bytes/차용 ByteView·구조화 Value의 정확한 타입·수명을 보존한다. Value는 JSON 파서가 아니며, 비유한 실수·잘못된 UTF-8·포인터의 암묵적 bool 변환을 허용하지 않는다. 임시 값에서 차용 뷰를 꺼내지 않는다. 기존 DynamicValue는 타입 지정 쿼리의 std::any 저장소로 유지한다. Runtime/Execution.h의 TaskExecutor·Submission·TaskToken 계약을 QueryPort와 TaskScope가 공유한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000335",
+        "line": 463,
+        "text": "파일 생성·독점 생성·초기화·원자적 공개·프리뷰 통지는 iiFileProvider CoreIO가 소유한다. 이 선택적 어댑터는 Core와 Native 공급자 위에 있고 두 하위 라이브러리는 서로를 참조하지 않는다. 이전 문단의 AtomicFile 구현 위치는 이 규칙으로 대체한다. Core는 NativeFile 플랫폼 확장으로 이미 확보한 일반 파일 자원을 인수하며, 실패·할당 예외·마지막 소유자 제거 때에도 수명을 정리한다. rooted File에는 opener를 주입한다. 테스트의 자원 준비는 테스트 전용 fixture이며, 이전 저장소 회귀 검사와 예제는 새 소유 모듈에서 계속 실행한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000337",
+        "line": 465,
+        "text": "이 경계는 테스트 비활성 빌드에도 필수 검사한다. 설치된 Contracts 소비자는 Threads·Qt·파일 공급자를 찾지 못하도록 하여 독립성을 검증한다. 모든 상위 SDK와 제품의 Qt 이전 완료를 기반 모듈의 성공으로 대체하지 않는다. 계약은 docs/foundation-architecture.md를 따른다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000341",
+        "line": 469,
+        "text": "텍스트 변환은 표준 문자열과 명시적인 UTF-8/UTF-16·네이티브 경로 의미론으로 제공한다. 바이트·코드 단위 인덱스와 차용 뷰의 수명을 혼동하지 않는다. JSON 문법·직렬화는 독립 기능 모듈 iiJson이 Contracts 위에서 담당하며 Core는 코덱에 의존하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000343",
+        "line": 471,
+        "text": "OperationOwner·Operation은 기존 TaskScope·실행기를 조합한다. 접수 실패, 실행 실패, 협력적 취소, 단조 마감, 소유자/실행기 제거, 외부 부작용 상태를 구분하며 최종 결과는 한 번만 확정한다. 대기 시간 초과가 작업 중단을 뜻하지 않는다. TaskScope::Sender는 제거된 수신 객체를 되살리지 않는 약한 접수 경계이다. 완료 전달 위치를 명시하고 SerialQueue의 순서 보장과 Thread+EventLoop의 고정 스레드 보장을 구분한다. 기존 QueryPort의 저수준 전달 동작은 유지한다. 실제 소비자는 iiCSMIDI의 소유 바이트 비동기 디코더이다. 계약은 docs/text.md·docs/operation.md·docs/qt-migration-p0.md를 따른다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000348",
+        "line": 479,
+        "text": "- JSON의 규칙 후보는 검색용 어휘 일치 결과이다. 과거 기록·예제·실패 상태를 현재 지시나 검증 완료로 자동 해석하지 않는다.",
+        "basis": "lexical_match",
+        "context": "list"
+      }
+    ],
+    "commands": [
+      {
+        "block_id": "b000352",
+        "language": "sh",
+        "code": "python3 ../../Engineering/WorkspaceDocumentation/App/workspace_docs.py --workspace ../.. sync --project SDK/iiSDKCore\n"
+      }
+    ],
+    "links": [
+      {
+        "block_id": "b000348",
+        "label": "docs/agent-index.json",
+        "target": "docs/agent-index.json",
+        "kind": "relative",
+        "line": 478
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

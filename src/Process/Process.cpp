@@ -229,7 +229,10 @@ struct Process::State final {
         if (::kill(-pid,SIGKILL)!=0 && errno!=ESRCH) {
             const auto number=errno;
 #if defined(__APPLE__)
-            if(number!=EPERM || info.si_pid==0 || !dead_group(pid))
+            // The root can become a zombie after waitid reported it running.
+            // Its unreaped PID still pins the group identity; inspect every
+            // remaining member even when that first observation was empty.
+            if(number!=EPERM || !dead_group(pid))
 #endif
                 return native_error("terminate process group",number);
         }

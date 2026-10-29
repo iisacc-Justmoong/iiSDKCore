@@ -1,0 +1,232 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:f60a829b1dd8a4bb7ae12fe1ed576873b62cc5ac646f00470285910a6fdee434",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/qt-migration-p0.md",
+    "sha256": "cea2ee10e2bbc2c7421df7e81211feb0a7382190efc030d17a7ad63130dadb49",
+    "bytes": 2998,
+    "line_count": 42,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Qt migration: concrete first consumer (0.14.0)",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Qt migration: concrete first consumer (0.14.0)\n",
+      "level": 1,
+      "title": "Qt migration: concrete first consumer (0.14.0)"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 5,
+      "raw": "The supplied 0.12 assessment is historical. The existing 0.13 foundation first\nremoved the Core -> FileProvider dependency; this implementation preserves that\ndirection while completing the assessment's first implementation scope.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "table",
+      "start_line": 7,
+      "end_line": 13,
+      "raw": "| Layer | Implemented contract | Actual consumer |\n|---|---|---|\n| Core Contracts | Owned bytes/values, strict UTF-8, explicit UTF-16/native paths | iiCSMIDI's byte/path API; independent text consumers |\n| Core Runtime | Tracked result/stop/deadline/effects and scoped explicit reply execution | iiCSMIDI::decodeAsync; serial/fixed-thread race tests |\n| iiJson | Bounded UTF-8 JSON grammar, exact integer ranges, explicit DTO codecs | MIDI embedded authorship input validation |\n| FileProvider Native 0.8 | Exclusive complete-file creation, optimistic update, file removal and presentation | MidiFile create/edit/delete |\n| iiCSMIDI 0.3 | Qt-free public types, strict SMF + existing author schemas, optional Async component | Independent base and async package consumers |\n",
+      "columns": [
+        "Layer",
+        "Implemented contract",
+        "Actual consumer"
+      ],
+      "rows": [
+        [
+          "Core Contracts",
+          "Owned bytes/values, strict UTF-8, explicit UTF-16/native paths",
+          "iiCSMIDI's byte/path API; independent text consumers"
+        ],
+        [
+          "Core Runtime",
+          "Tracked result/stop/deadline/effects and scoped explicit reply execution",
+          "iiCSMIDI::decodeAsync; serial/fixed-thread race tests"
+        ],
+        [
+          "iiJson",
+          "Bounded UTF-8 JSON grammar, exact integer ranges, explicit DTO codecs",
+          "MIDI embedded authorship input validation"
+        ],
+        [
+          "FileProvider Native 0.8",
+          "Exclusive complete-file creation, optimistic update, file removal and presentation",
+          "MidiFile create/edit/delete"
+        ],
+        [
+          "iiCSMIDI 0.3",
+          "Qt-free public types, strict SMF + existing author schemas, optional Async component",
+          "Independent base and async package consumers"
+        ]
+      ]
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 14,
+      "end_line": 14,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 15,
+      "end_line": 20,
+      "raw": "iiJson is a codec module above Contracts, not a Core implementation dependency.\nNative remains independent of Core and iiJson; its existing authorship serializer\nand Unicode normalization remain authoritative for persisted account metadata.\nThe existing QueryPort behavior is unchanged. No Qt compatibility layer is added\nto Core. MIDI document handling is distinct from live MIDI/UMP in the independent\niiDeviceMultimedia module.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 21,
+      "end_line": 21,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 22,
+      "end_line": 29,
+      "raw": "Before replacing the old MIDI implementation, an executable linked to the existing\nQt 6.8.3 packages captured an authored SMF, its JSON and a representative\nNamespaceJournal-shaped compact JSON with SHA-256. The fixtures are checked into\niiCSMIDI/tests/fixtures. Native MIDI must round-trip the authored SMF and metadata\nbyte-for-byte, including non-ASCII author data and the original schema version.\nSync's NamespaceJournal serializer/hash code is unchanged. iiJson's writer does\nnot promise Qt ordering/number/escape identity; future journal migration requires\nseparate byte/hash fixtures for all deployed schemas and an explicit transition.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 30,
+      "end_line": 30,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 31,
+      "end_line": 35,
+      "raw": "The complete first-consumer boundary includes source/API checks, Qt-disabled\nbuilds, native file behavior, existing-format fixtures, bounded/race/lifetime\ntests, staged packages, independent installed consumers and binary dependency\ninspection. The checks do not establish that all non-GUI SDKs are now Qt-free.\nCurrent verification results and platform limits are in validation.md.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 36,
+      "end_line": 36,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 37,
+      "end_line": 42,
+      "raw": "P1's first consumer now uses [common native process execution](process.md),\nstandard pipes and child-local environment/cwd in iiSDKBuilder 0.1.1. Remaining\nconsumer-driven work includes sockets, standard app directories and UTC contracts;\nnetwork/authentication/session migration; SQL connection/transaction/recovery;\nBLE peripheral/advertising; streaming XML; image/document codecs and GUI adapters.\nNo empty modules or speculative execution-environment hierarchy are introduced.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Qt migration: concrete first consumer (0.14.0)",
+      "anchor": "qt-migration-concrete-first-consumer-0140",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000009",
+        "line": 25,
+        "text": "iiCSMIDI/tests/fixtures. Native MIDI must round-trip the authored SMF and metadata",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000011",
+        "line": 34,
+        "text": "inspection. The checks do not establish that all non-GUI SDKs are now Qt-free.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000013",
+        "label": "common native process execution",
+        "target": "process.md",
+        "kind": "relative",
+        "line": 37
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000005",
+        "columns": [
+          "Layer",
+          "Implemented contract",
+          "Actual consumer"
+        ],
+        "rows": [
+          [
+            "Core Contracts",
+            "Owned bytes/values, strict UTF-8, explicit UTF-16/native paths",
+            "iiCSMIDI's byte/path API; independent text consumers"
+          ],
+          [
+            "Core Runtime",
+            "Tracked result/stop/deadline/effects and scoped explicit reply execution",
+            "iiCSMIDI::decodeAsync; serial/fixed-thread race tests"
+          ],
+          [
+            "iiJson",
+            "Bounded UTF-8 JSON grammar, exact integer ranges, explicit DTO codecs",
+            "MIDI embedded authorship input validation"
+          ],
+          [
+            "FileProvider Native 0.8",
+            "Exclusive complete-file creation, optimistic update, file removal and presentation",
+            "MidiFile create/edit/delete"
+          ],
+          [
+            "iiCSMIDI 0.3",
+            "Qt-free public types, strict SMF + existing author schemas, optional Async component",
+            "Independent base and async package consumers"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

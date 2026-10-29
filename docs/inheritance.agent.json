@@ -1,0 +1,450 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:504dfcd741d8c82dae62520cc6a5e026e3c88433272357f1c88274e23cde1b25",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/inheritance.md",
+    "sha256": "b2bfdef6ebb8e4e38719dd11b3fe12113570075f163c2956ccb4fd6a290e1f62",
+    "bytes": 5180,
+    "line_count": 48,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "다중 상속 금지 계약",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# 다중 상속 금지 계약\n",
+      "level": 1,
+      "title": "다중 상속 금지 계약"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "iiSDKCore 0.4.0은 다중 상속을 프로젝트의 구조 규칙으로 금지한다. 값·행동·통신을 결합할 때 객체 인스턴스와 콜백·포트 참조를 조합한다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "heading",
+      "start_line": 5,
+      "end_line": 5,
+      "raw": "## 컴파일러가 강제하는 공개 경계\n",
+      "level": 2,
+      "title": "컴파일러가 강제하는 공개 경계"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "public 헤더에 정의한 완전한 class/struct는 final이다. Runtime·QueryPort 같은 객체뿐 아니라 RuntimeOptions·PropertyDefinition·I/O 요청·응답 같은 값 구조체도 포함한다. 내부 구현을 위해 public 헤더에 정의한 보조 구조체에도 같은 규칙을 적용한다. 전방 선언은 완전한 정의가 아니므로 final을 붙이지 않는다. 익명 구조체를 public 헤더에 추가하여 이 규칙을 우회할 수 없다.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "설치 소비자는 SDK 타입을 단일·다중 상속의 기반으로 사용할 수 없으며, C++ 컴파일러가 이를 거절한다. 멤버 값과 참조를 통한 조합, 지정 초기화와 기존 값 전달 API는 유지한다.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 10,
+      "end_line": 10,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "fenced_code",
+      "start_line": 11,
+      "end_line": 21,
+      "raw": "```cpp\n// 허용: 필요한 SDK 기능을 멤버로 조합한다.\nstruct ApplicationState {\n    ii::runtime::RuntimeOptions runtime;\n    ii::runtime::PropertyDefinition property;\n};\n\n// 컴파일 오류: final인 SDK 타입은 기반 클래스가 될 수 없다.\nstruct Forbidden : ii::runtime::RuntimeOptions,\n                   ii::runtime::PropertyDefinition {};\n```\n",
+      "language": "cpp",
+      "code": "// 허용: 필요한 SDK 기능을 멤버로 조합한다.\nstruct ApplicationState {\n    ii::runtime::RuntimeOptions runtime;\n    ii::runtime::PropertyDefinition property;\n};\n\n// 컴파일 오류: final인 SDK 타입은 기반 클래스가 될 수 없다.\nstruct Forbidden : ii::runtime::RuntimeOptions,\n                   ii::runtime::PropertyDefinition {};\n",
+      "closed": true
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 22,
+      "end_line": 22,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 23,
+      "end_line": 23,
+      "raw": "std::any·std::expected처럼 표준 라이브러리 타입을 사용하는 별칭은 해당 표준 타입의 규칙을 따른다. 규칙을 강제하기 위해 표준 타입을 임의의 SDK 래퍼로 대체하지 않는다.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 24,
+      "end_line": 24,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "heading",
+      "start_line": 25,
+      "end_line": 25,
+      "raw": "## 필수 빌드 검사\n",
+      "level": 2,
+      "title": "필수 빌드 검사"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 26,
+      "end_line": 26,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 27,
+      "end_line": 27,
+      "raw": "iiSDKCoreArchitectureCheck는 모든 라이브러리·테스트·예제·공개 헤더 검사 타깃의 선행 의존성이다. BUILD_TESTING=OFF와 예제 비활성 구성에서도 실행한다. 실패하면 해당 타깃의 컴파일을 시작할 수 없으며, 정책을 끄는 옵션은 제공하지 않는다.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 28,
+      "end_line": 28,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 29,
+      "end_line": 29,
+      "raw": "검사는 두 단계로 수행한다.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 30,
+      "end_line": 30,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "list",
+      "start_line": 31,
+      "end_line": 32,
+      "raw": "1. src/tests/examples의 C++ 소스를 검사한다. 두 개 이상의 직접 기반 클래스, 기반 클래스 팩 확장과 final 없는 public 헤더 정의를 거절한다. 원본 검사로 비활성 전처리 분기에 있는 명시적 다중 상속도 거절한다.\n2. 해당 구성에서 빌드하는 번역 단위를 구성된 C++ 컴파일러로 전처리한다. 타깃의 옵션·include·정의·C++ 표준/확장 모드와 플랫폼 도구 체인을 사용하여 매크로 확장 후의 프로젝트 선언도 검사한다. 매크로로 생성한 공개 헤더의 타입도 final이어야 한다. 표준 라이브러리와 OS 헤더 자체의 상속 구조는 검사 대상이 아니다.\n",
+      "items": [
+        {
+          "marker": "1.",
+          "text": "src/tests/examples의 C++ 소스를 검사한다. 두 개 이상의 직접 기반 클래스, 기반 클래스 팩 확장과 final 없는 public 헤더 정의를 거절한다. 원본 검사로 비활성 전처리 분기에 있는 명시적 다중 상속도 거절한다.",
+          "checked": null
+        },
+        {
+          "marker": "2.",
+          "text": "해당 구성에서 빌드하는 번역 단위를 구성된 C++ 컴파일러로 전처리한다. 타깃의 옵션·include·정의·C++ 표준/확장 모드와 플랫폼 도구 체인을 사용하여 매크로 확장 후의 프로젝트 선언도 검사한다. 매크로로 생성한 공개 헤더의 타입도 final이어야 한다. 표준 라이브러리와 OS 헤더 자체의 상속 구조는 검사 대상이 아니다.",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 33,
+      "end_line": 33,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 34,
+      "end_line": 34,
+      "raw": "기반 클래스 팩은 실제 인스턴스화에서 두 개 이상의 기반을 만들 수 있으므로 직접 기반 목록에서 허용하지 않는다. Base<Args...>처럼 한 기반 타입의 템플릿 인자를 확장하는 형태는 허용한다. 템플릿 인자·decltype의 쉼표, 주석·문자열·raw string의 선언 모양 텍스트는 기반 클래스 구분자로 취급하지 않는다. 해석할 수 없는 기반 목록은 통과시키지 않고 명시적인 단일 기반 또는 조합을 요구한다.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 35,
+      "end_line": 35,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 36,
+      "end_line": 36,
+      "raw": "프로젝트 내부의 명시적인 단일 상속은 다중 상속 검사 자체가 거절하지 않는다. 공개 SDK 타입은 final이므로 상속 확장 대신 조합을 사용한다. SDK를 링크하는 외부 C++ 프로젝트의 임의 타입 전체에 C++ 언어 규칙을 바꾸는 검사는 적용하지 않는다. 공개 SDK 타입의 상속 차단은 설치 헤더만으로 강제된다.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 37,
+      "end_line": 37,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "heading",
+      "start_line": 38,
+      "end_line": 38,
+      "raw": "## 도구와 반복 비용\n",
+      "level": 2,
+      "title": "도구와 반복 비용"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 39,
+      "end_line": 39,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 40,
+      "end_line": 40,
+      "raw": "빌드 호스트에 Python 3.9 이상이 필요하며 Python 표준 라이브러리만 사용한다. 런타임 라이브러리와 설치 소비자에는 Python·Clang 전용 도구·Qt 의존성을 추가하지 않는다. 현재 C++ 컴파일러의 전처리기를 사용하므로 별도 컴파일러를 설치할 필요가 없다.\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 41,
+      "end_line": 41,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "paragraph",
+      "start_line": 42,
+      "end_line": 42,
+      "raw": "검사 결과는 build/architecture에 저장한다. 검사기·구성·타깃 옵션과 프로젝트 입력 파일의 내용을 확인하고, 변경이 없는 번역 단위는 성공한 결과를 재사용한다. 표준/OS 헤더와 컴파일러 파일의 변경도 재검사를 유발한다. 새 소스 파일은 원본 검색과 CMake 타깃 목록에 반영되며 이전 캐시가 새 파일을 생략하지 않는다. 캐시가 없어도 같은 규칙을 처음부터 검사한다.\n"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 43,
+      "end_line": 43,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "heading",
+      "start_line": 44,
+      "end_line": 44,
+      "raw": "## 호환성과 검증\n",
+      "level": 2,
+      "title": "호환성과 검증"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 45,
+      "end_line": 45,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "paragraph",
+      "start_line": 46,
+      "end_line": 46,
+      "raw": "0.3.0에서 SDK 값 구조체를 상속하던 소비자는 0.4.0에서 멤버 조합으로 변경해야 한다. 헤더와 라이브러리를 함께 갱신하고 소비자를 다시 빌드한다. 기존 객체 제거·메모리 반환 계약은 [cleanup.md](cleanup.md)를 유지한다.\n"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 47,
+      "end_line": 47,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 48,
+      "end_line": 48,
+      "raw": "tests/architecture_policy.py는 명시적·가상·접근 지정 다중 상속, 템플릿·decltype, 매크로 확장, 기반 팩, 주석·문자열·속성·전방 선언과 익명 공개 구조체를 검사한다. 실제 컴파일러로 SDK 값 구조체의 상속이 실패하고 동일 타입의 조합이 성공하는지도 검사한다. 실행 환경과 설치 소비자 결과는 [validation.md](validation.md)에 기록한다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "다중 상속 금지 계약",
+      "anchor": "다중-상속-금지-계약",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000005",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "컴파일러가 강제하는 공개 경계",
+      "anchor": "컴파일러가-강제하는-공개-경계",
+      "start_line": 5
+    },
+    {
+      "block_id": "b000015",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "필수 빌드 검사",
+      "anchor": "필수-빌드-검사",
+      "start_line": 25
+    },
+    {
+      "block_id": "b000027",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "도구와 반복 비용",
+      "anchor": "도구와-반복-비용",
+      "start_line": 38
+    },
+    {
+      "block_id": "b000033",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "호환성과 검증",
+      "anchor": "호환성과-검증",
+      "start_line": 44
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000001",
+        "line": 1,
+        "text": "# 다중 상속 금지 계약",
+        "basis": "lexical_match",
+        "context": "heading"
+      },
+      {
+        "block_id": "b000003",
+        "line": 3,
+        "text": "iiSDKCore 0.4.0은 다중 상속을 프로젝트의 구조 규칙으로 금지한다. 값·행동·통신을 결합할 때 객체 인스턴스와 콜백·포트 참조를 조합한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000013",
+        "line": 23,
+        "text": "std::any·std::expected처럼 표준 라이브러리 타입을 사용하는 별칭은 해당 표준 타입의 규칙을 따른다. 규칙을 강제하기 위해 표준 타입을 임의의 SDK 래퍼로 대체하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000015",
+        "line": 25,
+        "text": "## 필수 빌드 검사",
+        "basis": "lexical_match",
+        "context": "heading"
+      },
+      {
+        "block_id": "b000017",
+        "line": 27,
+        "text": "iiSDKCoreArchitectureCheck는 모든 라이브러리·테스트·예제·공개 헤더 검사 타깃의 선행 의존성이다. BUILD_TESTING=OFF와 예제 비활성 구성에서도 실행한다. 실패하면 해당 타깃의 컴파일을 시작할 수 없으며, 정책을 끄는 옵션은 제공하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000023",
+        "line": 34,
+        "text": "기반 클래스 팩은 실제 인스턴스화에서 두 개 이상의 기반을 만들 수 있으므로 직접 기반 목록에서 허용하지 않는다. Base<Args...>처럼 한 기반 타입의 템플릿 인자를 확장하는 형태는 허용한다. 템플릿 인자·decltype의 쉼표, 주석·문자열·raw string의 선언 모양 텍스트는 기반 클래스 구분자로 취급하지 않는다. 해석할 수 없는 기반 목록은 통과시키지 않고 명시적인 단일 기반 또는 조합을 요구한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000025",
+        "line": 36,
+        "text": "프로젝트 내부의 명시적인 단일 상속은 다중 상속 검사 자체가 거절하지 않는다. 공개 SDK 타입은 final이므로 상속 확장 대신 조합을 사용한다. SDK를 링크하는 외부 C++ 프로젝트의 임의 타입 전체에 C++ 언어 규칙을 바꾸는 검사는 적용하지 않는다. 공개 SDK 타입의 상속 차단은 설치 헤더만으로 강제된다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000029",
+        "line": 40,
+        "text": "빌드 호스트에 Python 3.9 이상이 필요하며 Python 표준 라이브러리만 사용한다. 런타임 라이브러리와 설치 소비자에는 Python·Clang 전용 도구·Qt 의존성을 추가하지 않는다. 현재 C++ 컴파일러의 전처리기를 사용하므로 별도 컴파일러를 설치할 필요가 없다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000031",
+        "line": 42,
+        "text": "검사 결과는 build/architecture에 저장한다. 검사기·구성·타깃 옵션과 프로젝트 입력 파일의 내용을 확인하고, 변경이 없는 번역 단위는 성공한 결과를 재사용한다. 표준/OS 헤더와 컴파일러 파일의 변경도 재검사를 유발한다. 새 소스 파일은 원본 검색과 CMake 타깃 목록에 반영되며 이전 캐시가 새 파일을 생략하지 않는다. 캐시가 없어도 같은 규칙을 처음부터 검사한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000035",
+        "line": 46,
+        "text": "0.3.0에서 SDK 값 구조체를 상속하던 소비자는 0.4.0에서 멤버 조합으로 변경해야 한다. 헤더와 라이브러리를 함께 갱신하고 소비자를 다시 빌드한다. 기존 객체 제거·메모리 반환 계약은 [cleanup.md](cleanup.md)를 유지한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000035",
+        "label": "cleanup.md",
+        "target": "cleanup.md",
+        "kind": "relative",
+        "line": 46
+      },
+      {
+        "block_id": "b000037",
+        "label": "validation.md",
+        "target": "validation.md",
+        "kind": "relative",
+        "line": 48
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

@@ -38,7 +38,7 @@ std::uint64_t identity() {
     } while(!next.compare_exchange_weak(value,value+1));
     return value;
 }
-bool name_valid(const std::string& name) { return !name.empty() && name.find('\0')==name.npos && core::valid_utf8(name); }
+bool name_valid(const std::string& name) { return !name.empty() && name.size()<=256 && name.find('\0')==name.npos && core::valid_utf8(name); }
 bool fits(std::size_t used,std::size_t added,std::size_t limit=0) {
     if(!limit) limit=std::numeric_limits<std::size_t>::max();
     return used<=limit && added<=limit-used;
@@ -234,6 +234,7 @@ std::expected<void,SubmitError> ComputeRouter::configure_zone(AvailabilityZone i
 }
 std::expected<void,SubmitError> ComputeRouter::remove_zone(AvailabilityZone id) {
     std::lock_guard lock(impl_->mutex);
+    if(impl_->stopped) return std::unexpected(SubmitError::stopped);
     const auto zone=Impl::find(impl_->zones,id);
     if(!zone) return std::unexpected(SubmitError::invalid);
     if(zone->usage.in_flight) return std::unexpected(SubmitError::overloaded);
@@ -261,6 +262,7 @@ std::expected<void,SubmitError> ComputeRouter::configure_scope(ComputeScope id,C
 }
 std::expected<void,SubmitError> ComputeRouter::remove_scope(ComputeScope id) {
     std::lock_guard lock(impl_->mutex);
+    if(impl_->stopped) return std::unexpected(SubmitError::stopped);
     const auto scope=Impl::find(impl_->scopes,id);
     if(!scope || id==impl_->default_scope) return std::unexpected(SubmitError::invalid);
     if(scope->usage.in_flight) return std::unexpected(SubmitError::overloaded);
@@ -270,7 +272,8 @@ std::expected<void,SubmitError> ComputeRouter::remove_scope(ComputeScope id) {
 std::expected<LoadTarget,SubmitError> ComputeRouter::add_target(Runtime& runtime,AvailabilityZone id,ComputeTargetOptions options) {
     const auto sample=runtime.stats();
     if(!options.load.capacity) options.load.capacity=sample.capacity;
-    if(!std::isfinite(options.cpu_ceiling) || options.cpu_ceiling<=0 || options.cpu_ceiling>1)
+    if(!std::isfinite(options.cpu_ceiling) || options.cpu_ceiling<=0 || options.cpu_ceiling>1 ||
+       (!options.load.name.empty() && !name_valid(options.load.name)))
         return std::unexpected(SubmitError::invalid);
     auto target=std::make_shared<Impl::Target>();
     target->runtime=&runtime; target->sample=sample; target->sampled_at=Clock::now(); target->options=options;
@@ -278,6 +281,7 @@ std::expected<LoadTarget,SubmitError> ComputeRouter::add_target(Runtime& runtime
     if(impl_->stopped) return std::unexpected(SubmitError::stopped);
     target->zone=Impl::find(impl_->zones,id);
     if(!target->zone) return std::unexpected(SubmitError::invalid);
+    for(const auto& other:impl_->targets) if(other && other->runtime==&runtime) return std::unexpected(SubmitError::invalid);
     const auto slot=std::find(impl_->targets.begin(),impl_->targets.end(),nullptr);
     if(slot==impl_->targets.end()) return std::unexpected(SubmitError::full);
     const auto registered=impl_->balance.add_target(runtime,std::move(options.load));
@@ -322,8 +326,13 @@ std::expected<ComputeLease,SubmitError> ComputeRouter::allocate(ComputeScope sco
     const auto reject=[&](SubmitError code) -> std::expected<ComputeLease,SubmitError> { ++impl_->rejected; return std::unexpected(code); };
     if(impl_->stopped) return reject(SubmitError::stopped);
     const auto scope=Impl::find(impl_->scopes,scope_id);
-    if(!scope || !request.work.units || (request.preferred_zone &&
+    const auto policy=request.work.policy.value_or(BalancePolicy::least_loaded);
+    if(!scope || !request.work.units ||
+       (request.work.priority!=Priority::high && request.work.priority!=Priority::normal && request.work.priority!=Priority::background) ||
+       (policy!=BalancePolicy::least_loaded && policy!=BalancePolicy::least_outstanding && policy!=BalancePolicy::round_robin && policy!=BalancePolicy::flow_hash) ||
+       (policy==BalancePolicy::flow_hash && !request.work.affinity) || (request.preferred_zone &&
        (!Impl::find(impl_->zones,*request.preferred_zone) || !impl_->covers(*scope,*request.preferred_zone)))) return reject(SubmitError::invalid);
+    if(impl_->balance.stats().in_flight==impl_->options.capacity) return reject(SubmitError::full);
     if(!scope->options.enabled || !fits(scope->usage,request.work,scope->options.limits)) return reject(SubmitError::overloaded);
     impl_->refresh_locked();
     const auto now=Clock::now();
@@ -407,8 +416,8 @@ std::expected<RoutedProcess,SubmitError> ComputeRouter::route_process(ComputeSco
             } active{*state};
             auto child=process::Process::start(launch);
             if(!child) { state->fail(child.error().cause); return std::unexpected(child.error()); }
-            native_id->store(child->id());
             { std::lock_guard lock(state->owner->mutex); ++state->target->active_processes; active.started=true; }
+            native_id->store(child->id());
             context.mark_effects(SideEffects::possible);
             communication.stop=stop.get_token(); communication.deadline=context.deadline();
             auto result=child->communicate(core::ByteView(input.data(),input.size()),communication);
@@ -481,7 +490,7 @@ ThreadResult ComputeRouter::remove_target(LoadTarget id,ShutdownMode mode) {
         std::lock_guard lock(impl_->mutex);
         target=Impl::find(impl_->targets,id);
         if(!target) return error(ThreadErrorCode::invalid_work);
-        target->retiring=true; target->enabled=false; ++impl_->revision;
+        target->retiring=true; target->enabled=false; target->load.draining=true; ++impl_->revision;
         (void)impl_->balance.request_drain(id);
     }
     for(;;) {
@@ -509,7 +518,7 @@ ThreadResult ComputeRouter::close(ShutdownMode mode) {
     if(!lifecycle.owns_lock()) return error(ThreadErrorCode::busy);
     {
         std::lock_guard lock(impl_->mutex); impl_->stopped=true;
-        for(const auto& target:impl_->targets) if(target) { target->enabled=false; target->retiring=true; }
+        for(const auto& target:impl_->targets) if(target) { target->enabled=false; target->retiring=true; target->load.draining=true; }
     }
     impl_->balance.request_stop();
     if(const auto stopped=stop_monitoring();!stopped) return stopped;

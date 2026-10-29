@@ -1,0 +1,753 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:7c5d691d09e11792f38759ac4e1bfca8ae8926a27d949a341b034f6ed5d528f5",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/resources.md",
+    "sha256": "aefc16238215b7a2a789f194fe52f50deaa14f0c03c636b8c98cb4b970da91b3",
+    "bytes": 10791,
+    "line_count": 195,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Native application resources (0.17)",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Native application resources (0.17)\n",
+      "level": 1,
+      "title": "Native application resources (0.17)"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 8,
+      "raw": "Core supplies immutable resource bytes, indexed lookup, shared lifetime and\nnative read-only mappings. iiSDKBuilder is the build-host compiler. File\ncreation/publication belongs to iiFileProvider. No GUI, codec, storage SDK,\ncompression library, Qt, runtime interpreter or asset registry is imported into\nCore. Image/texture/audio/shader conversion remains in its owning feature module;\nthe resulting native bytes can be selected and packaged for a target.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "heading",
+      "start_line": 10,
+      "end_line": 10,
+      "raw": "## Storage and native optimization\n",
+      "level": 2,
+      "title": "Storage and native optimization"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 11,
+      "end_line": 11,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "list",
+      "start_line": 12,
+      "end_line": 26,
+      "raw": "- Embedded packs compile to aligned const data in the target executable/library.\n  Runtime access does not need the input files, compiler or FileProvider.\n- External packs use MappedRegion: Windows CreateFileMapping/MapViewOfFile and\n  POSIX mmap on macOS, Linux, iOS and Android. The public API accepts an existing\n  Channel, never creates/opens an application file by path, and never returns a\n  native handle. Obtain file Channels through iiFileProvider CoreIO.\n- Payloads begin at 64-byte boundaries. A copied pack allocates aligned storage\n  once; an embedded or mapped pack does not copy the payload into a heap buffer.\n  Resource views share ownership, including after pack handles/channels disappear.\n- The pack has a sorted UTF-8 name index; successful lookup uses binary search\n  without allocating a name or payload. Native OS page caching supplies mapped\n  data on demand; there is no duplicate application-wide cache or global registry.\n- The in-memory builder sorts entries and deduplicates equal content, verifying\n  bytes even when fingerprints collide. Aliases share one payload address.\n  Source order, timestamps and host pointers do not enter the pack.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "Embedded packs compile to aligned const data in the target executable/library.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "External packs use MappedRegion: Windows CreateFileMapping/MapViewOfFile and",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Payloads begin at 64-byte boundaries. A copied pack allocates aligned storage",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "The pack has a sorted UTF-8 name index; successful lookup uses binary search",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "The in-memory builder sorts entries and deduplicates equal content, verifying",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 27,
+      "end_line": 27,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 28,
+      "end_line": 34,
+      "raw": "Metadata validation reads the index/names, not every payload. Explicit verify()\nchecks a payload fingerprint when needed. This preserves demand paging for large\nassets. Fingerprints detect accidental changes; they provide no authenticity,\nsignature, encryption or hostile-writer protection. All byte/offset decoding is\nexplicit little endian; no pointer or native C++ object layout is serialized.\nConsumers must decode their own payload format instead of reinterpreting arbitrary\nbytes as live C++ objects.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 35,
+      "end_line": 35,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "heading",
+      "start_line": 36,
+      "end_line": 36,
+      "raw": "## Runtime use\n",
+      "level": 2,
+      "title": "Runtime use"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 37,
+      "end_line": 37,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "fenced_code",
+      "start_line": 38,
+      "end_line": 56,
+      "raw": "~~~cpp\n#include <iiSDKCore/Resource/Pack.h>\n\n// channel is supplied by the application/storage provider.\nauto mapping=ii::io::MappedRegion::map(channel);\nif (!mapping) { /* handle io::Error and its native error_code */ }\nelse {\n    auto pack=ii::resource::Pack::open(std::move(*mapping));\n    if (pack) {\n        auto icon=pack->find(\"icons/app.svg\");\n        if (icon) {\n            auto retained=*icon; // Owns the backing mapping, without payload copy.\n            auto bytes=retained.bytes();\n            const bool intact=retained.verify();\n            // Keep retained alive while a decoder/upload operation uses bytes.\n        }\n    }\n}\n~~~\n",
+      "language": "cpp",
+      "code": "#include <iiSDKCore/Resource/Pack.h>\n\n// channel is supplied by the application/storage provider.\nauto mapping=ii::io::MappedRegion::map(channel);\nif (!mapping) { /* handle io::Error and its native error_code */ }\nelse {\n    auto pack=ii::resource::Pack::open(std::move(*mapping));\n    if (pack) {\n        auto icon=pack->find(\"icons/app.svg\");\n        if (icon) {\n            auto retained=*icon; // Owns the backing mapping, without payload copy.\n            auto bytes=retained.bytes();\n            const bool intact=retained.verify();\n            // Keep retained alive while a decoder/upload operation uses bytes.\n        }\n    }\n}\n",
+      "closed": true
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 57,
+      "end_line": 57,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 58,
+      "end_line": 63,
+      "raw": "Pack::copy accepts arbitrary byte alignment and makes an aligned owned copy.\nPack::open_static is an explicit immutable static-lifetime contract requiring\n64-byte alignment; use it only for static storage, as emitted by Builder.\nPack::open accepts an owned MappedRegion whose logical base is also 64-byte aligned. For a pack inside a container, its file offset must preserve that alignment; otherwise choose an explicit aligned copy. No hidden copying fallback occurs. Pack handles/views are copyable;\nquerying immutable copies concurrently is supported. Assignment/removal of the\nsame handle still requires caller synchronization.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 64,
+      "end_line": 64,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 65,
+      "end_line": 70,
+      "raw": "Default and moved-from views expose empty bytes/names and fail verification. Keep a View while using its string_view/span. Accessors reject direct temporary\nborrowing, but C++ cannot prove the lifetime of a view extracted through another\ntemporary wrapper. No mutable payload API is provided. Core Operation<View> or\nOperation<Pack> can return an owning result to EventLoop/iiGUI through then_on\nand a receiver TaskScope. Use Runtime workers for file mapping, page warming,\nverification and decoding that could otherwise stall a UI thread.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 71,
+      "end_line": 71,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "heading",
+      "start_line": 72,
+      "end_line": 72,
+      "raw": "## Mapping and paging hints\n",
+      "level": 2,
+      "title": "Mapping and paging hints"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 73,
+      "end_line": 73,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 74,
+      "end_line": 77,
+      "raw": "MappedRegion::map supports bounded subranges and handles OS page/allocation\ngranularity internally. slice shares the view. Closing a Channel prevents new\nmaps while existing maps remain alive. An empty file/range produces an empty\nnative view without asking the OS to map zero bytes.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 78,
+      "end_line": 78,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 79,
+      "end_line": 83,
+      "raw": "The backing file must remain immutable while mapped. Another writer truncating\nor modifying the same file can cause an OS fault or inconsistent bytes. Storage\npublication should use a new file and provider-controlled replacement; whether\nreplacement is permitted while mapped remains a filesystem/OS contract.\nMapping is not a general snapshot or a security boundary.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 84,
+      "end_line": 84,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 85,
+      "end_line": 90,
+      "raw": "prefetch requests paging for the selected subrange. POSIX uses MADV_WILLNEED;\nWindows resolves PrefetchVirtualMemory dynamically when the compiled Windows\nSDK exposes the Windows 8+ signature and the running OS supplies it. Windows\naccess-pattern advice is explicitly unsupported. POSIX normal/random/sequential\nadvice uses madvise. These are hints, not residency, asynchronous completion,\ndeadline or speedup guarantees; native errors are returned.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 91,
+      "end_line": 91,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 92,
+      "end_line": 94,
+      "raw": "WASM reports OS-backed mapping unsupported. It can use the same embedded packs\nor an explicit owned copy of downloaded/host-provided bytes. A virtual filesystem\ncopy is never presented as native zero-copy mapping.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 95,
+      "end_line": 95,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "heading",
+      "start_line": 96,
+      "end_line": 96,
+      "raw": "## Build-host compiler and CMake\n",
+      "level": 2,
+      "title": "Build-host compiler and CMake"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 97,
+      "end_line": 97,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "paragraph",
+      "start_line": 98,
+      "end_line": 100,
+      "raw": "iiSDKBuilder 0.2 adds resources, using Core 0.17's pure in-memory builder and\niiFileProvider for every output. The installed iiSDKBuilderResources.cmake module\ncan be included without importing/linking Builder into the target application.\n"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 101,
+      "end_line": 101,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "fenced_code",
+      "start_line": 102,
+      "end_line": 109,
+      "raw": "~~~cmake\nfind_package(iiSDKCore 0.17 CONFIG REQUIRED COMPONENTS Runtime)\ninclude(\"/host/Builder/lib/cmake/iiSDKBuilder/iiSDKBuilderResources.cmake\")\nadd_executable(MyApp main.cpp)\ntarget_link_libraries(MyApp PRIVATE iiSDKCore::Runtime)\niisdkbuilder_add_resources(TARGET MyApp MANIFEST resources.json\n    COMPILER \"/host/Builder/bin/iisdk-builder\")\n~~~\n",
+      "language": "cmake",
+      "code": "find_package(iiSDKCore 0.17 CONFIG REQUIRED COMPONENTS Runtime)\ninclude(\"/host/Builder/lib/cmake/iiSDKBuilder/iiSDKBuilderResources.cmake\")\nadd_executable(MyApp main.cpp)\ntarget_link_libraries(MyApp PRIVATE iiSDKCore::Runtime)\niisdkbuilder_add_resources(TARGET MyApp MANIFEST resources.json\n    COMPILER \"/host/Builder/bin/iisdk-builder\")\n",
+      "closed": true
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 110,
+      "end_line": 110,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "paragraph",
+      "start_line": 111,
+      "end_line": 116,
+      "raw": "The helper selects the CMake target platform and emits a .cpp, .h, .iirp and\ndepfile under the target's build tree. Cross builds require an explicit\nbuild-host compiler; no target executable/emulator is run to generate resources.\nThe same C++ data source compiles through the native Windows/macOS/Linux/Android/\niOS toolchain or Emscripten. Asset/manifest changes rebuild; unchanged bytes retain\ntimestamps. Source dependency paths with spaces/UTF-8/#/$ are escaped in depfiles.\n"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 117,
+      "end_line": 117,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 118,
+      "end_line": 118,
+      "raw": "The source manifest can contain a common resource and one platform override:\n"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 119,
+      "end_line": 119,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "fenced_code",
+      "start_line": 120,
+      "end_line": 129,
+      "raw": "~~~json\n{\n  \"schema\": 1,\n  \"name\": \"app_assets\",\n  \"resources\": [\n    {\"name\": \"icons/app\", \"source\": \"assets/common.svg\"},\n    {\"name\": \"icons/app\", \"source\": \"assets/apple.svg\", \"platform\": \"macos\"}\n  ]\n}\n~~~\n",
+      "language": "json",
+      "code": "{\n  \"schema\": 1,\n  \"name\": \"app_assets\",\n  \"resources\": [\n    {\"name\": \"icons/app\", \"source\": \"assets/common.svg\"},\n    {\"name\": \"icons/app\", \"source\": \"assets/apple.svg\", \"platform\": \"macos\"}\n  ]\n}\n",
+      "closed": true
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 130,
+      "end_line": 130,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "paragraph",
+      "start_line": 131,
+      "end_line": 137,
+      "raw": "Source paths resolve relative to the manifest. Exact target overrides common\ncontent; other-platform-only entries are omitted before file reads. Duplicate\nname/platform pairs, unknown fields/platforms and invalid logical paths fail.\nKeys are case-sensitive UTF-8 without Unicode normalization: no empty/dot/parent\nsegments, leading/trailing slash, backslash, colon or NUL. Pack names are\nnonreserved ASCII identifiers, unique among packs linked into the same binary.\nGenerated declarations are ii::resource::embedded::load_app_assets().\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 138,
+      "end_line": 138,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "paragraph",
+      "start_line": 139,
+      "end_line": 143,
+      "raw": "The CLI accepts --manifest, --platform, paired --cpp/--header, optional --pack and\n--depfile. Binary-only --pack is suitable for large external assets. Outputs stay\nunder build/ and cannot replace any source/manifest or each other. All inputs are\nvalidated/encoded before publication; each file is atomically published by the\nprovider, but the multi-file group is not one filesystem transaction.\n"
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 144,
+      "end_line": 144,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "paragraph",
+      "start_line": 145,
+      "end_line": 151,
+      "raw": "The default compiler input and encoded-output budgets are each 512 MiB; a\nmanifest's maximumBytes sets their limit. Embedded C++ has a separate 32 MiB\nlimit to bound compiler cost. The Core in-memory builder's budget bounds encoded\nbytes. Parser defaults cap entries at one million, each name at 4096 bytes and\nmetadata at 64 MiB. Small/unique resources can grow because of metadata/alignment;\ndeduplication is not compression. No automatic image/texture/shader conversion,\nGPU-format choice, lossy processing or hidden fallback is performed.\n"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 152,
+      "end_line": 152,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "heading",
+      "start_line": 153,
+      "end_line": 153,
+      "raw": "## Version 1 binary format\n",
+      "level": 2,
+      "title": "Version 1 binary format"
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 154,
+      "end_line": 154,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "paragraph",
+      "start_line": 155,
+      "end_line": 156,
+      "raw": "All integers are unsigned 64-bit little endian. Header size is 64 bytes, entry\nsize 48 bytes; the pack base and every payload offset are 64-byte aligned.\n"
+    },
+    {
+      "id": "b000050",
+      "kind": "blank",
+      "start_line": 157,
+      "end_line": 157,
+      "raw": "\n"
+    },
+    {
+      "id": "b000051",
+      "kind": "table",
+      "start_line": 158,
+      "end_line": 167,
+      "raw": "| Header offset | Meaning |\n|---|---|\n| 0 | Eight bytes: IIRPACK followed by NUL |\n| 8 | Version 1; high 32 flag bits are zero |\n| 16 | Total byte extent |\n| 24 | Entry count |\n| 32 | Name table start, exactly 64 + count * 48 |\n| 40 | Payload start / metadata extent, rounded to 64 |\n| 48 | FNV-1a 64 metadata fingerprint, excluding bytes 48..55 |\n| 56 | Reserved zero |\n",
+      "columns": [
+        "Header offset",
+        "Meaning"
+      ],
+      "rows": [
+        [
+          "0",
+          "Eight bytes: IIRPACK followed by NUL"
+        ],
+        [
+          "8",
+          "Version 1; high 32 flag bits are zero"
+        ],
+        [
+          "16",
+          "Total byte extent"
+        ],
+        [
+          "24",
+          "Entry count"
+        ],
+        [
+          "32",
+          "Name table start, exactly 64 + count * 48"
+        ],
+        [
+          "40",
+          "Payload start / metadata extent, rounded to 64"
+        ],
+        [
+          "48",
+          "FNV-1a 64 metadata fingerprint, excluding bytes 48..55"
+        ],
+        [
+          "56",
+          "Reserved zero"
+        ]
+      ]
+    },
+    {
+      "id": "b000052",
+      "kind": "blank",
+      "start_line": 168,
+      "end_line": 168,
+      "raw": "\n"
+    },
+    {
+      "id": "b000053",
+      "kind": "paragraph",
+      "start_line": 169,
+      "end_line": 173,
+      "raw": "Each entry contains name offset/length, payload offset/length, content FNV-1a 64\nand reserved zero. Names are contiguous and lexicographically sorted; payloads\nare aligned and nonoverlapping, except exact aliases. Unindexed trailing extents,\nrange overflow, malformed names, budgets and invalid metadata fail before views\nare exposed. Fingerprints use offset basis 14695981039346656037 and prime\n"
+    },
+    {
+      "id": "b000054",
+      "kind": "list",
+      "start_line": 174,
+      "end_line": 174,
+      "raw": "1099511628211. The metadata fingerprint ends at payload start. Empty payloads\n",
+      "items": [
+        {
+          "marker": "1099511628211.",
+          "text": "The metadata fingerprint ends at payload start. Empty payloads",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000055",
+      "kind": "paragraph",
+      "start_line": 175,
+      "end_line": 175,
+      "raw": "are valid; no host endian/alignment-dependent struct access is used.\n"
+    },
+    {
+      "id": "b000056",
+      "kind": "blank",
+      "start_line": 176,
+      "end_line": 176,
+      "raw": "\n"
+    },
+    {
+      "id": "b000057",
+      "kind": "heading",
+      "start_line": 177,
+      "end_line": 177,
+      "raw": "## Tests and evidence\n",
+      "level": 2,
+      "title": "Tests and evidence"
+    },
+    {
+      "id": "b000058",
+      "kind": "blank",
+      "start_line": 178,
+      "end_line": 178,
+      "raw": "\n"
+    },
+    {
+      "id": "b000059",
+      "kind": "paragraph",
+      "start_line": 179,
+      "end_line": 184,
+      "raw": "tests/resources.cpp covers byte fidelity, aliases/alignment, owned/static/mapped\nlifetime, bounds, all truncated extents, header corruption, correctly\nfingerprinted malformed metadata, concurrent immutable access, parser/build\nbudgets and Operation delivery. Its repeated-lookup fixture reports logical/\nstored bytes and elapsed time; it does not assert a machine-independent latency\nor compare against Qt. Installed consumers run the same contract.\n"
+    },
+    {
+      "id": "b000060",
+      "kind": "blank",
+      "start_line": 185,
+      "end_line": 185,
+      "raw": "\n"
+    },
+    {
+      "id": "b000061",
+      "kind": "paragraph",
+      "start_line": 186,
+      "end_line": 190,
+      "raw": "Builder tests cover selection, no read of omitted files, source preservation,\noutput preservation on validation/encoding failures, deterministic timestamps, real generated C++ execution\nwithout the source assets, incremental rebuilds and escaped dependency paths.\nHelloResources is a common native consumer. See validation.md and Builder's\ndocs/Resources.md for recorded platform evidence and reproduction.\n"
+    },
+    {
+      "id": "b000062",
+      "kind": "blank",
+      "start_line": 191,
+      "end_line": 191,
+      "raw": "\n"
+    },
+    {
+      "id": "b000063",
+      "kind": "paragraph",
+      "start_line": 192,
+      "end_line": 195,
+      "raw": "Native API references: [Microsoft MapViewOfFile](https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-mapviewoffile),\n[Microsoft PrefetchVirtualMemory](https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-prefetchvirtualmemory),\n[Apple mmap](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/mmap.2.html),\n[Apple madvise](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/madvise.2.html).\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Native application resources (0.17)",
+      "anchor": "native-application-resources-017",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000005",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Storage and native optimization",
+      "anchor": "storage-and-native-optimization",
+      "start_line": 10
+    },
+    {
+      "block_id": "b000011",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Runtime use",
+      "anchor": "runtime-use",
+      "start_line": 36
+    },
+    {
+      "block_id": "b000019",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Mapping and paging hints",
+      "anchor": "mapping-and-paging-hints",
+      "start_line": 72
+    },
+    {
+      "block_id": "b000029",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Build-host compiler and CMake",
+      "anchor": "build-host-compiler-and-cmake",
+      "start_line": 96
+    },
+    {
+      "block_id": "b000047",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Version 1 binary format",
+      "anchor": "version-1-binary-format",
+      "start_line": 153
+    },
+    {
+      "block_id": "b000057",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Tests and evidence",
+      "anchor": "tests-and-evidence",
+      "start_line": 177
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000007",
+        "line": 16,
+        "text": "Channel, never creates/opens an application file by path, and never returns a",
+        "basis": "lexical_match",
+        "context": "list"
+      },
+      {
+        "block_id": "b000007",
+        "line": 26,
+        "text": "Source order, timestamps and host pointers do not enter the pack.",
+        "basis": "lexical_match",
+        "context": "list"
+      },
+      {
+        "block_id": "b000009",
+        "line": 33,
+        "text": "Consumers must decode their own payload format instead of reinterpreting arbitrary",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000015",
+        "line": 61,
+        "text": "Pack::open accepts an owned MappedRegion whose logical base is also 64-byte aligned. For a pack inside a container, its file offset must preserve that alignment; otherwise choose an explicit aligned copy. No hidden copying fallback occurs. Pack handles/views are copyable;",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000023",
+        "line": 79,
+        "text": "The backing file must remain immutable while mapped. Another writer truncating",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000023",
+        "line": 81,
+        "text": "publication should use a new file and provider-controlled replacement; whether",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000027",
+        "line": 94,
+        "text": "copy is never presented as native zero-copy mapping.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000063",
+        "label": "Microsoft MapViewOfFile",
+        "target": "https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-mapviewoffile",
+        "kind": "external",
+        "line": 192
+      },
+      {
+        "block_id": "b000063",
+        "label": "Microsoft PrefetchVirtualMemory",
+        "target": "https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-prefetchvirtualmemory",
+        "kind": "external",
+        "line": 193
+      },
+      {
+        "block_id": "b000063",
+        "label": "Apple mmap",
+        "target": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/mmap.2.html",
+        "kind": "external",
+        "line": 194
+      },
+      {
+        "block_id": "b000063",
+        "label": "Apple madvise",
+        "target": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/madvise.2.html",
+        "kind": "external",
+        "line": 195
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000051",
+        "columns": [
+          "Header offset",
+          "Meaning"
+        ],
+        "rows": [
+          [
+            "0",
+            "Eight bytes: IIRPACK followed by NUL"
+          ],
+          [
+            "8",
+            "Version 1; high 32 flag bits are zero"
+          ],
+          [
+            "16",
+            "Total byte extent"
+          ],
+          [
+            "24",
+            "Entry count"
+          ],
+          [
+            "32",
+            "Name table start, exactly 64 + count * 48"
+          ],
+          [
+            "40",
+            "Payload start / metadata extent, rounded to 64"
+          ],
+          [
+            "48",
+            "FNV-1a 64 metadata fingerprint, excluding bytes 48..55"
+          ],
+          [
+            "56",
+            "Reserved zero"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

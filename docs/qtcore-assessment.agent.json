@@ -1,0 +1,475 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:41ccca9b2e8b39e0ae23c28f8c58651d64c3ef14db8b9fd66e3be40cbeb43f4e",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/qtcore-assessment.md",
+    "sha256": "a82d9a9e67c5cb6ba1a878b166f629078e470deefe77f5b15a7a94bf6c9e959d",
+    "bytes": 6598,
+    "line_count": 41,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "iiSDKCore 0.6.0 runtime assessment against Qt Core",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# iiSDKCore 0.6.0 runtime assessment against Qt Core\n",
+      "level": 1,
+      "title": "iiSDKCore 0.6.0 runtime assessment against Qt Core"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "Current 0.17 update: immutable indexed resource packs, aligned native mappings and the external Builder resource compiler are implemented; see [resources](resources.md). The comparison table below retains its historical version/evidence scope. Native codecs and GUI rendering remain in upper modules.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 5,
+      "end_line": 10,
+      "raw": "Current 0.13 foundation boundary: Core has no feature-SDK dependency. Contracts\nare independently imported; file creation/atomic publication/presentation moved\nto the optional iiFileProvider CoreIO adapter. UTF-8/bytes/structured Value and\nexecution admission contracts are shared without Qt. See\n[the implemented architecture](foundation-architecture.md). This is foundation\nwork, not proof that all consuming Qt modules or applications have migrated.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 11,
+      "end_line": 11,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 12,
+      "end_line": 12,
+      "raw": "This is the 0.6.0 evidence snapshot. The later 0.7.0 time-driven scheduling and live playout contract is documented in [realtime.md](realtime.md), with its own validation record. The later 0.8.0 [modern core families](modern-core.md) add implemented animation, parallel transforms, immutable shared snapshots, plugin loading, atomic file replacement and event filtering. The later 0.9.0 [data type serialization](serialization.md) supplies a bounded typed CBOR profile and registered DynamicValue envelopes. The test counts and missing-feature statements below belong to the 0.6.0 snapshot.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 13,
+      "end_line": 13,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 14,
+      "end_line": 14,
+      "raw": "Current boundary update: Core 0.12.0 moves all Hardware/Protocols device and media code, native backends and their dependencies to [iiDeviceMultimedia](../../iiDeviceMultimedia/README.md). Device 0.2 and Core are independent peers composed by applications through host polling. The table below remains a historical 0.6.0 snapshot.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 15,
+      "end_line": 15,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 16,
+      "end_line": 16,
+      "raw": "Assessment date: 2026-10-06. This evaluates the current source and recorded build/runtime evidence, not API names or planned capabilities. The conclusion is that iiSDKCore now provides an implemented, tested foundation for bounded scheduling, object communication, cleanup and native I/O. It remains an early platform foundation with incomplete device coverage and production validation. It cannot yet be treated as a complete replacement for Qt Core across the supported product fleet.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 17,
+      "end_line": 17,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "heading",
+      "start_line": 18,
+      "end_line": 18,
+      "raw": "## Comparison boundary\n",
+      "level": 2,
+      "title": "Comparison boundary"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 19,
+      "end_line": 19,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 20,
+      "end_line": 20,
+      "raw": "The official [Qt Core overview](https://doc.qt.io/qt-6/qtcore-index.html) describes object communication/properties/ownership, threading, resources, I/O, containers, serialization, IPC and plugins. [QObject](https://doc.qt.io/qt-6/qobject.html) anchors its object model. Bluetooth and audio belong to the separate [Qt Bluetooth](https://doc.qt.io/qt-6/qtbluetooth-index.html) and [Qt Multimedia](https://doc.qt.io/qt-6/qtmultimedia-index.html) modules. iiSDKCore's requested hardware additions therefore extend the comparison beyond Qt Core's module boundary. Neither a larger API count nor folding more families into Core proves greater completeness.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 21,
+      "end_line": 21,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "table",
+      "start_line": 22,
+      "end_line": 31,
+      "raw": "| Area | Qt reference | iiSDKCore implementation and evidence | Assessment |\n|---|---|---|---|\n| Scheduling and event dispatch | Event system, threading | EventLoop post/timer/periodic scheduling, priority, bounded capacity, cancellation identities, pump budgets, native Channel readiness | Functional and tested. A callback/native call can exceed the cooperative budget; no hard realtime claim. |\n| Object communication and properties | Signals/slots, meta-object and property systems | Typed QueryPort, ObjectProperties, selected-field responses, member trees and DynamicValue | Tested in-process contracts. Runtime type metadata is not a stable plugin/wire ABI or a QML engine. |\n| Ownership and removal | QObject ownership and destruction | TaskScope, explicit close, SerialQueue/QueryPort teardown, Scene subtree retirement, Hardware endpoint quiescence | Strong explicit lifecycle contracts and reuse tests. Owners must respect callback/worker close restrictions. OS pairing state and allocator RSS are separate ownership domains. |\n| Threads and parallel work | Threading classes | Owned Thread, Runtime workers and per-object SerialQueue | Cancellation, join, ordering and exception behavior tested. Shutdown is cooperative. |\n| I/O and device families | Core I/O; additional device/media modules | Channel/AsyncIO plus native USB/HID, BLE, PCM and MIDI | macOS native execution is proven for inventory, audio queue setup and virtual MIDI. Linux/Windows are cross-build evidence; Android/WASM device bridges remain absent. |\n| General application utilities | Resources, serialization, IPC and plugins | PathRoot, File, BinaryCursor, Deadline, diagnostics, dependency graph and service references | Useful bounded building blocks. No corresponding complete resource compiler, JSON/CBOR framework, plugin ABI, localization or IPC framework is delivered by this source tree. |\n| Application and game hosting | Host/application event system | Standalone run or externally pumped poll; Scene, HostSession and Timeline foundations | Shared runtime use is viable. Windowing, rendering, UI, physics and asset pipelines require upper modules and are not established by these tests. |\n| Packaging and platform proof | Framework module packaging | CMake package 0.6.0, 33 matching installed headers, installed consumer 6/6; native/sanitizer 24/24 and WASM 22/22 | Reproducible local proof exists. Remote CI execution, broad physical hardware and shipped product integration remain unverified. |\n",
+      "columns": [
+        "Area",
+        "Qt reference",
+        "iiSDKCore implementation and evidence",
+        "Assessment"
+      ],
+      "rows": [
+        [
+          "Scheduling and event dispatch",
+          "Event system, threading",
+          "EventLoop post/timer/periodic scheduling, priority, bounded capacity, cancellation identities, pump budgets, native Channel readiness",
+          "Functional and tested. A callback/native call can exceed the cooperative budget; no hard realtime claim."
+        ],
+        [
+          "Object communication and properties",
+          "Signals/slots, meta-object and property systems",
+          "Typed QueryPort, ObjectProperties, selected-field responses, member trees and DynamicValue",
+          "Tested in-process contracts. Runtime type metadata is not a stable plugin/wire ABI or a QML engine."
+        ],
+        [
+          "Ownership and removal",
+          "QObject ownership and destruction",
+          "TaskScope, explicit close, SerialQueue/QueryPort teardown, Scene subtree retirement, Hardware endpoint quiescence",
+          "Strong explicit lifecycle contracts and reuse tests. Owners must respect callback/worker close restrictions. OS pairing state and allocator RSS are separate ownership domains."
+        ],
+        [
+          "Threads and parallel work",
+          "Threading classes",
+          "Owned Thread, Runtime workers and per-object SerialQueue",
+          "Cancellation, join, ordering and exception behavior tested. Shutdown is cooperative."
+        ],
+        [
+          "I/O and device families",
+          "Core I/O; additional device/media modules",
+          "Channel/AsyncIO plus native USB/HID, BLE, PCM and MIDI",
+          "macOS native execution is proven for inventory, audio queue setup and virtual MIDI. Linux/Windows are cross-build evidence; Android/WASM device bridges remain absent."
+        ],
+        [
+          "General application utilities",
+          "Resources, serialization, IPC and plugins",
+          "PathRoot, File, BinaryCursor, Deadline, diagnostics, dependency graph and service references",
+          "Useful bounded building blocks. No corresponding complete resource compiler, JSON/CBOR framework, plugin ABI, localization or IPC framework is delivered by this source tree."
+        ],
+        [
+          "Application and game hosting",
+          "Host/application event system",
+          "Standalone run or externally pumped poll; Scene, HostSession and Timeline foundations",
+          "Shared runtime use is viable. Windowing, rendering, UI, physics and asset pipelines require upper modules and are not established by these tests."
+        ],
+        [
+          "Packaging and platform proof",
+          "Framework module packaging",
+          "CMake package 0.6.0, 33 matching installed headers, installed consumer 6/6; native/sanitizer 24/24 and WASM 22/22",
+          "Reproducible local proof exists. Remote CI execution, broad physical hardware and shipped product integration remain unverified."
+        ]
+      ]
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 32,
+      "end_line": 32,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 33,
+      "end_line": 33,
+      "raw": "The Qt references establish the comparison categories, not comparative speed, memory use or reliability. No paired Qt benchmark or endurance run was performed. A numerical completeness percentage would mix unrelated scope and evidence levels and is not justified.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 34,
+      "end_line": 34,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "heading",
+      "start_line": 35,
+      "end_line": 35,
+      "raw": "## Use decision\n",
+      "level": 2,
+      "title": "Use decision"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 36,
+      "end_line": 36,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 37,
+      "end_line": 37,
+      "raw": "Use iiSDKCore now for new Qt-free runtime logic that fits its documented queue, query, threading, file/serial and supported device contracts. Keep platform service requirements explicit, including BlueZ/ALSA, Windows COM lifetime, Apple usage descriptions and the distinction between Windows MIDI 1.0 and optional MIDI 2.0.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 38,
+      "end_line": 38,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 39,
+      "end_line": 39,
+      "raw": "Treat full cross-platform product adoption as requiring native execution on Linux/Windows/iOS, an Android device host bridge, physical USB/HID/BLE/audio/MIDI regression coverage and long-running teardown/load tests. Integrate an actual application and a game host before asserting fleet-wide replacement. Do not add unrelated Qt features solely to match a catalog; implement a missing facility when a real consumer requires it.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 40,
+      "end_line": 40,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 41,
+      "end_line": 41,
+      "raw": "Detailed hardware limits and cleanup rules are in [hardware.md](hardware.md). Exact build/runtime results and unverified remainder are in [validation.md](validation.md).\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "iiSDKCore 0.6.0 runtime assessment against Qt Core",
+      "anchor": "iisdkcore-060-runtime-assessment-against-qt-core",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000013",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Comparison boundary",
+      "anchor": "comparison-boundary",
+      "start_line": 18
+    },
+    {
+      "block_id": "b000021",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Use decision",
+      "anchor": "use-decision",
+      "start_line": 35
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000017",
+        "line": 26,
+        "text": "| Ownership and removal | QObject ownership and destruction | TaskScope, explicit close, SerialQueue/QueryPort teardown, Scene subtree retirement, Hardware endpoint quiescence | Strong explicit lifecycle contracts and reuse tests. Owners must respect callback/worker close restrictions. OS pairing state and allocator RSS are separate ownership domains. |",
+        "basis": "lexical_match",
+        "context": "table"
+      },
+      {
+        "block_id": "b000025",
+        "line": 39,
+        "text": "Treat full cross-platform product adoption as requiring native execution on Linux/Windows/iOS, an Android device host bridge, physical USB/HID/BLE/audio/MIDI regression coverage and long-running teardown/load tests. Integrate an actual application and a game host before asserting fleet-wide replacement. Do not add unrelated Qt features solely to match a catalog; implement a missing facility when a real consumer requires it.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000003",
+        "label": "resources",
+        "target": "resources.md",
+        "kind": "relative",
+        "line": 3
+      },
+      {
+        "block_id": "b000005",
+        "label": "the implemented architecture",
+        "target": "foundation-architecture.md",
+        "kind": "relative",
+        "line": 9
+      },
+      {
+        "block_id": "b000007",
+        "label": "realtime.md",
+        "target": "realtime.md",
+        "kind": "relative",
+        "line": 12
+      },
+      {
+        "block_id": "b000007",
+        "label": "modern core families",
+        "target": "modern-core.md",
+        "kind": "relative",
+        "line": 12
+      },
+      {
+        "block_id": "b000007",
+        "label": "data type serialization",
+        "target": "serialization.md",
+        "kind": "relative",
+        "line": 12
+      },
+      {
+        "block_id": "b000009",
+        "label": "iiDeviceMultimedia",
+        "target": "../../iiDeviceMultimedia/README.md",
+        "kind": "relative",
+        "line": 14
+      },
+      {
+        "block_id": "b000015",
+        "label": "Qt Core overview",
+        "target": "https://doc.qt.io/qt-6/qtcore-index.html",
+        "kind": "external",
+        "line": 20
+      },
+      {
+        "block_id": "b000015",
+        "label": "QObject",
+        "target": "https://doc.qt.io/qt-6/qobject.html",
+        "kind": "external",
+        "line": 20
+      },
+      {
+        "block_id": "b000015",
+        "label": "Qt Bluetooth",
+        "target": "https://doc.qt.io/qt-6/qtbluetooth-index.html",
+        "kind": "external",
+        "line": 20
+      },
+      {
+        "block_id": "b000015",
+        "label": "Qt Multimedia",
+        "target": "https://doc.qt.io/qt-6/qtmultimedia-index.html",
+        "kind": "external",
+        "line": 20
+      },
+      {
+        "block_id": "b000027",
+        "label": "hardware.md",
+        "target": "hardware.md",
+        "kind": "relative",
+        "line": 41
+      },
+      {
+        "block_id": "b000027",
+        "label": "validation.md",
+        "target": "validation.md",
+        "kind": "relative",
+        "line": 41
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000017",
+        "columns": [
+          "Area",
+          "Qt reference",
+          "iiSDKCore implementation and evidence",
+          "Assessment"
+        ],
+        "rows": [
+          [
+            "Scheduling and event dispatch",
+            "Event system, threading",
+            "EventLoop post/timer/periodic scheduling, priority, bounded capacity, cancellation identities, pump budgets, native Channel readiness",
+            "Functional and tested. A callback/native call can exceed the cooperative budget; no hard realtime claim."
+          ],
+          [
+            "Object communication and properties",
+            "Signals/slots, meta-object and property systems",
+            "Typed QueryPort, ObjectProperties, selected-field responses, member trees and DynamicValue",
+            "Tested in-process contracts. Runtime type metadata is not a stable plugin/wire ABI or a QML engine."
+          ],
+          [
+            "Ownership and removal",
+            "QObject ownership and destruction",
+            "TaskScope, explicit close, SerialQueue/QueryPort teardown, Scene subtree retirement, Hardware endpoint quiescence",
+            "Strong explicit lifecycle contracts and reuse tests. Owners must respect callback/worker close restrictions. OS pairing state and allocator RSS are separate ownership domains."
+          ],
+          [
+            "Threads and parallel work",
+            "Threading classes",
+            "Owned Thread, Runtime workers and per-object SerialQueue",
+            "Cancellation, join, ordering and exception behavior tested. Shutdown is cooperative."
+          ],
+          [
+            "I/O and device families",
+            "Core I/O; additional device/media modules",
+            "Channel/AsyncIO plus native USB/HID, BLE, PCM and MIDI",
+            "macOS native execution is proven for inventory, audio queue setup and virtual MIDI. Linux/Windows are cross-build evidence; Android/WASM device bridges remain absent."
+          ],
+          [
+            "General application utilities",
+            "Resources, serialization, IPC and plugins",
+            "PathRoot, File, BinaryCursor, Deadline, diagnostics, dependency graph and service references",
+            "Useful bounded building blocks. No corresponding complete resource compiler, JSON/CBOR framework, plugin ABI, localization or IPC framework is delivered by this source tree."
+          ],
+          [
+            "Application and game hosting",
+            "Host/application event system",
+            "Standalone run or externally pumped poll; Scene, HostSession and Timeline foundations",
+            "Shared runtime use is viable. Windowing, rendering, UI, physics and asset pipelines require upper modules and are not established by these tests."
+          ],
+          [
+            "Packaging and platform proof",
+            "Framework module packaging",
+            "CMake package 0.6.0, 33 matching installed headers, installed consumer 6/6; native/sanitizer 24/24 and WASM 22/22",
+            "Reproducible local proof exists. Remote CI execution, broad physical hardware and shipped product integration remain unverified."
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

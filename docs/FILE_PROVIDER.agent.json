@@ -1,0 +1,121 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:ffe2b59bba57a8e7594973a9c6fc1e789d76fc971291d2af7ecf270e69a71eaa",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/FILE_PROVIDER.md",
+    "sha256": "39952bca6f346edc983cf73a92972f2a92e9ba28cec5916ef79791343aed5bae",
+    "bytes": 1285,
+    "line_count": 21,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "File creation outside the foundation",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# File creation outside the foundation\n",
+      "level": 1,
+      "title": "File creation outside the foundation"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 8,
+      "raw": "Since Core 0.13, Core neither imports iiFileProvider nor opens/creates regular\nfiles. File generation, atomic saves and post-close details/preview scheduling\nbelong to [iiFileProvider CoreIO](../../iiFileProvider/CoreIO/README.md).\nThat optional adapter depends on Core and Native; the lower libraries remain\nindependently buildable and installable. Contracts, Values and Runtime import no\nstorage component.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 10,
+      "end_line": 15,
+      "raw": "Core retains the Channel byte-stream/runtime contract and the explicit\n`IO/NativeFile.h` platform ownership-transfer extension. The adapter opens a\nnative file through iiFileProvider and transfers it to that extension. A\nnoexcept callback schedules presentation on successful writable close.\nCore tests provision isolated resources through test-only fixtures; production\nexamples and atomic transaction assertions moved with the storage feature.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 16,
+      "end_line": 16,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 17,
+      "end_line": 21,
+      "raw": "The common [ownership contract](../../iiFileProvider/docs/FILE_OWNERSHIP.md)\ndefines creation/publication policy. The mandatory Core foundation boundary,\ninstalled consumers with storage discovery disabled, adapter integration and\nworkspace creation audit verify both dependency direction and file ownership.\nSee [foundation architecture](foundation-architecture.md) for exact migration.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "File creation outside the foundation",
+      "anchor": "file-creation-outside-the-foundation",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000003",
+        "label": "iiFileProvider CoreIO",
+        "target": "../../iiFileProvider/CoreIO/README.md",
+        "kind": "relative",
+        "line": 5
+      },
+      {
+        "block_id": "b000007",
+        "label": "ownership contract",
+        "target": "../../iiFileProvider/docs/FILE_OWNERSHIP.md",
+        "kind": "relative",
+        "line": 17
+      },
+      {
+        "block_id": "b000007",
+        "label": "foundation architecture",
+        "target": "foundation-architecture.md",
+        "kind": "relative",
+        "line": 21
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

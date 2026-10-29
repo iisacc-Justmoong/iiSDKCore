@@ -1,0 +1,1567 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:c4cc3f62c42314fe707ad91646a9947e21d7d651facd95057761306badbfc84a",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "README.md",
+    "sha256": "a0396fd5e807cbfd6127fcf062d3a32a2316bff0da8439a3411efe3fe890f272",
+    "bytes": 20264,
+    "line_count": 182,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "iiSDKCore",
+    "role": "overview",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# iiSDKCore\n",
+      "level": 1,
+      "title": "iiSDKCore"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 8,
+      "raw": "Typed observable read scopes collect dependencies inside ordinary native C++\ngetters without exposing private fields or depending on a GUI framework.\nLink `iiSDKCore::Observation` to share that execution state across hosted modules;\n`Contracts` remains independent of both observation execution and the worker Runtime.\nSee [observable contracts](docs/observable.md) for lexical collection, lifetime,\nnesting, execution-domain isolation and bounded admission.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 10,
+      "end_line": 16,
+      "raw": "Native applications can now use [Core-owned application lifetime and executable entry](docs/application.md).\n`Application` owns the event loop, shared workers and native attachment lifecycle;\n`iisdkcore_add_application` supplies Core's main and links the final C++23 program.\nGUI modules provide an upper-layer driver without adding a GUI dependency to Core.\n`Application::frame_loop()` supplies the same ordered native frame phases to apps\nand games. A display host drives its timestamps; headless drivers can use timer\nor manual stepping. Core retires frame captures before detaching application owners.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 17,
+      "end_line": 17,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 18,
+      "end_line": 20,
+      "raw": "[Shared easing curves](docs/easing.md) include cubic acceleration and configurable\nback overshoot for native app/game animation. These are Values-only C++23 math;\nframe cadence and framework-specific motion preferences remain separate owners.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 21,
+      "end_line": 21,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 22,
+      "end_line": 22,
+      "raw": "[Windows build and execution](docs/WindowsBuildAndRun.md)\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 23,
+      "end_line": 23,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 24,
+      "end_line": 28,
+      "raw": "Package release: **0.20.0** (2026-10-25). Dynamic compute routing adds logical\navailability zones, configurable execution scopes, live Runtime pressure monitoring\nand owned native-process routing. Application/Classic routing and asynchronous\nreservations from 0.19 remain available.\nEarlier versioned feature notes remain historical.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 29,
+      "end_line": 30,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 31,
+      "end_line": 31,
+      "raw": "iiSDKCore is the C++23 foundation runtime for iiSDK applications and games. Version 0.18.0 adds typed live query streams with per-subscriber selection, bounded delivery and explicit removal. Native resource packs, aligned immutable views, content deduplication and read-only OS memory mapping from 0.17 remain available. The external-host integration from 0.16 and native process/pipe/environment support from 0.15 remain available. USB/HID, BLE, PCM and live MIDI implementations belong to the independent [iiDeviceMultimedia](../iiDeviceMultimedia/README.md) module. Core does not link its device/media frameworks or Linux libudev/D-Bus/ALSA dependencies. See [native resources](docs/resources.md), [host integration](docs/host-loop.md), [app/game frames](docs/frame-loop.md) and the [extraction boundary](docs/device-extraction.md).\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 32,
+      "end_line": 32,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 33,
+      "end_line": 39,
+      "raw": "The foundation has no feature-SDK dependency. `iiSDKCore::Contracts` supplies\nstandard-only UTF-8/bytes/structured-value and execution contracts;\n`iiSDKCore::Runtime` provides the existing native runtime. File creation, atomic\npublication and file presentation live in the optional\n[iiFileProvider CoreIO adapter](../iiFileProvider/CoreIO/README.md), above both\nindependent libraries. See the [foundation architecture](docs/foundation-architecture.md)\nfor package selection, ownership and the 0.12 migration.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 40,
+      "end_line": 40,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "html",
+      "start_line": 41,
+      "end_line": 41,
+      "raw": "<a id=\"제공-기능\"></a>\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 42,
+      "end_line": 42,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "heading",
+      "start_line": 43,
+      "end_line": 43,
+      "raw": "## Provided Features\n",
+      "level": 2,
+      "title": "Provided Features"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 44,
+      "end_line": 44,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "list",
+      "start_line": 45,
+      "end_line": 50,
+      "raw": "- [Concurrent computations](docs/concurrent.md): instance-owned `Concurrent` work on existing Runtime workers, `Future`/`Promise` results and progress, cooperative cancellation and suspension, coalescing `FutureWatcher` delivery, explicit `FutureSynchronizer` waits, configurable `TaskBuilder`, ordered parallel map/filter and sequential reductions. Inputs are owned standard vectors; Qt and global thread pools are not required. See the [runnable example](examples/concurrent.cpp).\n- [Native compute load balancing](docs/load-balancer.md): bounded dispatch across existing TaskExecutor instances, capacity-normalized load or round-robin routing, declared memory/capability admission, health thresholds, draining, cancellation-safe cleanup and per-target statistics. No AWS, Qt, remote protocol or extra worker dependency is introduced. See the [two-Runtime example](examples/load_balancer.cpp).\n- [Application and Classic load routing](docs/load-routing.md): priority-ordered host/path/method/header/query routing, independent target groups, least-outstanding HTTP requests, round-robin TCP/TLS admission and asynchronous `LoadLease` ownership through response completion. Network flow keys and backend endpoints belong to [iiNetwork](../iiNetwork/docs/LoadBalancer.md). See the [runnable example](example/load_routing.cpp).\n- [Dynamic compute routing](docs/compute-router.md): reconfigurable availability zones and execution scopes, shared budgets, live worker queue/processing snapshots, freshness-aware resource observations, periodic monitoring on an existing EventLoop and structured native-process routing through existing workers. See the [runnable example](example/compute_router.cpp).\n- [Selective live query streams](docs/query-stream.md): typed filter/projection queries, independent subscribers, query revisions, bounded output rings, executor backpressure/retry and removal barriers. Existing Runtime workers, EventLoop/HostLoop and QueryPort supply execution and control.\n- [Native resources](docs/resources.md): deterministic indexed packs, 64-byte-aligned shared payloads, immutable embedded/owned/native-mapped views, explicit integrity/paging hints and native lifetime after channel/pack removal. iiSDKBuilder supplies the build-host compiler and target selection; iiFileProvider owns outputs. Core imports neither module.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "[Concurrent computations](docs/concurrent.md): instance-owned `Concurrent` work on existing Runtime workers, `Future`/`Promise` results and progress, cooperative cancellation and suspension, coalescing `FutureWatcher` delivery, explicit `FutureSynchronizer` waits, configurable `TaskBuilder`, ordered parallel map/filter and sequential reductions. Inputs are owned standard vectors; Qt and global thread pools are not required. See the [runnable example](examples/concurrent.cpp).",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "[Native compute load balancing](docs/load-balancer.md): bounded dispatch across existing TaskExecutor instances, capacity-normalized load or round-robin routing, declared memory/capability admission, health thresholds, draining, cancellation-safe cleanup and per-target statistics. No AWS, Qt, remote protocol or extra worker dependency is introduced. See the [two-Runtime example](examples/load_balancer.cpp).",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "[Application and Classic load routing](docs/load-routing.md): priority-ordered host/path/method/header/query routing, independent target groups, least-outstanding HTTP requests, round-robin TCP/TLS admission and asynchronous `LoadLease` ownership through response completion. Network flow keys and backend endpoints belong to [iiNetwork](../iiNetwork/docs/LoadBalancer.md). See the [runnable example](example/load_routing.cpp).",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "[Dynamic compute routing](docs/compute-router.md): reconfigurable availability zones and execution scopes, shared budgets, live worker queue/processing snapshots, freshness-aware resource observations, periodic monitoring on an existing EventLoop and structured native-process routing through existing workers. See the [runnable example](example/compute_router.cpp).",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "[Selective live query streams](docs/query-stream.md): typed filter/projection queries, independent subscribers, query revisions, bounded output rings, executor backpressure/retry and removal barriers. Existing Runtime workers, EventLoop/HostLoop and QueryPort supply execution and control.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "[Native resources](docs/resources.md): deterministic indexed packs, 64-byte-aligned shared payloads, immutable embedded/owned/native-mapped views, explicit integrity/paging hints and native lifetime after channel/pack removal. iiSDKBuilder supplies the build-host compiler and target selection; iiFileProvider owns outputs. Core imports neither module.",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 51,
+      "end_line": 51,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "list",
+      "start_line": 52,
+      "end_line": 52,
+      "raw": "- [External hosts](docs/host-loop.md): coalesced wake notifications from all EventLoop mutation paths, owner-thread dispatch, native readiness waiting with completion on the host thread, disconnect barriers, weak producer endpoints and host-context diagnostics. iiGUI consumes this foundation; Core has no iiGUI/window/GPU/font dependency.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "[External hosts](docs/host-loop.md): coalesced wake notifications from all EventLoop mutation paths, owner-thread dispatch, native readiness waiting with completion on the host thread, disconnect barriers, weak producer endpoints and host-context diagnostics. iiGUI consumes this foundation; Core has no iiGUI/window/GPU/font dependency.",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 53,
+      "end_line": 53,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "list",
+      "start_line": 54,
+      "end_line": 57,
+      "raw": "- [Native processes](docs/process.md): literal argument vectors, child-only environment/cwd, binary stdin/stdout/stderr Channels, bounded capture and streaming sinks, exit/signal/deadline/cancellation results and owned-tree cleanup. iiSDKBuilder uses this common API while FileProvider owns logs.\n- [Text boundaries](docs/text.md): strict or explicitly replacing UTF-8/UTF-16 conversions, native path conversion, preserved NUL in text/bytes and explicit byte/code-unit indexing. Owned payloads cross asynchronous boundaries.\n- [Tracked operations](docs/operation.md): immediate admission errors, immutable results, cooperative cancellation/deadlines, owner/executor removal, side-effect state and one receiver-scoped completion on an explicit reply executor. Serial execution and fixed OS-thread execution remain distinct.\n- [Qt migration P0](docs/qt-migration-p0.md): the independent [iiJson](../iiJson/README.md) codec consumes Contracts, and [iiCSMIDI](../iiCSMIDI/README.md) uses Native storage and optional Runtime decoding. Core imports neither feature module.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "[Native processes](docs/process.md): literal argument vectors, child-only environment/cwd, binary stdin/stdout/stderr Channels, bounded capture and streaming sinks, exit/signal/deadline/cancellation results and owned-tree cleanup. iiSDKBuilder uses this common API while FileProvider owns logs.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "[Text boundaries](docs/text.md): strict or explicitly replacing UTF-8/UTF-16 conversions, native path conversion, preserved NUL in text/bytes and explicit byte/code-unit indexing. Owned payloads cross asynchronous boundaries.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "[Tracked operations](docs/operation.md): immediate admission errors, immutable results, cooperative cancellation/deadlines, owner/executor removal, side-effect state and one receiver-scoped completion on an explicit reply executor. Serial execution and fixed OS-thread execution remain distinct.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "[Qt migration P0](docs/qt-migration-p0.md): the independent [iiJson](../iiJson/README.md) codec consumes Contracts, and [iiCSMIDI](../iiCSMIDI/README.md) uses Native storage and optional Runtime decoding. Core imports neither feature module.",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 58,
+      "end_line": 58,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "list",
+      "start_line": 59,
+      "end_line": 59,
+      "raw": "- `FrameLoop`: ten ordered app/game stages, bounded fixed-step catch-up and interpolation, scaled/unscaled clocks, pause, per-tick intervals/enablement, acyclic prerequisites and frame diagnostics. Native `run()`, host-driven `poll()/step()` and `BrowserLoop(frames)` use the same C++ implementation. See the [contract](docs/frame-loop.md) and [app/game example](examples/frame_loop.cpp). Unity and Unreal documentation inform requirements without adding engine dependencies.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "`FrameLoop`: ten ordered app/game stages, bounded fixed-step catch-up and interpolation, scaled/unscaled clocks, pause, per-tick intervals/enablement, acyclic prerequisites and frame diagnostics. Native `run()`, host-driven `poll()/step()` and `BrowserLoop(frames)` use the same C++ implementation. See the [contract](docs/frame-loop.md) and [app/game example](examples/frame_loop.cpp). Unity and Unreal documentation inform requirements without adding engine dependencies.",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 60,
+      "end_line": 60,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "list",
+      "start_line": 61,
+      "end_line": 61,
+      "raw": "- [Implicit sharing](docs/implicit-sharing.md): normal value copies share storage; `SharedValue::modify` automatically separates writes and reuses unique private data for noexcept edits. Published snapshots and weak aliases remain immutable. An optional standard-only serialization bridge persists logical data and restores a fresh sharing owner. Shared values also compose with DynamicValue and typed runtime queries.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "[Implicit sharing](docs/implicit-sharing.md): normal value copies share storage; `SharedValue::modify` automatically separates writes and reuses unique private data for noexcept edits. Published snapshots and weak aliases remain immutable. An optional standard-only serialization bridge persists logical data and restores a fresh sharing owner. Shared values also compose with DynamicValue and typed runtime queries.",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 62,
+      "end_line": 62,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "list",
+      "start_line": 63,
+      "end_line": 63,
+      "raw": "- [Data type serialization](docs/serialization.md): deterministic CBOR with checked integers/floats, UTF-8 text, byte strings, standard containers and explicit record codecs; bounded complete-message decoding; versioned DynamicValue type envelopes. Static serialization is independent through `iiSDKCore::Values`, and existing Runtime queries/workers compose with owned serialized bytes; the optional storage adapter persists them.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "[Data type serialization](docs/serialization.md): deterministic CBOR with checked integers/floats, UTF-8 text, byte strings, standard containers and explicit record codecs; bounded complete-message decoding; versioned DynamicValue type envelopes. Static serialization is independent through `iiSDKCore::Values`, and existing Runtime queries/workers compose with owned serialized bytes; the optional storage adapter persists them.",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 64,
+      "end_line": 64,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "list",
+      "start_line": 65,
+      "end_line": 65,
+      "raw": "- [Modern core families](docs/modern-core.md): typed keyframe/easing timelines and timed playback; cancellable parallel transforms with ordered standard futures; immutable shared snapshots with transactional copy-on-write; versioned native/static plugins; serial event filtering. Atomic file replacement is provided by the separate storage adapter. Standard containers, ranges, PMR memory resources and synchronization are used directly. The `iiSDKCore::Values` target supports independent use of standard-only value, time and animation primitives without linking the runtime.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "[Modern core families](docs/modern-core.md): typed keyframe/easing timelines and timed playback; cancellable parallel transforms with ordered standard futures; immutable shared snapshots with transactional copy-on-write; versioned native/static plugins; serial event filtering. Atomic file replacement is provided by the separate storage adapter. Standard containers, ranges, PMR memory resources and synchronization are used directly. The `iiSDKCore::Values` target supports independent use of standard-only value, time and animation primitives without linking the runtime.",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 66,
+      "end_line": 66,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "list",
+      "start_line": 67,
+      "end_line": 83,
+      "raw": "- Device/media I/O is consumed separately through `iiDeviceMultimedia::iiDeviceMultimedia`. Generic Core APIs do not depend on that package. The device package is also independent of Core. Applications own their connection using device poll(); see [composition and migration](docs/device-extraction.md).\n- Multiple inheritance is forbidden in project records. Public SDK classes and value records are `final`, and a mandatory build check also rejects multiple bases and expanding base packs in source and preprocessed declarations. Extend objects through composition. The host build requires Python 3.9 or later; installed runtime consumers do not. See the [inheritance policy](docs/inheritance.md).\n- `EventLoop::watch/read/write` detects channel readiness and delivers one-shot input/output on the dispatch thread. POSIX uses a shared native poll set and wake pipe; Windows retains COM status probes with a wake event. Existing files, serial ports, and accessible POSIX character devices/FIFOs share bounded task slots and cancellation cleanup. See [event loop I/O](docs/loop-io.md).\n- Clean object removal through `TaskScope`, `QueryPort::close()`, and `SerialQueue::close()`: stop admission, cancel queued work, await active handlers and completions, destroy owned captures, then return capacity for the next object. `Scene::erase()` applies this order to a subtree. See the [cleanup contract](docs/cleanup.md) and `tests/cleanup.cpp`.\n- Provides path, file, binary cursor, job bundle, service reference, diagnostics, dependency graph, Scene, script binding, host pump, and timeline object based on 18 folders. [based object contract](docs/foundations.md), [sensor value asynchronous processing example](examples/foundations.cpp)define responsibility and lifecycle rules.\n- `ii::io::Channel`, `AsyncIO`, `Buffer`: Native file, serial byte I/O, prepared wait, timeout, cancel, reusable buffer, and asynchronous query. OS hides handles and specifies the support difference between WASM virtual files and real devices. Defined in [I/O contract](docs/io.md).\n- `DynamicValue`, `value_cast<T>()`, `value_ref<T>()`: Dynamic C++ values and explicit type conversion and reference access. Supports number range and precision check, string conversion, dynamic type policy of properties, and casting at query time. Defined in [dynamic type contract](docs/dynamic-value.md).\n- The default execution model is `Runtime`'s multi-threaded, parallel, and asynchronous processing. Start workers at creation and reuse work slots. `SerialQueue` processes queries of the same object in order and executes different objects in parallel. Defined in [default runtime contract](docs/parallel-runtime.md)and [object asynchronous example](examples/parallel.cpp).\n- `Thread`: Platform independent thread ownership, start, cooperative cancellation, wait for termination, status, and exception delivery. EventLoop connects execution and cancellation and reuses the instance after join. Defined in [thread contract](docs/thread.md), [query execution example](examples/thread.cpp).\n- `ObjectProperties` : Defines, replaces, and deletes per-instance values, methods, and child trees at creation and after creation. It supports queryable/designable policies, private path protection, selective queries, type and value validation, and change queries. [Dynamic property contracts](docs/object-properties.md)and [execution examples](examples/properties.cpp)are defined.\n- Object member tree: Constructs values, general methods, and query ports for each node of nested instances, preserving per-level public/private access control. [Tree contracts and implementation examples](docs/member-tree.md)are defined.\n- `QueryPort<Request, Response>` : Queries between objects that pass only required inputs and selected response fields. Passing the entire object is an explicit option, and it supports synchronous/queued delivery, value/void responses, and closed receiver/handling failures. Removal cancels queued completions and waits for active delivery.\n- `EventLoop` : Multi-producer/single-executor work queues, immediate/scheduled/periodic tasks, cancel tokens, 4:2:1 weighted priority, callback count/time budget, suspend/resume/terminate, and statistics.\n- `Stream<T>` : Preallocated circular buffer, FIFO , rejection or discarding of old data, consumption of remaining data after termination, and backpressure/discard statistics.\n- `BrowserLoop` : An instance that drives the event loop as `requestAnimationFrame` in Emscripten.\n- `run()` : A native independent loop. It waits on a condition variable when there is no work and wakes up on new work, timers, or termination.\n- `poll()` : Non-blocking execution units that insert into UIKit where the host owns the loop, Android , desktop GUI , and browsers.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "Device/media I/O is consumed separately through `iiDeviceMultimedia::iiDeviceMultimedia`. Generic Core APIs do not depend on that package. The device package is also independent of Core. Applications own their connection using device poll(); see [composition and migration](docs/device-extraction.md).",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Multiple inheritance is forbidden in project records. Public SDK classes and value records are `final`, and a mandatory build check also rejects multiple bases and expanding base packs in source and preprocessed declarations. Extend objects through composition. The host build requires Python 3.9 or later; installed runtime consumers do not. See the [inheritance policy](docs/inheritance.md).",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "`EventLoop::watch/read/write` detects channel readiness and delivers one-shot input/output on the dispatch thread. POSIX uses a shared native poll set and wake pipe; Windows retains COM status probes with a wake event. Existing files, serial ports, and accessible POSIX character devices/FIFOs share bounded task slots and cancellation cleanup. See [event loop I/O](docs/loop-io.md).",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Clean object removal through `TaskScope`, `QueryPort::close()`, and `SerialQueue::close()`: stop admission, cancel queued work, await active handlers and completions, destroy owned captures, then return capacity for the next object. `Scene::erase()` applies this order to a subtree. See the [cleanup contract](docs/cleanup.md) and `tests/cleanup.cpp`.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Provides path, file, binary cursor, job bundle, service reference, diagnostics, dependency graph, Scene, script binding, host pump, and timeline object based on 18 folders. [based object contract](docs/foundations.md), [sensor value asynchronous processing example](examples/foundations.cpp)define responsibility and lifecycle rules.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "`ii::io::Channel`, `AsyncIO`, `Buffer`: Native file, serial byte I/O, prepared wait, timeout, cancel, reusable buffer, and asynchronous query. OS hides handles and specifies the support difference between WASM virtual files and real devices. Defined in [I/O contract](docs/io.md).",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "`DynamicValue`, `value_cast<T>()`, `value_ref<T>()`: Dynamic C++ values and explicit type conversion and reference access. Supports number range and precision check, string conversion, dynamic type policy of properties, and casting at query time. Defined in [dynamic type contract](docs/dynamic-value.md).",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "The default execution model is `Runtime`'s multi-threaded, parallel, and asynchronous processing. Start workers at creation and reuse work slots. `SerialQueue` processes queries of the same object in order and executes different objects in parallel. Defined in [default runtime contract](docs/parallel-runtime.md)and [object asynchronous example](examples/parallel.cpp).",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "`Thread`: Platform independent thread ownership, start, cooperative cancellation, wait for termination, status, and exception delivery. EventLoop connects execution and cancellation and reuses the instance after join. Defined in [thread contract](docs/thread.md), [query execution example](examples/thread.cpp).",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "`ObjectProperties` : Defines, replaces, and deletes per-instance values, methods, and child trees at creation and after creation. It supports queryable/designable policies, private path protection, selective queries, type and value validation, and change queries. [Dynamic property contracts](docs/object-properties.md)and [execution examples](examples/properties.cpp)are defined.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Object member tree: Constructs values, general methods, and query ports for each node of nested instances, preserving per-level public/private access control. [Tree contracts and implementation examples](docs/member-tree.md)are defined.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "`QueryPort<Request, Response>` : Queries between objects that pass only required inputs and selected response fields. Passing the entire object is an explicit option, and it supports synchronous/queued delivery, value/void responses, and closed receiver/handling failures. Removal cancels queued completions and waits for active delivery.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "`EventLoop` : Multi-producer/single-executor work queues, immediate/scheduled/periodic tasks, cancel tokens, 4:2:1 weighted priority, callback count/time budget, suspend/resume/terminate, and statistics.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "`Stream<T>` : Preallocated circular buffer, FIFO , rejection or discarding of old data, consumption of remaining data after termination, and backpressure/discard statistics.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "`BrowserLoop` : An instance that drives the event loop as `requestAnimationFrame` in Emscripten.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "`run()` : A native independent loop. It waits on a condition variable when there is no work and wakes up on new work, timers, or termination.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "`poll()` : Non-blocking execution units that insert into UIKit where the host owns the loop, Android , desktop GUI , and browsers.",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 84,
+      "end_line": 84,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 85,
+      "end_line": 85,
+      "raw": "Public objects are composed of instances and callbacks without inheritance. Dependent objects receive references, and data is passed as values or explicit references. Pointers are required for RAII ownership within the implementation and at the browser C ABI boundary, but they are not exposed as a consumer ownership API.\n"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 86,
+      "end_line": 86,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "html",
+      "start_line": 87,
+      "end_line": 87,
+      "raw": "<a id=\"최소-사용-예\"></a>\n"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 88,
+      "end_line": 88,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "heading",
+      "start_line": 89,
+      "end_line": 89,
+      "raw": "## Minimal usage example\n",
+      "level": 2,
+      "title": "Minimal usage example"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 90,
+      "end_line": 90,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "fenced_code",
+      "start_line": 91,
+      "end_line": 107,
+      "raw": "```cpp\n#include <iiSDKCore/Runtime/Query.h>\n\nint main() {\n    using namespace ii::runtime;\n    Runtime runtime;             // The default 2~4 workers start automatically.\n    SerialQueue object(runtime);\n    QueryPort<int, int> calculate(object, [](const int& value) { return value * 2; });\n    int answer = 0;\n    auto accepted = calculate.post(21, [&](QueryReply<int> result) {\n        if (result) answer = *result;\n    });\n    if (!accepted) return 1;\n    if (!runtime.wait_idle() || answer != 42) return 2;\n    return runtime.join() ? 0 : 3;\n}\n```\n",
+      "language": "cpp",
+      "code": "#include <iiSDKCore/Runtime/Query.h>\n\nint main() {\n    using namespace ii::runtime;\n    Runtime runtime;             // The default 2~4 workers start automatically.\n    SerialQueue object(runtime);\n    QueryPort<int, int> calculate(object, [](const int& value) { return value * 2; });\n    int answer = 0;\n    auto accepted = calculate.post(21, [&](QueryReply<int> result) {\n        if (result) answer = *result;\n    });\n    if (!accepted) return 1;\n    if (!runtime.wait_idle() || answer != 42) return 2;\n    return runtime.join() ? 0 : 3;\n}\n",
+      "closed": true
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 108,
+      "end_line": 108,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "paragraph",
+      "start_line": 109,
+      "end_line": 109,
+      "raw": "Executable [live example](examples/live.cpp)processes 120 samples in the same loop with a periodic producer and consumer. The same file is built as a native executable or WASM HTML.\n"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 110,
+      "end_line": 110,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "paragraph",
+      "start_line": 111,
+      "end_line": 111,
+      "raw": "`./build/iiSDKCorePropertiesExample` adds a gain property and a scale method to a single Device instance after creation and queries only the required values. Changes do not propagate to other instances created with the same schema.\n"
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 112,
+      "end_line": 112,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "html",
+      "start_line": 113,
+      "end_line": 113,
+      "raw": "<a id=\"빌드\"></a>\n"
+    },
+    {
+      "id": "b000050",
+      "kind": "blank",
+      "start_line": 114,
+      "end_line": 114,
+      "raw": "\n"
+    },
+    {
+      "id": "b000051",
+      "kind": "heading",
+      "start_line": 115,
+      "end_line": 115,
+      "raw": "## Build\n",
+      "level": 2,
+      "title": "Build"
+    },
+    {
+      "id": "b000052",
+      "kind": "blank",
+      "start_line": 116,
+      "end_line": 116,
+      "raw": "\n"
+    },
+    {
+      "id": "b000053",
+      "kind": "paragraph",
+      "start_line": 117,
+      "end_line": 117,
+      "raw": "CMake 3.31 or later, a C++23 compiler and standard platform threading are required. Core no longer requires Linux device development packages, Apple media frameworks or Windows C++/WinRT device projections. Those requirements belong to iiDeviceMultimedia. Generated files stay under `build/`.\n"
+    },
+    {
+      "id": "b000054",
+      "kind": "blank",
+      "start_line": 118,
+      "end_line": 118,
+      "raw": "\n"
+    },
+    {
+      "id": "b000055",
+      "kind": "fenced_code",
+      "start_line": 119,
+      "end_line": 125,
+      "raw": "```sh\ncmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON\ncmake --build build --parallel 4\nctest --test-dir build --output-on-failure\n./build/iiSDKCoreLive\ncmake --install build --prefix \"$PWD/build/stage\"\n```\n",
+      "language": "sh",
+      "code": "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON\ncmake --build build --parallel 4\nctest --test-dir build --output-on-failure\n./build/iiSDKCoreLive\ncmake --install build --prefix \"$PWD/build/stage\"\n",
+      "closed": true
+    },
+    {
+      "id": "b000056",
+      "kind": "blank",
+      "start_line": 126,
+      "end_line": 126,
+      "raw": "\n"
+    },
+    {
+      "id": "b000057",
+      "kind": "paragraph",
+      "start_line": 127,
+      "end_line": 127,
+      "raw": "Consumers are connected with `find_package(iiSDKCore 0.13 CONFIG REQUIRED)` and `iiSDKCore::iiSDKCore`. C++23 and thread dependencies are propagated from the target. `BUILD_SHARED_LIBS=OFF` can be selected for static libraries. iOS and Emscripten generate static libraries. Existing `hello()` is kept. Headers must be included via `<iiSDKCore/...>` path to avoid conflicts with other SDKs.\n"
+    },
+    {
+      "id": "b000058",
+      "kind": "blank",
+      "start_line": 128,
+      "end_line": 128,
+      "raw": "\n"
+    },
+    {
+      "id": "b000059",
+      "kind": "paragraph",
+      "start_line": 129,
+      "end_line": 129,
+      "raw": "Package search, header usage, linking, and actual shared library loading are verified by public function call tests and the following separate installation consumers.\n"
+    },
+    {
+      "id": "b000060",
+      "kind": "blank",
+      "start_line": 130,
+      "end_line": 130,
+      "raw": "\n"
+    },
+    {
+      "id": "b000061",
+      "kind": "fenced_code",
+      "start_line": 131,
+      "end_line": 136,
+      "raw": "```sh\ncmake -S tests/consumer -B build/consumer/build \\\n  -DCMAKE_PREFIX_PATH=\"$PWD/build/stage\"\ncmake --build build/consumer/build\nctest --test-dir build/consumer/build --output-on-failure\n```\n",
+      "language": "sh",
+      "code": "cmake -S tests/consumer -B build/consumer/build \\\n  -DCMAKE_PREFIX_PATH=\"$PWD/build/stage\"\ncmake --build build/consumer/build\nctest --test-dir build/consumer/build --output-on-failure\n",
+      "closed": true
+    },
+    {
+      "id": "b000062",
+      "kind": "blank",
+      "start_line": 137,
+      "end_line": 137,
+      "raw": "\n"
+    },
+    {
+      "id": "b000063",
+      "kind": "paragraph",
+      "start_line": 138,
+      "end_line": 138,
+      "raw": "In the Windows multi-config generator, add `--config Release` for build/install and `-C Release` for CTest, and put `bin` of the installation path into `PATH` when running shared library consumers.\n"
+    },
+    {
+      "id": "b000064",
+      "kind": "blank",
+      "start_line": 139,
+      "end_line": 139,
+      "raw": "\n"
+    },
+    {
+      "id": "b000065",
+      "kind": "html",
+      "start_line": 140,
+      "end_line": 140,
+      "raw": "<a id=\"플랫폼과-범위\"></a>\n"
+    },
+    {
+      "id": "b000066",
+      "kind": "blank",
+      "start_line": 141,
+      "end_line": 141,
+      "raw": "\n"
+    },
+    {
+      "id": "b000067",
+      "kind": "heading",
+      "start_line": 142,
+      "end_line": 142,
+      "raw": "## Platform and scope\n",
+      "level": 2,
+      "title": "Platform and scope"
+    },
+    {
+      "id": "b000068",
+      "kind": "blank",
+      "start_line": 143,
+      "end_line": 143,
+      "raw": "\n"
+    },
+    {
+      "id": "b000069",
+      "kind": "table",
+      "start_line": 144,
+      "end_line": 149,
+      "raw": "|Target|Execution mode|\n|---|---|\n| macOS / Windows / Linux |A native C++ executable or library. A standalone `run()` or the host's `poll()`|\n| iOS |Native static library. UIKit host calls `poll()`, independent worker threads are `run()` possible|\n| Android |NDK library. Activity/ NativeActivity host calls `poll()` or `run()` from worker thread|\n| WASM |Default pthread ON. Application worker uses Runtime/Thread and browser main thread uses BrowserLoop / `poll()`|\n",
+      "columns": [
+        "Target",
+        "Execution mode"
+      ],
+      "rows": [
+        [
+          "macOS / Windows / Linux",
+          "A native C++ executable or library. A standalone `run()` or the host's `poll()`"
+        ],
+        [
+          "iOS",
+          "Native static library. UIKit host calls `poll()`, independent worker threads are `run()` possible"
+        ],
+        [
+          "Android",
+          "NDK library. Activity/ NativeActivity host calls `poll()` or `run()` from worker thread"
+        ],
+        [
+          "WASM",
+          "Default pthread ON. Application worker uses Runtime/Thread and browser main thread uses BrowserLoop / `poll()`"
+        ]
+      ]
+    },
+    {
+      "id": "b000070",
+      "kind": "blank",
+      "start_line": 150,
+      "end_line": 150,
+      "raw": "\n"
+    },
+    {
+      "id": "b000071",
+      "kind": "paragraph",
+      "start_line": 151,
+      "end_line": 151,
+      "raw": "Linux Core has no X11/Wayland, libudev, D-Bus or ALSA package dependency. Native device/media backends and their platform requirements are in [iiDeviceMultimedia](../iiDeviceMultimedia/docs/hardware.md). Actual platform execution and build evidence are recorded separately in [validation](docs/validation.md).\n"
+    },
+    {
+      "id": "b000072",
+      "kind": "blank",
+      "start_line": 152,
+      "end_line": 152,
+      "raw": "\n"
+    },
+    {
+      "id": "b000073",
+      "kind": "paragraph",
+      "start_line": 153,
+      "end_line": 153,
+      "raw": "This runtime operates in native **user space**, and WASM follows its host execution environment. The time budget is cooperative and does not guarantee hard real-time execution. Files, serial ports, and accessible POSIX character devices/FIFOs can use the same EventLoop for readiness detection, input, and output. POSIX `run()` waits on multiple channels and a wake pipe; host-driven `poll()` probes readiness without a sleeping kernel wait. The independent iiDeviceMultimedia 0.2 package supplies device discovery, media and device protocols through its own ii::device API and explicit poll(). Neither module depends on the other; an application can call that poll from its Core EventLoop timer. GUI entry points, windows, rendering, app packaging, audio synthesis/effects, and manufacturer-specific command meanings remain host or upper-module responsibilities. Slow filesystem or driver calls can still delay dispatch; AsyncIO retains worker isolation for those calls. See [event loop I/O](docs/loop-io.md) for platform and lifetime limits.\n"
+    },
+    {
+      "id": "b000074",
+      "kind": "blank",
+      "start_line": 154,
+      "end_line": 154,
+      "raw": "\n"
+    },
+    {
+      "id": "b000075",
+      "kind": "paragraph",
+      "start_line": 155,
+      "end_line": 155,
+      "raw": "Detailed semantics and cross-build are defined in [runtime design](docs/runtime.md), project principles are defined in [AGENT .md](AGENT.md). IDE  settings, build artifacts, and empty design directories are not included in the repository.\n"
+    },
+    {
+      "id": "b000076",
+      "kind": "blank",
+      "start_line": 156,
+      "end_line": 156,
+      "raw": "\n"
+    },
+    {
+      "id": "b000077",
+      "kind": "paragraph",
+      "start_line": 157,
+      "end_line": 157,
+      "raw": "Communication between objects is configured according to [query contract](docs/query.md). [object communication example](examples/query.cpp)has the Controller passing `SetLevel{42}` to `device.audio.output.set_level` and requesting only one value with `ReadDevice{.audio = {.output = {.level = true}}}` . The response also maintains the `audio.output.level`  structure, omitting name, object reference, and unselected sibling fields. It is executed with `./build/iiSDKCoreQueryExample` .\n"
+    },
+    {
+      "id": "b000078",
+      "kind": "blank",
+      "start_line": 158,
+      "end_line": 158,
+      "raw": "\n"
+    },
+    {
+      "id": "b000079",
+      "kind": "heading",
+      "start_line": 159,
+      "end_line": 159,
+      "raw": "## Source layout\n",
+      "level": 2,
+      "title": "Source layout"
+    },
+    {
+      "id": "b000080",
+      "kind": "blank",
+      "start_line": 160,
+      "end_line": 160,
+      "raw": "\n"
+    },
+    {
+      "id": "b000081",
+      "kind": "paragraph",
+      "start_line": 161,
+      "end_line": 161,
+      "raw": "Implementation files and their headers live together under `src/`. Existing feature and platform subdirectories retain their responsibilities. Build configuration, tests, documentation, resources, and maintenance scripts remain at the project root. Configure and build using the repository-local `build/` directory.\n"
+    },
+    {
+      "id": "b000082",
+      "kind": "blank",
+      "start_line": 162,
+      "end_line": 162,
+      "raw": "\n"
+    },
+    {
+      "id": "b000083",
+      "kind": "heading",
+      "start_line": 163,
+      "end_line": 163,
+      "raw": "## License\n",
+      "level": 2,
+      "title": "License"
+    },
+    {
+      "id": "b000084",
+      "kind": "blank",
+      "start_line": 164,
+      "end_line": 164,
+      "raw": "\n"
+    },
+    {
+      "id": "b000085",
+      "kind": "paragraph",
+      "start_line": 165,
+      "end_line": 165,
+      "raw": "SPDX-License-Identifier: MIT\n"
+    },
+    {
+      "id": "b000086",
+      "kind": "blank",
+      "start_line": 166,
+      "end_line": 166,
+      "raw": "\n"
+    },
+    {
+      "id": "b000087",
+      "kind": "paragraph",
+      "start_line": 167,
+      "end_line": 169,
+      "raw": "The original code and documentation in this repository are licensed under the\n[MIT License](LICENSE). Third-party code, libraries, fonts, tools, and model\nweights retain their respective licenses.\n"
+    },
+    {
+      "id": "b000088",
+      "kind": "blank",
+      "start_line": 170,
+      "end_line": 170,
+      "raw": "\n"
+    },
+    {
+      "id": "b000089",
+      "kind": "heading",
+      "start_line": 171,
+      "end_line": 171,
+      "raw": "## Freestanding Embedded component\n",
+      "level": 2,
+      "title": "Freestanding Embedded component"
+    },
+    {
+      "id": "b000090",
+      "kind": "blank",
+      "start_line": 172,
+      "end_line": 172,
+      "raw": "\n"
+    },
+    {
+      "id": "b000091",
+      "kind": "paragraph",
+      "start_line": 173,
+      "end_line": 173,
+      "raw": "`iiSDKCore::Embedded` provides bounded native C++23 callbacks, timers, cancellation and dispatch budgets without allocation, threads, OS services or an interpreter. `IISDKCORE_EMBEDDED_ONLY=ON` builds this component with the mandatory architecture policy check. See [the Embedded contract](docs/embedded.md).\n"
+    },
+    {
+      "id": "b000092",
+      "kind": "blank",
+      "start_line": 174,
+      "end_line": 174,
+      "raw": "\n"
+    },
+    {
+      "id": "b000093",
+      "kind": "html",
+      "start_line": 175,
+      "end_line": 175,
+      "raw": "<!-- workspace-docs:readme:start -->\n"
+    },
+    {
+      "id": "b000094",
+      "kind": "heading",
+      "start_line": 176,
+      "end_line": 176,
+      "raw": "## Documentation entry points\n",
+      "level": 2,
+      "title": "Documentation entry points"
+    },
+    {
+      "id": "b000095",
+      "kind": "blank",
+      "start_line": 177,
+      "end_line": 177,
+      "raw": "\n"
+    },
+    {
+      "id": "b000096",
+      "kind": "list",
+      "start_line": 178,
+      "end_line": 181,
+      "raw": "- Human overview: this English `README.md`.\n- Agent instructions: [AGENT.md](AGENT.md).\n- Human documentation: [documentation index](docs/README.md).\n- Structured agent documentation: [agent index](docs/agent-index.json).\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "Human overview: this English `README.md`.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Agent instructions: [AGENT.md](AGENT.md).",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Human documentation: [documentation index](docs/README.md).",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Structured agent documentation: [agent index](docs/agent-index.json).",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000097",
+      "kind": "html",
+      "start_line": 182,
+      "end_line": 182,
+      "raw": "<!-- workspace-docs:readme:end -->\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "iiSDKCore",
+      "anchor": "iisdkcore",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000019",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Provided Features",
+      "anchor": "provided-features",
+      "start_line": 43
+    },
+    {
+      "block_id": "b000041",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Minimal usage example",
+      "anchor": "minimal-usage-example",
+      "start_line": 89
+    },
+    {
+      "block_id": "b000051",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Build",
+      "anchor": "build",
+      "start_line": 115
+    },
+    {
+      "block_id": "b000067",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Platform and scope",
+      "anchor": "platform-and-scope",
+      "start_line": 142
+    },
+    {
+      "block_id": "b000079",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Source layout",
+      "anchor": "source-layout",
+      "start_line": 159
+    },
+    {
+      "block_id": "b000083",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "License",
+      "anchor": "license",
+      "start_line": 163
+    },
+    {
+      "block_id": "b000089",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Freestanding Embedded component",
+      "anchor": "freestanding-embedded-component",
+      "start_line": 171
+    },
+    {
+      "block_id": "b000094",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Documentation entry points",
+      "anchor": "documentation-entry-points",
+      "start_line": 176
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000021",
+        "line": 45,
+        "text": "- [Concurrent computations](docs/concurrent.md): instance-owned `Concurrent` work on existing Runtime workers, `Future`/`Promise` results and progress, cooperative cancellation and suspension, coalescing `FutureWatcher` delivery, explicit `FutureSynchronizer` waits, configurable `TaskBuilder`, ordered parallel map/filter and sequential reductions. Inputs are owned standard vectors; Qt and global thread pools are not required. See the [runnable example](examples/concurrent.cpp).",
+        "basis": "lexical_match",
+        "context": "list"
+      },
+      {
+        "block_id": "b000035",
+        "line": 67,
+        "text": "- Device/media I/O is consumed separately through `iiDeviceMultimedia::iiDeviceMultimedia`. Generic Core APIs do not depend on that package. The device package is also independent of Core. Applications own their connection using device poll(); see [composition and migration](docs/device-extraction.md).",
+        "basis": "lexical_match",
+        "context": "list"
+      },
+      {
+        "block_id": "b000035",
+        "line": 68,
+        "text": "- Multiple inheritance is forbidden in project records. Public SDK classes and value records are `final`, and a mandatory build check also rejects multiple bases and expanding base packs in source and preprocessed declarations. Extend objects through composition. The host build requires Python 3.9 or later; installed runtime consumers do not. See the [inheritance policy](docs/inheritance.md).",
+        "basis": "lexical_match",
+        "context": "list"
+      },
+      {
+        "block_id": "b000035",
+        "line": 78,
+        "text": "- `QueryPort<Request, Response>` : Queries between objects that pass only required inputs and selected response fields. Passing the entire object is an explicit option, and it supports synchronous/queued delivery, value/void responses, and closed receiver/handling failures. Removal cancels queued completions and waits for active delivery.",
+        "basis": "lexical_match",
+        "context": "list"
+      },
+      {
+        "block_id": "b000037",
+        "line": 85,
+        "text": "Public objects are composed of instances and callbacks without inheritance. Dependent objects receive references, and data is passed as values or explicit references. Pointers are required for RAII ownership within the implementation and at the browser C ABI boundary, but they are not exposed as a consumer ownership API.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000047",
+        "line": 111,
+        "text": "`./build/iiSDKCorePropertiesExample` adds a gain property and a scale method to a single Device instance after creation and queries only the required values. Changes do not propagate to other instances created with the same schema.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000053",
+        "line": 117,
+        "text": "CMake 3.31 or later, a C++23 compiler and standard platform threading are required. Core no longer requires Linux device development packages, Apple media frameworks or Windows C++/WinRT device projections. Those requirements belong to iiDeviceMultimedia. Generated files stay under `build/`.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000057",
+        "line": 127,
+        "text": "Consumers are connected with `find_package(iiSDKCore 0.13 CONFIG REQUIRED)` and `iiSDKCore::iiSDKCore`. C++23 and thread dependencies are propagated from the target. `BUILD_SHARED_LIBS=OFF` can be selected for static libraries. iOS and Emscripten generate static libraries. Existing `hello()` is kept. Headers must be included via `<iiSDKCore/...>` path to avoid conflicts with other SDKs.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [
+      {
+        "block_id": "b000055",
+        "language": "sh",
+        "code": "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON\ncmake --build build --parallel 4\nctest --test-dir build --output-on-failure\n./build/iiSDKCoreLive\ncmake --install build --prefix \"$PWD/build/stage\"\n"
+      },
+      {
+        "block_id": "b000061",
+        "language": "sh",
+        "code": "cmake -S tests/consumer -B build/consumer/build \\\n  -DCMAKE_PREFIX_PATH=\"$PWD/build/stage\"\ncmake --build build/consumer/build\nctest --test-dir build/consumer/build --output-on-failure\n"
+      }
+    ],
+    "links": [
+      {
+        "block_id": "b000003",
+        "label": "observable contracts",
+        "target": "docs/observable.md",
+        "kind": "relative",
+        "line": 7
+      },
+      {
+        "block_id": "b000005",
+        "label": "Core-owned application lifetime and executable entry",
+        "target": "docs/application.md",
+        "kind": "relative",
+        "line": 10
+      },
+      {
+        "block_id": "b000007",
+        "label": "Shared easing curves",
+        "target": "docs/easing.md",
+        "kind": "relative",
+        "line": 18
+      },
+      {
+        "block_id": "b000009",
+        "label": "Windows build and execution",
+        "target": "docs/WindowsBuildAndRun.md",
+        "kind": "relative",
+        "line": 22
+      },
+      {
+        "block_id": "b000013",
+        "label": "iiDeviceMultimedia",
+        "target": "../iiDeviceMultimedia/README.md",
+        "kind": "relative",
+        "line": 31
+      },
+      {
+        "block_id": "b000013",
+        "label": "native resources",
+        "target": "docs/resources.md",
+        "kind": "relative",
+        "line": 31
+      },
+      {
+        "block_id": "b000013",
+        "label": "host integration",
+        "target": "docs/host-loop.md",
+        "kind": "relative",
+        "line": 31
+      },
+      {
+        "block_id": "b000013",
+        "label": "app/game frames",
+        "target": "docs/frame-loop.md",
+        "kind": "relative",
+        "line": 31
+      },
+      {
+        "block_id": "b000013",
+        "label": "extraction boundary",
+        "target": "docs/device-extraction.md",
+        "kind": "relative",
+        "line": 31
+      },
+      {
+        "block_id": "b000015",
+        "label": "iiFileProvider CoreIO adapter",
+        "target": "../iiFileProvider/CoreIO/README.md",
+        "kind": "relative",
+        "line": 37
+      },
+      {
+        "block_id": "b000015",
+        "label": "foundation architecture",
+        "target": "docs/foundation-architecture.md",
+        "kind": "relative",
+        "line": 38
+      },
+      {
+        "block_id": "b000021",
+        "label": "Concurrent computations",
+        "target": "docs/concurrent.md",
+        "kind": "relative",
+        "line": 45
+      },
+      {
+        "block_id": "b000021",
+        "label": "runnable example",
+        "target": "examples/concurrent.cpp",
+        "kind": "relative",
+        "line": 45
+      },
+      {
+        "block_id": "b000021",
+        "label": "Native compute load balancing",
+        "target": "docs/load-balancer.md",
+        "kind": "relative",
+        "line": 46
+      },
+      {
+        "block_id": "b000021",
+        "label": "two-Runtime example",
+        "target": "examples/load_balancer.cpp",
+        "kind": "relative",
+        "line": 46
+      },
+      {
+        "block_id": "b000021",
+        "label": "Application and Classic load routing",
+        "target": "docs/load-routing.md",
+        "kind": "relative",
+        "line": 47
+      },
+      {
+        "block_id": "b000021",
+        "label": "iiNetwork",
+        "target": "../iiNetwork/docs/LoadBalancer.md",
+        "kind": "relative",
+        "line": 47
+      },
+      {
+        "block_id": "b000021",
+        "label": "runnable example",
+        "target": "example/load_routing.cpp",
+        "kind": "relative",
+        "line": 47
+      },
+      {
+        "block_id": "b000021",
+        "label": "Dynamic compute routing",
+        "target": "docs/compute-router.md",
+        "kind": "relative",
+        "line": 48
+      },
+      {
+        "block_id": "b000021",
+        "label": "runnable example",
+        "target": "example/compute_router.cpp",
+        "kind": "relative",
+        "line": 48
+      },
+      {
+        "block_id": "b000021",
+        "label": "Selective live query streams",
+        "target": "docs/query-stream.md",
+        "kind": "relative",
+        "line": 49
+      },
+      {
+        "block_id": "b000021",
+        "label": "Native resources",
+        "target": "docs/resources.md",
+        "kind": "relative",
+        "line": 50
+      },
+      {
+        "block_id": "b000023",
+        "label": "External hosts",
+        "target": "docs/host-loop.md",
+        "kind": "relative",
+        "line": 52
+      },
+      {
+        "block_id": "b000025",
+        "label": "Native processes",
+        "target": "docs/process.md",
+        "kind": "relative",
+        "line": 54
+      },
+      {
+        "block_id": "b000025",
+        "label": "Text boundaries",
+        "target": "docs/text.md",
+        "kind": "relative",
+        "line": 55
+      },
+      {
+        "block_id": "b000025",
+        "label": "Tracked operations",
+        "target": "docs/operation.md",
+        "kind": "relative",
+        "line": 56
+      },
+      {
+        "block_id": "b000025",
+        "label": "Qt migration P0",
+        "target": "docs/qt-migration-p0.md",
+        "kind": "relative",
+        "line": 57
+      },
+      {
+        "block_id": "b000025",
+        "label": "iiJson",
+        "target": "../iiJson/README.md",
+        "kind": "relative",
+        "line": 57
+      },
+      {
+        "block_id": "b000025",
+        "label": "iiCSMIDI",
+        "target": "../iiCSMIDI/README.md",
+        "kind": "relative",
+        "line": 57
+      },
+      {
+        "block_id": "b000027",
+        "label": "contract",
+        "target": "docs/frame-loop.md",
+        "kind": "relative",
+        "line": 59
+      },
+      {
+        "block_id": "b000027",
+        "label": "app/game example",
+        "target": "examples/frame_loop.cpp",
+        "kind": "relative",
+        "line": 59
+      },
+      {
+        "block_id": "b000029",
+        "label": "Implicit sharing",
+        "target": "docs/implicit-sharing.md",
+        "kind": "relative",
+        "line": 61
+      },
+      {
+        "block_id": "b000031",
+        "label": "Data type serialization",
+        "target": "docs/serialization.md",
+        "kind": "relative",
+        "line": 63
+      },
+      {
+        "block_id": "b000033",
+        "label": "Modern core families",
+        "target": "docs/modern-core.md",
+        "kind": "relative",
+        "line": 65
+      },
+      {
+        "block_id": "b000035",
+        "label": "composition and migration",
+        "target": "docs/device-extraction.md",
+        "kind": "relative",
+        "line": 67
+      },
+      {
+        "block_id": "b000035",
+        "label": "inheritance policy",
+        "target": "docs/inheritance.md",
+        "kind": "relative",
+        "line": 68
+      },
+      {
+        "block_id": "b000035",
+        "label": "event loop I/O",
+        "target": "docs/loop-io.md",
+        "kind": "relative",
+        "line": 69
+      },
+      {
+        "block_id": "b000035",
+        "label": "cleanup contract",
+        "target": "docs/cleanup.md",
+        "kind": "relative",
+        "line": 70
+      },
+      {
+        "block_id": "b000035",
+        "label": "based object contract",
+        "target": "docs/foundations.md",
+        "kind": "relative",
+        "line": 71
+      },
+      {
+        "block_id": "b000035",
+        "label": "sensor value asynchronous processing example",
+        "target": "examples/foundations.cpp",
+        "kind": "relative",
+        "line": 71
+      },
+      {
+        "block_id": "b000035",
+        "label": "I/O contract",
+        "target": "docs/io.md",
+        "kind": "relative",
+        "line": 72
+      },
+      {
+        "block_id": "b000035",
+        "label": "dynamic type contract",
+        "target": "docs/dynamic-value.md",
+        "kind": "relative",
+        "line": 73
+      },
+      {
+        "block_id": "b000035",
+        "label": "default runtime contract",
+        "target": "docs/parallel-runtime.md",
+        "kind": "relative",
+        "line": 74
+      },
+      {
+        "block_id": "b000035",
+        "label": "object asynchronous example",
+        "target": "examples/parallel.cpp",
+        "kind": "relative",
+        "line": 74
+      },
+      {
+        "block_id": "b000035",
+        "label": "thread contract",
+        "target": "docs/thread.md",
+        "kind": "relative",
+        "line": 75
+      },
+      {
+        "block_id": "b000035",
+        "label": "query execution example",
+        "target": "examples/thread.cpp",
+        "kind": "relative",
+        "line": 75
+      },
+      {
+        "block_id": "b000035",
+        "label": "Dynamic property contracts",
+        "target": "docs/object-properties.md",
+        "kind": "relative",
+        "line": 76
+      },
+      {
+        "block_id": "b000035",
+        "label": "execution examples",
+        "target": "examples/properties.cpp",
+        "kind": "relative",
+        "line": 76
+      },
+      {
+        "block_id": "b000035",
+        "label": "Tree contracts and implementation examples",
+        "target": "docs/member-tree.md",
+        "kind": "relative",
+        "line": 77
+      },
+      {
+        "block_id": "b000045",
+        "label": "live example",
+        "target": "examples/live.cpp",
+        "kind": "relative",
+        "line": 109
+      },
+      {
+        "block_id": "b000071",
+        "label": "iiDeviceMultimedia",
+        "target": "../iiDeviceMultimedia/docs/hardware.md",
+        "kind": "relative",
+        "line": 151
+      },
+      {
+        "block_id": "b000071",
+        "label": "validation",
+        "target": "docs/validation.md",
+        "kind": "relative",
+        "line": 151
+      },
+      {
+        "block_id": "b000073",
+        "label": "event loop I/O",
+        "target": "docs/loop-io.md",
+        "kind": "relative",
+        "line": 153
+      },
+      {
+        "block_id": "b000075",
+        "label": "runtime design",
+        "target": "docs/runtime.md",
+        "kind": "relative",
+        "line": 155
+      },
+      {
+        "block_id": "b000075",
+        "label": "AGENT .md",
+        "target": "AGENT.md",
+        "kind": "relative",
+        "line": 155
+      },
+      {
+        "block_id": "b000077",
+        "label": "query contract",
+        "target": "docs/query.md",
+        "kind": "relative",
+        "line": 157
+      },
+      {
+        "block_id": "b000077",
+        "label": "object communication example",
+        "target": "examples/query.cpp",
+        "kind": "relative",
+        "line": 157
+      },
+      {
+        "block_id": "b000087",
+        "label": "MIT License",
+        "target": "LICENSE",
+        "kind": "relative",
+        "line": 168
+      },
+      {
+        "block_id": "b000091",
+        "label": "the Embedded contract",
+        "target": "docs/embedded.md",
+        "kind": "relative",
+        "line": 173
+      },
+      {
+        "block_id": "b000096",
+        "label": "AGENT.md",
+        "target": "AGENT.md",
+        "kind": "relative",
+        "line": 179
+      },
+      {
+        "block_id": "b000096",
+        "label": "documentation index",
+        "target": "docs/README.md",
+        "kind": "relative",
+        "line": 180
+      },
+      {
+        "block_id": "b000096",
+        "label": "agent index",
+        "target": "docs/agent-index.json",
+        "kind": "relative",
+        "line": 181
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000069",
+        "columns": [
+          "Target",
+          "Execution mode"
+        ],
+        "rows": [
+          [
+            "macOS / Windows / Linux",
+            "A native C++ executable or library. A standalone `run()` or the host's `poll()`"
+          ],
+          [
+            "iOS",
+            "Native static library. UIKit host calls `poll()`, independent worker threads are `run()` possible"
+          ],
+          [
+            "Android",
+            "NDK library. Activity/ NativeActivity host calls `poll()` or `run()` from worker thread"
+          ],
+          [
+            "WASM",
+            "Default pthread ON. Application worker uses Runtime/Thread and browser main thread uses BrowserLoop / `poll()`"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

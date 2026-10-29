@@ -32,7 +32,7 @@ struct LoadBalancerOptions final {
 };
 
 struct LoadTargetOptions final {
-    std::string name;
+    std::string name={};
     std::size_t capacity=1; // concurrent reserved work units, not OS threads
     std::size_t memory_capacity=0; // declared bytes; zero disables this limit
     std::uint64_t capabilities=0; // application-defined capability bits

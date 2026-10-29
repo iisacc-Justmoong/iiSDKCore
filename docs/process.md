@@ -169,3 +169,7 @@ actual POSIX extension availability instead of substituting a shell runtime.
 
 The communicate input view remains borrowed for the complete call. An
 asynchronously submitted caller must capture owning input bytes for that lifetime.
+
+## 빠른 자식 종료와 출력 감시 취소
+
+출력을 관측한 콜백이 취소를 요청하는 동안 자식이 먼저 종료할 수 있다. Darwin에서는 `waitid`가 실행 중을 반환한 직후 그룹이 좀비만 남은 상태가 되어 `killpg`가 `EPERM`을 반환할 수 있다. 이 경우 재사용되지 않은 소유 PID를 유지한 채 모든 그룹 구성원이 종료되었음을 확인해야 한다. 초기 관측이 실행 중이었다는 이유만으로 이 확인을 생략하지 않는다. 살아 있는 구성원, 열거 실패, 다른 권한 오류는 계속 오류로 반환한다. `tests/process.cpp`는 즉시 종료 자식의 첫 출력에서 취소하는 사례를 64회 검증한다.

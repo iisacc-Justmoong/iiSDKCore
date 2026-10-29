@@ -126,6 +126,17 @@ void contracts(const std::string& fixture) {
     check(early.exit.code==0 && early.input_closed_early && early.input_written<input.size(),"broken stdin cannot signal SIGPIPE to host");
     check(text(early.output)=="ready","drain after early input closure");
 
+    // Cancel from the first received byte while an immediate child is exiting.
+    // This covers the running -> zombie transition between waitid and killpg.
+    for(unsigned attempt=0;attempt<64;++attempt) {
+        std::stop_source observed;
+        CommunicationOptions options;options.stop=observed.get_token();
+        options.receive=[&](Stream,ii::core::ByteView bytes){if(!bytes.empty())observed.request_stop();};
+        const auto instant=run(launch(fixture,{"echo","BOOT_OK"}),{},options);
+        check(text(instant.output)=="BOOT_OK"&&
+            (instant.exit.reason==ExitReason::exited||instant.exit.reason==ExitReason::cancelled),
+            "output-triggered cancellation safely retires an immediately exiting child");
+    }
     auto sleeping=take(Process::start(launch(fixture,{"sleep"})));
     check(take(sleeping.wait_for(15ms))==std::nullopt,"wait timeout leaves child running");
     auto stopped=take(sleeping.cancel()); check(stopped.reason==ExitReason::cancelled,"explicit cancel");

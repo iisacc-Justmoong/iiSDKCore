@@ -1,0 +1,338 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:c162d12e7d5473708980e2d388e858c57162a034ee5b25f0144161126f465d19",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/realtime.md",
+    "sha256": "8e8b3b85a9105fca98344ab13bf75e8aeb597adcd1e1eb39b13f9152c960d369",
+    "bytes": 4739,
+    "line_count": 31,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Time-driven runtime (0.7.0)",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Time-driven runtime (0.7.0)\n",
+      "level": 1,
+      "title": "Time-driven runtime (0.7.0)"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "Core/Time/Time.h defines monotonic, saturating epoch arithmetic and phase-preserving period positions independently of Runtime. Deadline uses this lower layer. EventLoop's Clock alias preserves the steady-clock epoch.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "heading",
+      "start_line": 5,
+      "end_line": 5,
+      "raw": "## Scheduling\n",
+      "level": 2,
+      "title": "Scheduling"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "EventLoop::realtime reserves a recurring slot with period, relative deadline, runtime per period, callback quantum and optional first release. Durations satisfy 0 < quantum <= runtime <= deadline <= period. Missing start means immediate release. Ready jobs use earliest absolute deadline first; equal deadlines rotate by submission/continuation order. Ordinary work retains 4:2:1 priority selection when no reservation is runnable.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "Admission rejects a sum of runtime/period greater than one with SubmitError::overloaded. This bandwidth bound does not prove deadline feasibility. Tight overlapping deadlines, ordinary callbacks, native calls, locks and OS descheduling can still cause misses.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 10,
+      "end_line": 10,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 11,
+      "end_line": 11,
+      "raw": "The borrowed core::TimeSlice gives release, absolute deadline, actual start, slice end and remaining period runtime. End is bounded by deadline, remaining reservation, quantum and pump budget. Check should_yield() in long work. Return yield to continue the same job, complete to wait until the next period, or stop to retire. Exceptions retire and propagate. Continuation state belongs to consumer instances.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 12,
+      "end_line": 12,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 13,
+      "end_line": 13,
+      "raw": "Callback wall time, including blocking and descheduling, is charged to runtime. Exhaustion throttles until the next release. A late host skips expired windows and executes at most the latest open window; completion/exhaustion advances to the next future phase boundary. Suspension preserves phase. Cancellation destroys captures before returning both slot and reservation.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 14,
+      "end_line": 14,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 15,
+      "end_line": 15,
+      "raw": "run() waits for the next release or native I/O/wake; poll() remains a nonblocking host pump. Separate loop/Thread instances isolate time-sensitive work from blocking application work. BrowserLoop/requestAnimationFrame retains browser timing limits. LoopStats observes slices, yields, overruns, deadline misses, skipped releases, budget exhaustions, maximum lateness and reserved utilization.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 16,
+      "end_line": 16,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 17,
+      "end_line": 17,
+      "raw": "This is cooperative soft realtime in native user space. C++ callbacks cannot be forcibly interrupted at quantum expiry. OS scheduler policy, locked memory, interrupt control and process-wide timer resolution are not changed. The design uses [Zephyr's cooperative/preemptive distinction](https://docs.zephyrproject.org/latest/kernel/services/scheduling/index.html) and the [Linux runtime/deadline/period model](https://docs.kernel.org/scheduler/sched-deadline.html); it is not a kernel RTOS port or Linux CBS implementation.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 18,
+      "end_line": 18,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "heading",
+      "start_line": 19,
+      "end_line": 19,
+      "raw": "## Live playout\n",
+      "level": 2,
+      "title": "Live playout"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 20,
+      "end_line": 20,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 21,
+      "end_line": 21,
+      "raw": "LiveStream<T> provides preallocated timestamp-ordered storage and a timed EventLoop consumer. Push accepts nondecreasing presentation times, including equal timestamps, and drops the oldest queued frame when full. Producers map capture/network timestamps to steady_clock and reorder packets before admission when needed. Network clock synchronization, codecs and resampling are separate responsibilities.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 22,
+      "end_line": 22,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 23,
+      "end_line": 23,
+      "raw": "start(loop, schedule, handler) delivers due frames on the dispatch thread, retains future frames and discards frames older than max_lateness. Empty/not-yet-due storage completes this period. A quantum spreads backlog across invocations. take(now) supports deterministic explicit playout. Queue operations serialize producers/consumers. Nonthrowing payload moves are required; moved-from destructors must not re-enter the queue.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 24,
+      "end_line": 24,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 25,
+      "end_line": 25,
+      "raw": "Close blocks producers, cancels playout, waits for active delivery/slot retirement, destroys buffered payloads and handler, then returns allocation. Repeated/concurrent close succeeds. Own-handler close returns busy; a Runtime worker also receives busy when waiting would cross active delivery. Destruction requires a close that can finish. The borrowed loop outlives playback, and external shared owners retain ownership. Close discards rather than draining frames.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 26,
+      "end_line": 26,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 27,
+      "end_line": 27,
+      "raw": "Prepared trivial payload operations and scheduler slot reuse do not themselves allocate after construction. Payload creation/captures and native/event paths may allocate or block. This mutex queue does not replace a dedicated SPSC ring on an OS audio realtime callback. Hardware collectors can produce timestamped blocks for EventLoop playout.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 28,
+      "end_line": 28,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 29,
+      "end_line": 29,
+      "raw": "The executable usage example is examples/realtime.cpp. Exact tests and evidence are in [validation.md](validation.md).\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 30,
+      "end_line": 30,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "paragraph",
+      "start_line": 31,
+      "end_line": 31,
+      "raw": "Live query filtering and per-subscriber field selection use [QueryStream](query-stream.md). Its production timestamps are metadata; use LiveStream when presentation-time scheduling and jitter control are required. Both use existing bounded runtime execution without a dedicated stream thread.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Time-driven runtime (0.7.0)",
+      "anchor": "time-driven-runtime-070",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000005",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Scheduling",
+      "anchor": "scheduling",
+      "start_line": 5
+    },
+    {
+      "block_id": "b000019",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Live playout",
+      "anchor": "live-playout",
+      "start_line": 19
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000023",
+        "line": 23,
+        "text": "start(loop, schedule, handler) delivers due frames on the dispatch thread, retains future frames and discards frames older than max_lateness. Empty/not-yet-due storage completes this period. A quantum spreads backlog across invocations. take(now) supports deterministic explicit playout. Queue operations serialize producers/consumers. Nonthrowing payload moves are required; moved-from destructors must not re-enter the queue.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000027",
+        "line": 27,
+        "text": "Prepared trivial payload operations and scheduler slot reuse do not themselves allocate after construction. Payload creation/captures and native/event paths may allocate or block. This mutex queue does not replace a dedicated SPSC ring on an OS audio realtime callback. Hardware collectors can produce timestamped blocks for EventLoop playout.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000031",
+        "line": 31,
+        "text": "Live query filtering and per-subscriber field selection use [QueryStream](query-stream.md). Its production timestamps are metadata; use LiveStream when presentation-time scheduling and jitter control are required. Both use existing bounded runtime execution without a dedicated stream thread.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000017",
+        "label": "Zephyr's cooperative/preemptive distinction",
+        "target": "https://docs.zephyrproject.org/latest/kernel/services/scheduling/index.html",
+        "kind": "external",
+        "line": 17
+      },
+      {
+        "block_id": "b000017",
+        "label": "Linux runtime/deadline/period model",
+        "target": "https://docs.kernel.org/scheduler/sched-deadline.html",
+        "kind": "external",
+        "line": 17
+      },
+      {
+        "block_id": "b000029",
+        "label": "validation.md",
+        "target": "validation.md",
+        "kind": "relative",
+        "line": 29
+      },
+      {
+        "block_id": "b000031",
+        "label": "QueryStream",
+        "target": "query-stream.md",
+        "kind": "relative",
+        "line": 31
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

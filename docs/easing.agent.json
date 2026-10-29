@@ -1,0 +1,150 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:6e4a219b15223394e6906642c7f485cc631baaf039c167ccb75722692adb42a7",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/easing.md",
+    "sha256": "04fbdabd248c39f0bd77c9c937091664d1c3b447bceb90b8598f60cb25e93bb3",
+    "bytes": 1622,
+    "line_count": 20,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "공통 시간 곡선",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# 공통 시간 곡선\n",
+      "level": 1,
+      "title": "공통 시간 곡선"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 6,
+      "raw": "`ii::animation::ease`는 정규화한 진행률을 값 진행률로 바꾸는 C++23 함수이다.\n기존 linear·in_quad·out_quad·in_out_quad·smooth와 함께 in_cubic·out_back을 제공한다.\n입력 진행률은 0~1로 제한하고 양 끝은 정확히 0과 1이다. out_back의 중간 결과는 1을\n넘을 수 있다. 불투명도처럼 범위가 제한된 소비자는 해당 결과를 자신의 영역에서 제한한다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 8,
+      "end_line": 11,
+      "raw": "in_cubic은 `p³`, out_back은 `1 + (p-1)² × ((s+1)×(p-1)+s)`이다.\n세 번째 인자의 overshoot 기본값은 1.70158이며 비유한 값도 이 기본값을 사용한다.\n표준 시간 곡선의 수학적 계약이며 Qt·GUI·타이머 서비스에 의존하지 않는다.\n`iiSDKCore::Values`만으로 사용하고 기존 Keyframes·Timeline에도 새 enum을 지정할 수 있다.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 12,
+      "end_line": 12,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 13,
+      "end_line": 16,
+      "raw": "프레임 기반 소비자는 [FrameLoop](frame-loop.md)의 경과 시간으로 p를 계산한다.\n일반 키프레임 또는 [Animation](modern-core.md)의 시간 기반 재생도 같은 곡선을 사용한다.\n이 함수는 프레임을 만들거나 작업을 예약하지 않는다. 앱·게임 모두 같은 시간/실행 계약을\n선택하며 물리 시간 간격, UI의 실제 시간과 게임 배속 시간은 호출자가 결정한다.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 17,
+      "end_line": 17,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 18,
+      "end_line": 20,
+      "raw": "`tests/easing.cpp`는 다항식의 알려진 샘플, 입력 제한, 단조 cubic, back의 실제 overshoot,\nKeyframes·Timeline 통합과 Values-only 사용을 검사한다. LVRS의 1.45 overshoot와\n등장/퇴장 시간 선택은 해당 상위 프레임워크에 속하며 Core에 기본값으로 하드코딩하지 않는다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "공통 시간 곡선",
+      "anchor": "공통-시간-곡선",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000005",
+        "line": 10,
+        "text": "표준 시간 곡선의 수학적 계약이며 Qt·GUI·타이머 서비스에 의존하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000007",
+        "line": 15,
+        "text": "이 함수는 프레임을 만들거나 작업을 예약하지 않는다. 앱·게임 모두 같은 시간/실행 계약을",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000009",
+        "line": 20,
+        "text": "등장/퇴장 시간 선택은 해당 상위 프레임워크에 속하며 Core에 기본값으로 하드코딩하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000007",
+        "label": "FrameLoop",
+        "target": "frame-loop.md",
+        "kind": "relative",
+        "line": 13
+      },
+      {
+        "block_id": "b000007",
+        "label": "Animation",
+        "target": "modern-core.md",
+        "kind": "relative",
+        "line": 14
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

@@ -1,0 +1,715 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:22ceca6657f1464fe89450caeeed86d79df124f2b953718b0002df4552d61cb0",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/load-routing.md",
+    "sha256": "88ff6afef51a31a0e88df409ce4b4032e81dd60679e40b96802cd80ee354b857",
+    "bytes": 10773,
+    "line_count": 148,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "Application·Classic 로드 라우팅과 비동기 예약",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Application·Classic 로드 라우팅과 비동기 예약\n",
+      "level": 1,
+      "title": "Application·Classic 로드 라우팅과 비동기 예약"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 7,
+      "raw": "Core 0.19.0은 기존 계산 작업 분산에 Application(L7) 요청 선택과 Classic의\n리스너별 분배 정책을 추가한다. Network(L4)의 IP·포트·전송 프로토콜과 백엔드 주소\n관리는 독립 상위 모듈 iiNetwork의 `LoadBalancer.h`가 소유한다. Core는 iiNetwork를\ninclude·링크·검색하지 않는다. 세 유형은 같은 bounded 대상 표·건강 상태·자원 예약과\n취소·드레이닝 계약을 공유하며 별도 워커나 관리 스레드를 만들지 않는다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 9,
+      "end_line": 11,
+      "raw": "이름은 AWS의 분류와 요구사항을 참고한 것이다. AWS 서비스나 API 호환 구현이 아니다.\n실제 HTTP 파싱·소켓 전달·TLS 종료·DNS·배포·서버 생성은 해당 네트워크/호스트 어댑터가\n담당한다. Core에 전달하는 것은 정규화한 요청 메타데이터와 실행기 참조이다.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 12,
+      "end_line": 12,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "heading",
+      "start_line": 13,
+      "end_line": 13,
+      "raw": "## 대상 그룹과 분배 정책\n",
+      "level": 2,
+      "title": "대상 그룹과 분배 정책"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 14,
+      "end_line": 14,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 15,
+      "end_line": 20,
+      "raw": "`LoadTargetOptions.group`과 `LoadRequest.group`은 64비트 애플리케이션 지정 그룹이다.\n기본 0은 이전 계산 분산과 같은 단일 그룹이다. 하나의 요청은 같은 그룹의 정상·접수\n가능 대상만 선택한다. 그룹마다 독립적인 순환 위치를 유지하며 다른 그룹으로 넘기지\n않는다. 그룹 표도 `max_targets`로 제한되고 대상 등록/제거 때 슬롯을 재사용한다.\n한 실행기를 여러 그룹에 등록하면 예약량은 등록별로 독립적이다. 공유 실행기 자체의\n실제 큐 한도는 여전히 해당 실행기가 강제한다.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 21,
+      "end_line": 21,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "table",
+      "start_line": 22,
+      "end_line": 27,
+      "raw": "| 정책 | 선택 기준 |\n|---|---|\n| `round_robin` | 접수 가능한 대상을 그룹 내 순서대로 선택 |\n| `least_loaded` | 기존 `(현재 units + 요청 units) / capacity` 최소화 |\n| `least_outstanding` | 현재 접수 후 미완료인 **논리 요청 수** 최소화, 동률 순환 |\n| `flow_hash` | 명시한 64비트 affinity 키에 대해 capacity 가중 rendezvous 선택 |\n",
+      "columns": [
+        "정책",
+        "선택 기준"
+      ],
+      "rows": [
+        [
+          "`round_robin`",
+          "접수 가능한 대상을 그룹 내 순서대로 선택"
+        ],
+        [
+          "`least_loaded`",
+          "기존 `(현재 units + 요청 units) / capacity` 최소화"
+        ],
+        [
+          "`least_outstanding`",
+          "현재 접수 후 미완료인 **논리 요청 수** 최소화, 동률 순환"
+        ],
+        [
+          "`flow_hash`",
+          "명시한 64비트 affinity 키에 대해 capacity 가중 rendezvous 선택"
+        ]
+      ]
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 28,
+      "end_line": 28,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 29,
+      "end_line": 33,
+      "raw": "기본 일반 LoadBalancer 정책은 이전과 같은 `least_loaded`이다. `LoadRequest.policy`로\n요청별 정책을 명시할 수 있다. 모든 정책에 건강·드레이닝·기능·신고 메모리·용량 제한을\n먼저 적용한다. `flow_hash`에 affinity가 없거나 유효하지 않은 정책이면 `invalid`이다.\n해시 가중치는 대상의 선언한 capacity이며 자동 CPU 측정값이 아니다. 매우 큰 부동소수점\n비율의 동률은 기존과 같이 순환 순서로 처리한다.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 34,
+      "end_line": 34,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "heading",
+      "start_line": 35,
+      "end_line": 35,
+      "raw": "## Application 요청 라우팅\n",
+      "level": 2,
+      "title": "Application 요청 라우팅"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 36,
+      "end_line": 36,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 37,
+      "end_line": 37,
+      "raw": "`<iiSDKCore/Runtime/LoadRouting.h>`의 `ApplicationLoadBalancer`는 다음을 제공한다.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 38,
+      "end_line": 38,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "list",
+      "start_line": 39,
+      "end_line": 47,
+      "raw": "- 낮은 priority부터 규칙을 평가하고, 첫 일치 규칙의 그룹을 선택한다.\n- host는 ASCII 대소문자를 구분하지 않는 `*`, `?` glob, path는 대소문자를 구분하는\n  바이트 접두사, method는 정확한 값으로 비교한다.\n- header 이름은 ASCII 대소문자를 구분하지 않고 값은 정확히 비교한다. query 이름과\n  값은 정확히 비교한다. 규칙의 조건은 모두 만족해야 하며 반복 필드는 하나라도 맞으면 된다.\n- 일치 규칙이 없을 때만 기본 그룹을 사용한다. 일치 그룹이 포화·비정상이어도 다른\n  서비스 그룹으로 요청을 넘기지 않고 `overloaded`로 반환한다.\n- 기본 정책은 `least_outstanding`이다. 처리 시간이 다른 백엔드에서 진행 중 요청이\n  적은 대상에 새 요청을 보내 긴 작업 뒤에 요청이 쌓이는 현상을 줄인다.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "낮은 priority부터 규칙을 평가하고, 첫 일치 규칙의 그룹을 선택한다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "host는 ASCII 대소문자를 구분하지 않는 `*`, `?` glob, path는 대소문자를 구분하는",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "header 이름은 ASCII 대소문자를 구분하지 않고 값은 정확히 비교한다. query 이름과",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "일치 규칙이 없을 때만 기본 그룹을 사용한다. 일치 그룹이 포화·비정상이어도 다른",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "기본 정책은 `least_outstanding`이다. 처리 시간이 다른 백엔드에서 진행 중 요청이",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 48,
+      "end_line": 48,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 49,
+      "end_line": 53,
+      "raw": "어댑터는 host의 포트 제거와 국제화 도메인 정규화, path와 query 분리, URL 디코딩,\n신뢰할 수 있는 프록시의 메타데이터 처리를 소유한다. Core의 path prefix는 정규식이나\nAWS path-pattern 문법이 아니며, `/api`는 `/apix`에도 일치한다. 경로 단위 분리가\n필요하면 `/api/` 또는 해당 어댑터의 정규화 규칙을 사용한다. NUL·CR·LF와 `/`로\n시작하지 않는 요청 path는 거절한다.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 54,
+      "end_line": 54,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 55,
+      "end_line": 60,
+      "raw": "`configure(routes, default_group)`는 규칙을 검증·정렬한 불변 스냅샷을 한 번에\n교체한다. 중복/0 priority, 조건 초과, 잘못된 prefix는 기존 설정을 바꾸지 않는다.\n읽기는 짧은 공유 잠금으로 스냅샷 소유권만 복사하고 잠금 밖에서 일치 검사를 한다.\nhost와 host 패턴은 각각 253바이트로 제한하여 glob의 재검사 비용도 제한한다.\n설정과 요청에는 규칙 수·조건 수·메타데이터 바이트·필드 수 한도가 적용된다. 임의\n메타데이터나 규칙을 무제한 축적하지 않는다.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 61,
+      "end_line": 61,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "fenced_code",
+      "start_line": 62,
+      "end_line": 74,
+      "raw": "```cpp\nApplicationLoadBalancer routing;\nauto target = routing.targets().add_target(worker, {.capacity=32, .group=10});\nauto configured = routing.configure({\n    {.priority=1, .group=10, .host=\"api.example.com\", .path_prefix=\"/v1/\"}\n}, 20);\nauto request = routing.acquire({.host=\"api.example.com\", .path=\"/v1/jobs\"});\nif (request) {\n    // request->target()로 어댑터의 실제 백엔드를 찾는다.\n    // 응답·스트림·자원을 정리한 다음 완료한다.\n    request->complete();\n}\n```\n",
+      "language": "cpp",
+      "code": "ApplicationLoadBalancer routing;\nauto target = routing.targets().add_target(worker, {.capacity=32, .group=10});\nauto configured = routing.configure({\n    {.priority=1, .group=10, .host=\"api.example.com\", .path_prefix=\"/v1/\"}\n}, 20);\nauto request = routing.acquire({.host=\"api.example.com\", .path=\"/v1/jobs\"});\nif (request) {\n    // request->target()로 어댑터의 실제 백엔드를 찾는다.\n    // 응답·스트림·자원을 정리한 다음 완료한다.\n    request->complete();\n}\n",
+      "closed": true
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 75,
+      "end_line": 75,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 76,
+      "end_line": 78,
+      "raw": "`submit(metadata, task, resources)`는 동기 콜백의 끝을 요청 완료로 취급한다.\n콜백이 별도 비동기 I/O만 시작한다면 `acquire()`의 예약을 응답 완료까지 소유한다.\n메타데이터 오류처럼 공통 대상 선택 이전에 거절한 요청은 대상별 통계에 포함하지 않는다.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 79,
+      "end_line": 79,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "heading",
+      "start_line": 80,
+      "end_line": 80,
+      "raw": "## Classic 정책\n",
+      "level": 2,
+      "title": "Classic 정책"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 81,
+      "end_line": 81,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "paragraph",
+      "start_line": 82,
+      "end_line": 85,
+      "raw": "`ClassicLoadBalancer`는 TCP·TLS 리스너에 `round_robin`, HTTP·HTTPS 리스너에\n`least_outstanding`을 적용한다. `acquire(protocol)`는 비동기 연결/응답 예약,\n`submit(protocol, task)`는 동기 작업용이다. 기존 연결의 토큰을 패킷마다 다시\n획득하지 않는다. Classic의 프록시 연결 재사용·쿠키·TLS 구현까지 제공하는 객체는 아니다.\n"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 86,
+      "end_line": 86,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "heading",
+      "start_line": 87,
+      "end_line": 87,
+      "raw": "## 비동기 수명과 취소\n",
+      "level": 2,
+      "title": "비동기 수명과 취소"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 88,
+      "end_line": 88,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "paragraph",
+      "start_line": 89,
+      "end_line": 92,
+      "raw": "`LoadBalancer::acquire()`는 move-only `LoadLease`를 반환한다. 같은 대상에 후속 작업을\n전달하는 `post()`도 제공하여 TaskExecutor 계약과 조합할 수 있다. 대상 건강이나\n드레이닝이 바뀌어도 이미 획득한 예약의 대상은 바뀌지 않는다. 대상 범위가 취소/종료되면\n후속 post는 거절되며 `stop_token()`으로 실제 I/O 소유자에게 협력적 종료를 요청한다.\n"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 93,
+      "end_line": 93,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 94,
+      "end_line": 98,
+      "raw": "`complete()`는 성공, `fail(exception_ptr={})`는 실패, `cancel()`과 미완료 예약의\n소멸은 취소이다. 같은 논리 요청의 통계는 한 번만 확정된다. post한 콜백이 남아 있으면\ncomplete 이후에도 그 콜백과 캡처가 제거될 때까지 예약을 보유한다. 콜백의 예외를 뒤의\ncomplete로 성공 처리할 수 없다. 예외 포인터 없는 전송 실패도 `work_failed`로 관측된다.\n예약 값 자체의 post·이동·완료를 서로 경쟁시키지 않는다. 다른 예약들은 동시 사용 가능하다.\n"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 99,
+      "end_line": 99,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "paragraph",
+      "start_line": 100,
+      "end_line": 105,
+      "raw": "자원 반환보다 실제 전송/응답 객체의 정리가 먼저 끝나야 한다. 외부 예약이 살아 있는\nremove/close는 대상을 접수 중단한 상태로 유지하고 `would_block`을 반환한다.\ncancel_pending은 모든 대상의 stop 요청과 대기 콜백 취소를 먼저 수행한다. 호출자는\n외부 전송을 닫고 예약을 반환한 뒤 remove/close를 다시 호출하여 최종 정리를 완료한다.\n동일 호출자가 보유한 연결을 기다리며 교착하지 않는다. 소멸 전에 이 장벽을 완료해야 한다.\n일반 `wait_idle()`은 기존처럼 모든 예약 반환을 기다리므로 자신이 보유한 예약을 먼저 반환한다.\n"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 106,
+      "end_line": 106,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "paragraph",
+      "start_line": 107,
+      "end_line": 109,
+      "raw": "`stats().reservations`와 대상별 동일 필드는 살아 있는 외부 요청/연결 수를 표시한다.\n이들은 in_flight·units·신고 메모리와 전체 capacity에 포함된다. 예약 내부의 후속 post는\n새 논리 요청으로 세지 않으며, 실행기 자체의 bounded 큐가 후속 콜백 수를 제한한다.\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 110,
+      "end_line": 110,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "paragraph",
+      "start_line": 111,
+      "end_line": 112,
+      "raw": "0.19.0은 공개 options/request/stats 레코드를 확장하므로 이전 바이너리 소비자는 재빌드한다.\n기존 계산 분산 기본 정책과 post/submit 호출 형태는 유지한다.\n"
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 113,
+      "end_line": 113,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "heading",
+      "start_line": 114,
+      "end_line": 114,
+      "raw": "## 검증과 참고\n",
+      "level": 2,
+      "title": "검증과 참고"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 115,
+      "end_line": 115,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "paragraph",
+      "start_line": 116,
+      "end_line": 120,
+      "raw": "`tests/load_routing.cpp`는 그룹 격리, 독립 순환, 조건·설정 교체, 실패 보존, 취소·드레이닝,\n캡처 선행 제거와 Classic 프로토콜별 정책을 검사한다. 512회 입력에서 한 대상은 매 tick,\n다른 대상은 8 tick마다 처리하는 결정적 서비스 시뮬레이션으로 순환 대비 최소 미완료\n요청의 대기량을 비교한다. tick 결과는 물리 서버 처리량이나 네트워크 RTT 측정이 아니다.\n실행 예제는 `example/load_routing.cpp`, 실제 TCP·UDP와 flow 선택 검사는 iiNetwork에 있다.\n"
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 121,
+      "end_line": 121,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "paragraph",
+      "start_line": 122,
+      "end_line": 124,
+      "raw": "요구사항 참고 자료는 [AWS listener rules](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/listener-rules.html),\n[분배 알고리즘](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-target-group-attributes.html),\n[유형별 분배 계약](https://docs.aws.amazon.com/elasticloadbalancing/latest/userguide/how-elastic-load-balancing-works.html)이다.\n"
+    },
+    {
+      "id": "b000050",
+      "kind": "blank",
+      "start_line": 125,
+      "end_line": 125,
+      "raw": "\n"
+    },
+    {
+      "id": "b000051",
+      "kind": "heading",
+      "start_line": 126,
+      "end_line": 126,
+      "raw": "### 2026-10-25 검증 기록\n",
+      "level": 3,
+      "title": "2026-10-25 검증 기록"
+    },
+    {
+      "id": "b000052",
+      "kind": "blank",
+      "start_line": 127,
+      "end_line": 127,
+      "raw": "\n"
+    },
+    {
+      "id": "b000053",
+      "kind": "table",
+      "start_line": 128,
+      "end_line": 135,
+      "raw": "| 범위 | 결과 |\n|---|---|\n| macOS arm64 Release 전체 빌드·CTest | 60/60 통과 |\n| 작업 공간 설치 패키지 소비자 | 22/22 통과 |\n| ASan/UBSan 기존 계산 분산·새 라우팅 | 2/2 통과 |\n| TSan 기존 계산 분산·새 라우팅 | 2/2 통과, 경합 보고 없음 |\n| 변경 구현의 C++23 엄격 경고 | `-Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Werror` 통과 |\n| Windows x64·Linux arm64·WASM32 pthread 변경 구현 문법 검사 | 3개 구현 × 3개 대상, 9/9 통과 |\n",
+      "columns": [
+        "범위",
+        "결과"
+      ],
+      "rows": [
+        [
+          "macOS arm64 Release 전체 빌드·CTest",
+          "60/60 통과"
+        ],
+        [
+          "작업 공간 설치 패키지 소비자",
+          "22/22 통과"
+        ],
+        [
+          "ASan/UBSan 기존 계산 분산·새 라우팅",
+          "2/2 통과"
+        ],
+        [
+          "TSan 기존 계산 분산·새 라우팅",
+          "2/2 통과, 경합 보고 없음"
+        ],
+        [
+          "변경 구현의 C++23 엄격 경고",
+          "`-Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Werror` 통과"
+        ],
+        [
+          "Windows x64·Linux arm64·WASM32 pthread 변경 구현 문법 검사",
+          "3개 구현 × 3개 대상, 9/9 통과"
+        ]
+      ]
+    },
+    {
+      "id": "b000054",
+      "kind": "blank",
+      "start_line": 136,
+      "end_line": 136,
+      "raw": "\n"
+    },
+    {
+      "id": "b000055",
+      "kind": "paragraph",
+      "start_line": 137,
+      "end_line": 141,
+      "raw": "512 tick의 결정적 서비스 비교에서 round_robin은 최대 점유 65·남은 요청 64·완료 448,\nleast_outstanding은 최대 점유 2·남은 요청 1·완료 511이었다. 요청은 같은 입력률로\n들어오고 빠른 대상은 매 tick, 느린 대상은 8 tick마다 한 요청을 완료한다. 검사 끝에\n남은 모든 예약도 반환하여 총 512개 논리 요청을 정리한다. 이것은 정책의 대기량 비교이며\n물리 서버의 지연·처리량·CPU 개선 비율이 아니다.\n"
+    },
+    {
+      "id": "b000056",
+      "kind": "blank",
+      "start_line": 142,
+      "end_line": 142,
+      "raw": "\n"
+    },
+    {
+      "id": "b000057",
+      "kind": "paragraph",
+      "start_line": 143,
+      "end_line": 148,
+      "raw": "XML·빌드/설치 로그·패키지는 `build/load-routing-20261025/`에 있다. 설치 검증 위치는\n그 안의 `stage/iiSDKCore`이며 기본 `~/.local` 설치본과 실행 앱은 교체하지 않았다.\n공개 레코드를 확장한 0.19 소비자는 재빌드해야 한다.\n교차 검사는 `-fsyntax-only`이며 링크나 대상 장치 실행이 아니다. Windows는 묶음 Clang의\n시작 지연으로 Homebrew Clang과 LLVM-MinGW 헤더를 사용했다. 구체 명령·초기 도구 실패와\n최종 결과는 같은 폴더의 `cross-syntax.json`과 로그에 보존한다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Application·Classic 로드 라우팅과 비동기 예약",
+      "anchor": "applicationclassic-로드-라우팅과-비동기-예약",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000007",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "대상 그룹과 분배 정책",
+      "anchor": "대상-그룹과-분배-정책",
+      "start_line": 13
+    },
+    {
+      "block_id": "b000015",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Application 요청 라우팅",
+      "anchor": "application-요청-라우팅",
+      "start_line": 35
+    },
+    {
+      "block_id": "b000029",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Classic 정책",
+      "anchor": "classic-정책",
+      "start_line": 80
+    },
+    {
+      "block_id": "b000033",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "비동기 수명과 취소",
+      "anchor": "비동기-수명과-취소",
+      "start_line": 87
+    },
+    {
+      "block_id": "b000045",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "검증과 참고",
+      "anchor": "검증과-참고",
+      "start_line": 114
+    },
+    {
+      "block_id": "b000051",
+      "parent_id": "b000045",
+      "level": 3,
+      "title": "2026-10-25 검증 기록",
+      "anchor": "2026-10-25-검증-기록",
+      "start_line": 126
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000003",
+        "line": 6,
+        "text": "include·링크·검색하지 않는다. 세 유형은 같은 bounded 대상 표·건강 상태·자원 예약과",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000023",
+        "line": 60,
+        "text": "메타데이터나 규칙을 무제한 축적하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000027",
+        "line": 78,
+        "text": "메타데이터 오류처럼 공통 대상 선택 이전에 거절한 요청은 대상별 통계에 포함하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000031",
+        "line": 85,
+        "text": "획득하지 않는다. Classic의 프록시 연결 재사용·쿠키·TLS 구현까지 제공하는 객체는 아니다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000039",
+        "line": 104,
+        "text": "동일 호출자가 보유한 연결을 기다리며 교착하지 않는다. 소멸 전에 이 장벽을 완료해야 한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000057",
+        "line": 145,
+        "text": "공개 레코드를 확장한 0.19 소비자는 재빌드해야 한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000049",
+        "label": "AWS listener rules",
+        "target": "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/listener-rules.html",
+        "kind": "external",
+        "line": 122
+      },
+      {
+        "block_id": "b000049",
+        "label": "분배 알고리즘",
+        "target": "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-target-group-attributes.html",
+        "kind": "external",
+        "line": 123
+      },
+      {
+        "block_id": "b000049",
+        "label": "유형별 분배 계약",
+        "target": "https://docs.aws.amazon.com/elasticloadbalancing/latest/userguide/how-elastic-load-balancing-works.html",
+        "kind": "external",
+        "line": 124
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000011",
+        "columns": [
+          "정책",
+          "선택 기준"
+        ],
+        "rows": [
+          [
+            "`round_robin`",
+            "접수 가능한 대상을 그룹 내 순서대로 선택"
+          ],
+          [
+            "`least_loaded`",
+            "기존 `(현재 units + 요청 units) / capacity` 최소화"
+          ],
+          [
+            "`least_outstanding`",
+            "현재 접수 후 미완료인 **논리 요청 수** 최소화, 동률 순환"
+          ],
+          [
+            "`flow_hash`",
+            "명시한 64비트 affinity 키에 대해 capacity 가중 rendezvous 선택"
+          ]
+        ]
+      },
+      {
+        "block_id": "b000053",
+        "columns": [
+          "범위",
+          "결과"
+        ],
+        "rows": [
+          [
+            "macOS arm64 Release 전체 빌드·CTest",
+            "60/60 통과"
+          ],
+          [
+            "작업 공간 설치 패키지 소비자",
+            "22/22 통과"
+          ],
+          [
+            "ASan/UBSan 기존 계산 분산·새 라우팅",
+            "2/2 통과"
+          ],
+          [
+            "TSan 기존 계산 분산·새 라우팅",
+            "2/2 통과, 경합 보고 없음"
+          ],
+          [
+            "변경 구현의 C++23 엄격 경고",
+            "`-Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Werror` 통과"
+          ],
+          [
+            "Windows x64·Linux arm64·WASM32 pthread 변경 구현 문법 검사",
+            "3개 구현 × 3개 대상, 9/9 통과"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

@@ -1,5 +1,13 @@
 # Tracked asynchronous work (0.14.0)
 
+## 0.20의 두 단계 소유자 종료
+
+OperationOwner.request_close()는 소유자 stop을 요청하고 대기 작업을 취소하되 활성 작업을
+기다리지 않는다. close()가 최종 실행·캡처 장벽이다. ComputeRouter는 모든 실행 자원에
+중단을 먼저 전달한 뒤 기다리기 위해 두 단계를 조합한다. 기존 Operation 상태·오류·
+부수 효과 의미는 유지한다. 실제 자식 프로세스 연결은 [컴퓨팅 라우터](compute-router.md)를
+따르며 tests/compute_router.cpp에서 소유자 종료와 자식 정리를 검사한다.
+
 `Runtime/Operation.h` composes existing executors and TaskScope. It does not change
 QueryPort admission, cancellation or receiver-domain completion semantics. Use
 typed domain requests/responses and QueryPort for object communication. Use an

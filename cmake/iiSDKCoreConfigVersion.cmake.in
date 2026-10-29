@@ -2,7 +2,7 @@
 include("${CMAKE_CURRENT_LIST_DIR}/iiSDKCoreVersionPolicy.cmake")
 # Standard-only component combinations are independent of binary bitness.
 set(_iisdkcore_binary FALSE)
-if(NOT iiSDKCore_FIND_COMPONENTS OR "Runtime" IN_LIST iiSDKCore_FIND_COMPONENTS)
+if(NOT iiSDKCore_FIND_COMPONENTS OR "Runtime" IN_LIST iiSDKCore_FIND_COMPONENTS OR "Observation" IN_LIST iiSDKCore_FIND_COMPONENTS)
     set(_iisdkcore_binary TRUE)
 endif()
 if(_iisdkcore_binary)

@@ -469,3 +469,21 @@ UTF-8 텍스트·소유 Bytes/차용 ByteView·구조화 Value의 정확한 타�
 텍스트 변환은 표준 문자열과 명시적인 UTF-8/UTF-16·네이티브 경로 의미론으로 제공한다. 바이트·코드 단위 인덱스와 차용 뷰의 수명을 혼동하지 않는다. JSON 문법·직렬화는 독립 기능 모듈 iiJson이 Contracts 위에서 담당하며 Core는 코덱에 의존하지 않는다.
 
 OperationOwner·Operation은 기존 TaskScope·실행기를 조합한다. 접수 실패, 실행 실패, 협력적 취소, 단조 마감, 소유자/실행기 제거, 외부 부작용 상태를 구분하며 최종 결과는 한 번만 확정한다. 대기 시간 초과가 작업 중단을 뜻하지 않는다. TaskScope::Sender는 제거된 수신 객체를 되살리지 않는 약한 접수 경계이다. 완료 전달 위치를 명시하고 SerialQueue의 순서 보장과 Thread+EventLoop의 고정 스레드 보장을 구분한다. 기존 QueryPort의 저수준 전달 동작은 유지한다. 실제 소비자는 iiCSMIDI의 소유 바이트 비동기 디코더이다. 계약은 docs/text.md·docs/operation.md·docs/qt-migration-p0.md를 따른다.
+
+<!-- workspace-docs:agent:start -->
+## 문서 구조와 에이전트 탐색
+
+- 프로젝트 루트의 `README.md`는 사람용 영문 진입 문서이며 `AGENT.md`는 에이전트 진입점이다.
+- 하위 인간용 Markdown과 구조화된 agent JSON을 함께 유지한다. Markdown이 원본이며 JSON은 원문 해시와 줄 범위를 가진 파생 문서이다.
+- 먼저 [docs/agent-index.json](docs/agent-index.json)에서 관련 문서와 JSON 투영을 찾는다. 원문 SHA-256이 다르면 현재 Markdown을 읽고 투영을 갱신한다.
+- JSON의 규칙 후보는 검색용 어휘 일치 결과이다. 과거 기록·예제·실패 상태를 현재 지시나 검증 완료로 자동 해석하지 않는다.
+- 기존 프로젝트별 규칙, 동결된 증거, 라이선스, 외부 원본, 사용자 데이터와 다른 작업의 변경을 보존한다.
+- 이 문서 재편 지침은 과거 작업의 기능 구현·배포를 자동 재개하라는 요청이 아니다. 현재 사용자의 작업 범위를 우선한다.
+- 문서를 수정하면 JSON 쌍·색인을 함께 갱신하고 검증한다. 기존 소스 변경에 대한 빌드·테스트 규칙은 계속 따른다.
+
+Workspace에서 이 프로젝트의 문서를 갱신하는 명령은 다음과 같다.
+
+```sh
+python3 ../../Engineering/WorkspaceDocumentation/App/workspace_docs.py --workspace ../.. sync --project SDK/iiSDKCore
+```
+<!-- workspace-docs:agent:end -->

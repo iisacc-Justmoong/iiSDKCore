@@ -1,0 +1,1174 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:12a4031ce7c5aab849c57d9b5c84e2cb278a22ed6799a3f6632c7e0f5b9ece0c",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/README.md",
+    "sha256": "e01dca5c9c85787ffff9ebda217f3887e30be39087455d26059a6874c9dc385e",
+    "bytes": 3952,
+    "line_count": 57,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "iiSDKCore Documentation",
+    "role": "overview",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# iiSDKCore Documentation\n",
+      "level": 1,
+      "title": "iiSDKCore Documentation"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "html",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "<!-- workspace-docs:document-map:start -->\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "heading",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "## Human and agent document map\n",
+      "level": 2,
+      "title": "Human and agent document map"
+    },
+    {
+      "id": "b000005",
+      "kind": "blank",
+      "start_line": 5,
+      "end_line": 5,
+      "raw": "\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "paragraph",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "Markdown is the maintained human source. Agent JSON is a structured, source-traceable projection.\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "blank",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "table",
+      "start_line": 8,
+      "end_line": 56,
+      "raw": "| Document | Agent JSON |\n| --- | --- |\n| [`AGENT.md`](../AGENT.md) | [JSON](entrypoints/AGENT.agent.json) |\n| [`README.md`](../README.md) | [JSON](entrypoints/README.agent.json) |\n| [`docs/FILE_PROVIDER.md`](FILE_PROVIDER.md) | [JSON](FILE_PROVIDER.agent.json) |\n| [`docs/Windows.md`](Windows.md) | [JSON](Windows.agent.json) |\n| [`docs/WindowsBuildAndRun.md`](WindowsBuildAndRun.md) | [JSON](WindowsBuildAndRun.agent.json) |\n| [`docs/application.md`](application.md) | [JSON](application.agent.json) |\n| [`docs/cleanup.md`](cleanup.md) | [JSON](cleanup.agent.json) |\n| [`docs/compute-router.md`](compute-router.md) | [JSON](compute-router.agent.json) |\n| [`docs/concurrent.md`](concurrent.md) | [JSON](concurrent.agent.json) |\n| [`docs/decimal.md`](decimal.md) | [JSON](decimal.agent.json) |\n| [`docs/device-extraction.md`](device-extraction.md) | [JSON](device-extraction.agent.json) |\n| [`docs/documentation-structure.md`](documentation-structure.md) | [JSON](documentation-structure.agent.json) |\n| [`docs/dynamic-value.md`](dynamic-value.md) | [JSON](dynamic-value.agent.json) |\n| [`docs/easing.md`](easing.md) | [JSON](easing.agent.json) |\n| [`docs/embedded.md`](embedded.md) | [JSON](embedded.agent.json) |\n| [`docs/foundation-architecture.md`](foundation-architecture.md) | [JSON](foundation-architecture.agent.json) |\n| [`docs/foundations.md`](foundations.md) | [JSON](foundations.agent.json) |\n| [`docs/frame-loop.md`](frame-loop.md) | [JSON](frame-loop.agent.json) |\n| [`docs/hardware.md`](hardware.md) | [JSON](hardware.agent.json) |\n| [`docs/host-loop.md`](host-loop.md) | [JSON](host-loop.agent.json) |\n| [`docs/implicit-sharing.md`](implicit-sharing.md) | [JSON](implicit-sharing.agent.json) |\n| [`docs/inheritance.md`](inheritance.md) | [JSON](inheritance.agent.json) |\n| [`docs/io.md`](io.md) | [JSON](io.agent.json) |\n| [`docs/load-balancer.md`](load-balancer.md) | [JSON](load-balancer.agent.json) |\n| [`docs/load-routing.md`](load-routing.md) | [JSON](load-routing.agent.json) |\n| [`docs/loop-io.md`](loop-io.md) | [JSON](loop-io.agent.json) |\n| [`docs/member-tree.md`](member-tree.md) | [JSON](member-tree.agent.json) |\n| [`docs/modern-core.md`](modern-core.md) | [JSON](modern-core.agent.json) |\n| [`docs/object-properties.md`](object-properties.md) | [JSON](object-properties.agent.json) |\n| [`docs/observable.md`](observable.md) | [JSON](observable.agent.json) |\n| [`docs/operation.md`](operation.md) | [JSON](operation.agent.json) |\n| [`docs/parallel-runtime.md`](parallel-runtime.md) | [JSON](parallel-runtime.agent.json) |\n| [`docs/performance.md`](performance.md) | [JSON](performance.agent.json) |\n| [`docs/process.md`](process.md) | [JSON](process.agent.json) |\n| [`docs/qt-migration-p0.md`](qt-migration-p0.md) | [JSON](qt-migration-p0.agent.json) |\n| [`docs/qtcore-assessment.md`](qtcore-assessment.md) | [JSON](qtcore-assessment.agent.json) |\n| [`docs/query-stream.md`](query-stream.md) | [JSON](query-stream.agent.json) |\n| [`docs/query.md`](query.md) | [JSON](query.agent.json) |\n| [`docs/realtime.md`](realtime.md) | [JSON](realtime.agent.json) |\n| [`docs/resources.md`](resources.md) | [JSON](resources.agent.json) |\n| [`docs/runtime.md`](runtime.md) | [JSON](runtime.agent.json) |\n| [`docs/serialization.md`](serialization.md) | [JSON](serialization.agent.json) |\n| [`docs/text.md`](text.md) | [JSON](text.agent.json) |\n| [`docs/thread.md`](thread.md) | [JSON](thread.agent.json) |\n| [`docs/validation.md`](validation.md) | [JSON](validation.agent.json) |\n| [`docs/windows-architecture-check.md`](windows-architecture-check.md) | [JSON](windows-architecture-check.agent.json) |\n| [`example/README.md`](../example/README.md) | [JSON](mirrors/example/README.agent.json) |\n",
+      "columns": [
+        "Document",
+        "Agent JSON"
+      ],
+      "rows": [
+        [
+          "[`AGENT.md`](../AGENT.md)",
+          "[JSON](entrypoints/AGENT.agent.json)"
+        ],
+        [
+          "[`README.md`](../README.md)",
+          "[JSON](entrypoints/README.agent.json)"
+        ],
+        [
+          "[`docs/FILE_PROVIDER.md`](FILE_PROVIDER.md)",
+          "[JSON](FILE_PROVIDER.agent.json)"
+        ],
+        [
+          "[`docs/Windows.md`](Windows.md)",
+          "[JSON](Windows.agent.json)"
+        ],
+        [
+          "[`docs/WindowsBuildAndRun.md`](WindowsBuildAndRun.md)",
+          "[JSON](WindowsBuildAndRun.agent.json)"
+        ],
+        [
+          "[`docs/application.md`](application.md)",
+          "[JSON](application.agent.json)"
+        ],
+        [
+          "[`docs/cleanup.md`](cleanup.md)",
+          "[JSON](cleanup.agent.json)"
+        ],
+        [
+          "[`docs/compute-router.md`](compute-router.md)",
+          "[JSON](compute-router.agent.json)"
+        ],
+        [
+          "[`docs/concurrent.md`](concurrent.md)",
+          "[JSON](concurrent.agent.json)"
+        ],
+        [
+          "[`docs/decimal.md`](decimal.md)",
+          "[JSON](decimal.agent.json)"
+        ],
+        [
+          "[`docs/device-extraction.md`](device-extraction.md)",
+          "[JSON](device-extraction.agent.json)"
+        ],
+        [
+          "[`docs/documentation-structure.md`](documentation-structure.md)",
+          "[JSON](documentation-structure.agent.json)"
+        ],
+        [
+          "[`docs/dynamic-value.md`](dynamic-value.md)",
+          "[JSON](dynamic-value.agent.json)"
+        ],
+        [
+          "[`docs/easing.md`](easing.md)",
+          "[JSON](easing.agent.json)"
+        ],
+        [
+          "[`docs/embedded.md`](embedded.md)",
+          "[JSON](embedded.agent.json)"
+        ],
+        [
+          "[`docs/foundation-architecture.md`](foundation-architecture.md)",
+          "[JSON](foundation-architecture.agent.json)"
+        ],
+        [
+          "[`docs/foundations.md`](foundations.md)",
+          "[JSON](foundations.agent.json)"
+        ],
+        [
+          "[`docs/frame-loop.md`](frame-loop.md)",
+          "[JSON](frame-loop.agent.json)"
+        ],
+        [
+          "[`docs/hardware.md`](hardware.md)",
+          "[JSON](hardware.agent.json)"
+        ],
+        [
+          "[`docs/host-loop.md`](host-loop.md)",
+          "[JSON](host-loop.agent.json)"
+        ],
+        [
+          "[`docs/implicit-sharing.md`](implicit-sharing.md)",
+          "[JSON](implicit-sharing.agent.json)"
+        ],
+        [
+          "[`docs/inheritance.md`](inheritance.md)",
+          "[JSON](inheritance.agent.json)"
+        ],
+        [
+          "[`docs/io.md`](io.md)",
+          "[JSON](io.agent.json)"
+        ],
+        [
+          "[`docs/load-balancer.md`](load-balancer.md)",
+          "[JSON](load-balancer.agent.json)"
+        ],
+        [
+          "[`docs/load-routing.md`](load-routing.md)",
+          "[JSON](load-routing.agent.json)"
+        ],
+        [
+          "[`docs/loop-io.md`](loop-io.md)",
+          "[JSON](loop-io.agent.json)"
+        ],
+        [
+          "[`docs/member-tree.md`](member-tree.md)",
+          "[JSON](member-tree.agent.json)"
+        ],
+        [
+          "[`docs/modern-core.md`](modern-core.md)",
+          "[JSON](modern-core.agent.json)"
+        ],
+        [
+          "[`docs/object-properties.md`](object-properties.md)",
+          "[JSON](object-properties.agent.json)"
+        ],
+        [
+          "[`docs/observable.md`](observable.md)",
+          "[JSON](observable.agent.json)"
+        ],
+        [
+          "[`docs/operation.md`](operation.md)",
+          "[JSON](operation.agent.json)"
+        ],
+        [
+          "[`docs/parallel-runtime.md`](parallel-runtime.md)",
+          "[JSON](parallel-runtime.agent.json)"
+        ],
+        [
+          "[`docs/performance.md`](performance.md)",
+          "[JSON](performance.agent.json)"
+        ],
+        [
+          "[`docs/process.md`](process.md)",
+          "[JSON](process.agent.json)"
+        ],
+        [
+          "[`docs/qt-migration-p0.md`](qt-migration-p0.md)",
+          "[JSON](qt-migration-p0.agent.json)"
+        ],
+        [
+          "[`docs/qtcore-assessment.md`](qtcore-assessment.md)",
+          "[JSON](qtcore-assessment.agent.json)"
+        ],
+        [
+          "[`docs/query-stream.md`](query-stream.md)",
+          "[JSON](query-stream.agent.json)"
+        ],
+        [
+          "[`docs/query.md`](query.md)",
+          "[JSON](query.agent.json)"
+        ],
+        [
+          "[`docs/realtime.md`](realtime.md)",
+          "[JSON](realtime.agent.json)"
+        ],
+        [
+          "[`docs/resources.md`](resources.md)",
+          "[JSON](resources.agent.json)"
+        ],
+        [
+          "[`docs/runtime.md`](runtime.md)",
+          "[JSON](runtime.agent.json)"
+        ],
+        [
+          "[`docs/serialization.md`](serialization.md)",
+          "[JSON](serialization.agent.json)"
+        ],
+        [
+          "[`docs/text.md`](text.md)",
+          "[JSON](text.agent.json)"
+        ],
+        [
+          "[`docs/thread.md`](thread.md)",
+          "[JSON](thread.agent.json)"
+        ],
+        [
+          "[`docs/validation.md`](validation.md)",
+          "[JSON](validation.agent.json)"
+        ],
+        [
+          "[`docs/windows-architecture-check.md`](windows-architecture-check.md)",
+          "[JSON](windows-architecture-check.agent.json)"
+        ],
+        [
+          "[`example/README.md`](../example/README.md)",
+          "[JSON](mirrors/example/README.agent.json)"
+        ]
+      ]
+    },
+    {
+      "id": "b000009",
+      "kind": "html",
+      "start_line": 57,
+      "end_line": 57,
+      "raw": "<!-- workspace-docs:document-map:end -->\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "iiSDKCore Documentation",
+      "anchor": "iisdkcore-documentation",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000004",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Human and agent document map",
+      "anchor": "human-and-agent-document-map",
+      "start_line": 4
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000008",
+        "label": "`AGENT.md`",
+        "target": "../AGENT.md",
+        "kind": "relative",
+        "line": 10
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "entrypoints/AGENT.agent.json",
+        "kind": "relative",
+        "line": 10
+      },
+      {
+        "block_id": "b000008",
+        "label": "`README.md`",
+        "target": "../README.md",
+        "kind": "relative",
+        "line": 11
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "entrypoints/README.agent.json",
+        "kind": "relative",
+        "line": 11
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/FILE_PROVIDER.md`",
+        "target": "FILE_PROVIDER.md",
+        "kind": "relative",
+        "line": 12
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "FILE_PROVIDER.agent.json",
+        "kind": "relative",
+        "line": 12
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/Windows.md`",
+        "target": "Windows.md",
+        "kind": "relative",
+        "line": 13
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "Windows.agent.json",
+        "kind": "relative",
+        "line": 13
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/WindowsBuildAndRun.md`",
+        "target": "WindowsBuildAndRun.md",
+        "kind": "relative",
+        "line": 14
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "WindowsBuildAndRun.agent.json",
+        "kind": "relative",
+        "line": 14
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/application.md`",
+        "target": "application.md",
+        "kind": "relative",
+        "line": 15
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "application.agent.json",
+        "kind": "relative",
+        "line": 15
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/cleanup.md`",
+        "target": "cleanup.md",
+        "kind": "relative",
+        "line": 16
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "cleanup.agent.json",
+        "kind": "relative",
+        "line": 16
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/compute-router.md`",
+        "target": "compute-router.md",
+        "kind": "relative",
+        "line": 17
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "compute-router.agent.json",
+        "kind": "relative",
+        "line": 17
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/concurrent.md`",
+        "target": "concurrent.md",
+        "kind": "relative",
+        "line": 18
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "concurrent.agent.json",
+        "kind": "relative",
+        "line": 18
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/decimal.md`",
+        "target": "decimal.md",
+        "kind": "relative",
+        "line": 19
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "decimal.agent.json",
+        "kind": "relative",
+        "line": 19
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/device-extraction.md`",
+        "target": "device-extraction.md",
+        "kind": "relative",
+        "line": 20
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "device-extraction.agent.json",
+        "kind": "relative",
+        "line": 20
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/documentation-structure.md`",
+        "target": "documentation-structure.md",
+        "kind": "relative",
+        "line": 21
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "documentation-structure.agent.json",
+        "kind": "relative",
+        "line": 21
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/dynamic-value.md`",
+        "target": "dynamic-value.md",
+        "kind": "relative",
+        "line": 22
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "dynamic-value.agent.json",
+        "kind": "relative",
+        "line": 22
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/easing.md`",
+        "target": "easing.md",
+        "kind": "relative",
+        "line": 23
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "easing.agent.json",
+        "kind": "relative",
+        "line": 23
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/embedded.md`",
+        "target": "embedded.md",
+        "kind": "relative",
+        "line": 24
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "embedded.agent.json",
+        "kind": "relative",
+        "line": 24
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/foundation-architecture.md`",
+        "target": "foundation-architecture.md",
+        "kind": "relative",
+        "line": 25
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "foundation-architecture.agent.json",
+        "kind": "relative",
+        "line": 25
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/foundations.md`",
+        "target": "foundations.md",
+        "kind": "relative",
+        "line": 26
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "foundations.agent.json",
+        "kind": "relative",
+        "line": 26
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/frame-loop.md`",
+        "target": "frame-loop.md",
+        "kind": "relative",
+        "line": 27
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "frame-loop.agent.json",
+        "kind": "relative",
+        "line": 27
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/hardware.md`",
+        "target": "hardware.md",
+        "kind": "relative",
+        "line": 28
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "hardware.agent.json",
+        "kind": "relative",
+        "line": 28
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/host-loop.md`",
+        "target": "host-loop.md",
+        "kind": "relative",
+        "line": 29
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "host-loop.agent.json",
+        "kind": "relative",
+        "line": 29
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/implicit-sharing.md`",
+        "target": "implicit-sharing.md",
+        "kind": "relative",
+        "line": 30
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "implicit-sharing.agent.json",
+        "kind": "relative",
+        "line": 30
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/inheritance.md`",
+        "target": "inheritance.md",
+        "kind": "relative",
+        "line": 31
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "inheritance.agent.json",
+        "kind": "relative",
+        "line": 31
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/io.md`",
+        "target": "io.md",
+        "kind": "relative",
+        "line": 32
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "io.agent.json",
+        "kind": "relative",
+        "line": 32
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/load-balancer.md`",
+        "target": "load-balancer.md",
+        "kind": "relative",
+        "line": 33
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "load-balancer.agent.json",
+        "kind": "relative",
+        "line": 33
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/load-routing.md`",
+        "target": "load-routing.md",
+        "kind": "relative",
+        "line": 34
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "load-routing.agent.json",
+        "kind": "relative",
+        "line": 34
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/loop-io.md`",
+        "target": "loop-io.md",
+        "kind": "relative",
+        "line": 35
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "loop-io.agent.json",
+        "kind": "relative",
+        "line": 35
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/member-tree.md`",
+        "target": "member-tree.md",
+        "kind": "relative",
+        "line": 36
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "member-tree.agent.json",
+        "kind": "relative",
+        "line": 36
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/modern-core.md`",
+        "target": "modern-core.md",
+        "kind": "relative",
+        "line": 37
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "modern-core.agent.json",
+        "kind": "relative",
+        "line": 37
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/object-properties.md`",
+        "target": "object-properties.md",
+        "kind": "relative",
+        "line": 38
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "object-properties.agent.json",
+        "kind": "relative",
+        "line": 38
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/observable.md`",
+        "target": "observable.md",
+        "kind": "relative",
+        "line": 39
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "observable.agent.json",
+        "kind": "relative",
+        "line": 39
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/operation.md`",
+        "target": "operation.md",
+        "kind": "relative",
+        "line": 40
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "operation.agent.json",
+        "kind": "relative",
+        "line": 40
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/parallel-runtime.md`",
+        "target": "parallel-runtime.md",
+        "kind": "relative",
+        "line": 41
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "parallel-runtime.agent.json",
+        "kind": "relative",
+        "line": 41
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/performance.md`",
+        "target": "performance.md",
+        "kind": "relative",
+        "line": 42
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "performance.agent.json",
+        "kind": "relative",
+        "line": 42
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/process.md`",
+        "target": "process.md",
+        "kind": "relative",
+        "line": 43
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "process.agent.json",
+        "kind": "relative",
+        "line": 43
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/qt-migration-p0.md`",
+        "target": "qt-migration-p0.md",
+        "kind": "relative",
+        "line": 44
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "qt-migration-p0.agent.json",
+        "kind": "relative",
+        "line": 44
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/qtcore-assessment.md`",
+        "target": "qtcore-assessment.md",
+        "kind": "relative",
+        "line": 45
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "qtcore-assessment.agent.json",
+        "kind": "relative",
+        "line": 45
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/query-stream.md`",
+        "target": "query-stream.md",
+        "kind": "relative",
+        "line": 46
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "query-stream.agent.json",
+        "kind": "relative",
+        "line": 46
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/query.md`",
+        "target": "query.md",
+        "kind": "relative",
+        "line": 47
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "query.agent.json",
+        "kind": "relative",
+        "line": 47
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/realtime.md`",
+        "target": "realtime.md",
+        "kind": "relative",
+        "line": 48
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "realtime.agent.json",
+        "kind": "relative",
+        "line": 48
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/resources.md`",
+        "target": "resources.md",
+        "kind": "relative",
+        "line": 49
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "resources.agent.json",
+        "kind": "relative",
+        "line": 49
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/runtime.md`",
+        "target": "runtime.md",
+        "kind": "relative",
+        "line": 50
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "runtime.agent.json",
+        "kind": "relative",
+        "line": 50
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/serialization.md`",
+        "target": "serialization.md",
+        "kind": "relative",
+        "line": 51
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "serialization.agent.json",
+        "kind": "relative",
+        "line": 51
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/text.md`",
+        "target": "text.md",
+        "kind": "relative",
+        "line": 52
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "text.agent.json",
+        "kind": "relative",
+        "line": 52
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/thread.md`",
+        "target": "thread.md",
+        "kind": "relative",
+        "line": 53
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "thread.agent.json",
+        "kind": "relative",
+        "line": 53
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/validation.md`",
+        "target": "validation.md",
+        "kind": "relative",
+        "line": 54
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "validation.agent.json",
+        "kind": "relative",
+        "line": 54
+      },
+      {
+        "block_id": "b000008",
+        "label": "`docs/windows-architecture-check.md`",
+        "target": "windows-architecture-check.md",
+        "kind": "relative",
+        "line": 55
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "windows-architecture-check.agent.json",
+        "kind": "relative",
+        "line": 55
+      },
+      {
+        "block_id": "b000008",
+        "label": "`example/README.md`",
+        "target": "../example/README.md",
+        "kind": "relative",
+        "line": 56
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "mirrors/example/README.agent.json",
+        "kind": "relative",
+        "line": 56
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000008",
+        "columns": [
+          "Document",
+          "Agent JSON"
+        ],
+        "rows": [
+          [
+            "[`AGENT.md`](../AGENT.md)",
+            "[JSON](entrypoints/AGENT.agent.json)"
+          ],
+          [
+            "[`README.md`](../README.md)",
+            "[JSON](entrypoints/README.agent.json)"
+          ],
+          [
+            "[`docs/FILE_PROVIDER.md`](FILE_PROVIDER.md)",
+            "[JSON](FILE_PROVIDER.agent.json)"
+          ],
+          [
+            "[`docs/Windows.md`](Windows.md)",
+            "[JSON](Windows.agent.json)"
+          ],
+          [
+            "[`docs/WindowsBuildAndRun.md`](WindowsBuildAndRun.md)",
+            "[JSON](WindowsBuildAndRun.agent.json)"
+          ],
+          [
+            "[`docs/application.md`](application.md)",
+            "[JSON](application.agent.json)"
+          ],
+          [
+            "[`docs/cleanup.md`](cleanup.md)",
+            "[JSON](cleanup.agent.json)"
+          ],
+          [
+            "[`docs/compute-router.md`](compute-router.md)",
+            "[JSON](compute-router.agent.json)"
+          ],
+          [
+            "[`docs/concurrent.md`](concurrent.md)",
+            "[JSON](concurrent.agent.json)"
+          ],
+          [
+            "[`docs/decimal.md`](decimal.md)",
+            "[JSON](decimal.agent.json)"
+          ],
+          [
+            "[`docs/device-extraction.md`](device-extraction.md)",
+            "[JSON](device-extraction.agent.json)"
+          ],
+          [
+            "[`docs/documentation-structure.md`](documentation-structure.md)",
+            "[JSON](documentation-structure.agent.json)"
+          ],
+          [
+            "[`docs/dynamic-value.md`](dynamic-value.md)",
+            "[JSON](dynamic-value.agent.json)"
+          ],
+          [
+            "[`docs/easing.md`](easing.md)",
+            "[JSON](easing.agent.json)"
+          ],
+          [
+            "[`docs/embedded.md`](embedded.md)",
+            "[JSON](embedded.agent.json)"
+          ],
+          [
+            "[`docs/foundation-architecture.md`](foundation-architecture.md)",
+            "[JSON](foundation-architecture.agent.json)"
+          ],
+          [
+            "[`docs/foundations.md`](foundations.md)",
+            "[JSON](foundations.agent.json)"
+          ],
+          [
+            "[`docs/frame-loop.md`](frame-loop.md)",
+            "[JSON](frame-loop.agent.json)"
+          ],
+          [
+            "[`docs/hardware.md`](hardware.md)",
+            "[JSON](hardware.agent.json)"
+          ],
+          [
+            "[`docs/host-loop.md`](host-loop.md)",
+            "[JSON](host-loop.agent.json)"
+          ],
+          [
+            "[`docs/implicit-sharing.md`](implicit-sharing.md)",
+            "[JSON](implicit-sharing.agent.json)"
+          ],
+          [
+            "[`docs/inheritance.md`](inheritance.md)",
+            "[JSON](inheritance.agent.json)"
+          ],
+          [
+            "[`docs/io.md`](io.md)",
+            "[JSON](io.agent.json)"
+          ],
+          [
+            "[`docs/load-balancer.md`](load-balancer.md)",
+            "[JSON](load-balancer.agent.json)"
+          ],
+          [
+            "[`docs/load-routing.md`](load-routing.md)",
+            "[JSON](load-routing.agent.json)"
+          ],
+          [
+            "[`docs/loop-io.md`](loop-io.md)",
+            "[JSON](loop-io.agent.json)"
+          ],
+          [
+            "[`docs/member-tree.md`](member-tree.md)",
+            "[JSON](member-tree.agent.json)"
+          ],
+          [
+            "[`docs/modern-core.md`](modern-core.md)",
+            "[JSON](modern-core.agent.json)"
+          ],
+          [
+            "[`docs/object-properties.md`](object-properties.md)",
+            "[JSON](object-properties.agent.json)"
+          ],
+          [
+            "[`docs/observable.md`](observable.md)",
+            "[JSON](observable.agent.json)"
+          ],
+          [
+            "[`docs/operation.md`](operation.md)",
+            "[JSON](operation.agent.json)"
+          ],
+          [
+            "[`docs/parallel-runtime.md`](parallel-runtime.md)",
+            "[JSON](parallel-runtime.agent.json)"
+          ],
+          [
+            "[`docs/performance.md`](performance.md)",
+            "[JSON](performance.agent.json)"
+          ],
+          [
+            "[`docs/process.md`](process.md)",
+            "[JSON](process.agent.json)"
+          ],
+          [
+            "[`docs/qt-migration-p0.md`](qt-migration-p0.md)",
+            "[JSON](qt-migration-p0.agent.json)"
+          ],
+          [
+            "[`docs/qtcore-assessment.md`](qtcore-assessment.md)",
+            "[JSON](qtcore-assessment.agent.json)"
+          ],
+          [
+            "[`docs/query-stream.md`](query-stream.md)",
+            "[JSON](query-stream.agent.json)"
+          ],
+          [
+            "[`docs/query.md`](query.md)",
+            "[JSON](query.agent.json)"
+          ],
+          [
+            "[`docs/realtime.md`](realtime.md)",
+            "[JSON](realtime.agent.json)"
+          ],
+          [
+            "[`docs/resources.md`](resources.md)",
+            "[JSON](resources.agent.json)"
+          ],
+          [
+            "[`docs/runtime.md`](runtime.md)",
+            "[JSON](runtime.agent.json)"
+          ],
+          [
+            "[`docs/serialization.md`](serialization.md)",
+            "[JSON](serialization.agent.json)"
+          ],
+          [
+            "[`docs/text.md`](text.md)",
+            "[JSON](text.agent.json)"
+          ],
+          [
+            "[`docs/thread.md`](thread.md)",
+            "[JSON](thread.agent.json)"
+          ],
+          [
+            "[`docs/validation.md`](validation.md)",
+            "[JSON](validation.agent.json)"
+          ],
+          [
+            "[`docs/windows-architecture-check.md`](windows-architecture-check.md)",
+            "[JSON](windows-architecture-check.agent.json)"
+          ],
+          [
+            "[`example/README.md`](../example/README.md)",
+            "[JSON](mirrors/example/README.agent.json)"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

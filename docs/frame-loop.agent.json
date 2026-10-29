@@ -1,0 +1,858 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:4708c846b390d37acb592cd6e46fb71d372566e0b325d152b7074be202ed2abc",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/frame-loop.md",
+    "sha256": "186f138207f34d5cb261bd9dc7b257fb474868de480ddcce0a37d0b1bffc5a06",
+    "bytes": 12507,
+    "line_count": 193,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "App and game frame loop (0.11.0)",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# App and game frame loop (0.11.0)\n",
+      "level": 1,
+      "title": "App and game frame loop (0.11.0)"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 8,
+      "raw": "`FrameLoop` adds ordered frame callbacks and a bounded fixed timestep to native\n`EventLoop`. Event-driven apps can keep EventLoop alone. Animation, interactive\ntools and games can compose FrameLoop with the same task/query/I/O execution\ndomain. Independent computation still runs on `Runtime` workers; frame callbacks\nrun serially on their host thread. No Qt, engine, managed VM or interpreter is\nintroduced. Core owns timing/ordering; consumers own UI, physics and rendering.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 10,
+      "end_line": 16,
+      "raw": "`Application::frame_loop()` provides an application-owned instance for both apps\nand games. `TickOptions::interval == 0` delivers once per eligible frame phase;\nan interval throttles at frame boundaries and never creates catch-up bursts.\n`FrameLoop::close()` rejects registrations, revokes not-yet-started callbacks and\nretires captures. It is idempotent and safe from a tick; the executing capture is\nreleased only after its invocation returns. Application teardown closes this loop\nbefore detaching owned views.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 17,
+      "end_line": 17,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 18,
+      "end_line": 23,
+      "raw": "A display host drives `step` using native presentation-target timestamps. The\nexplicit timer-based `run` remains useful for headless simulation, but a 16 ms\ntimer is neither 60 Hz nor vertical synchronization. Fixed updates remain bounded\nand independent of variable display cadence; scaled gameplay can pause while\nunscaled UI callbacks continue. Display callback rate, rendered scenes and physical\nscreen presentations are distinct measurements.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 24,
+      "end_line": 24,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "heading",
+      "start_line": 25,
+      "end_line": 25,
+      "raw": "## References\n",
+      "level": 2,
+      "title": "References"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 26,
+      "end_line": 26,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 27,
+      "end_line": 35,
+      "raw": "Unity's [Player loop](https://docs.unity3d.com/6000.0/Documentation/ScriptReference/LowLevel.PlayerLoop.html)\nand [execution order](https://docs.unity3d.com/Manual/execution-order.html)\ndescribe ordered subsystem updates. Its\n[time management](https://docs.unity3d.com/2022.3/Documentation/Manual/TimeFrameManagement.html)\nseparates variable/fixed updates, scaled/real time and bounded elapsed time.\nUnreal's [actor ticking](https://dev.epicgames.com/documentation/en-us/unreal-engine/actor-ticking-in-unreal-engine)\ndescribes tick groups, prerequisites and intervals. These inform requirements,\nnot API or implementation templates. There is no Actor/MonoBehaviour hierarchy,\nreflection registry, global player loop or automatic engine initialization.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 36,
+      "end_line": 36,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "heading",
+      "start_line": 37,
+      "end_line": 37,
+      "raw": "## Stages and prerequisites\n",
+      "level": 2,
+      "title": "Stages and prerequisites"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 38,
+      "end_line": 38,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "table",
+      "start_line": 39,
+      "end_line": 50,
+      "raw": "| Stage | Frequency | Consumer responsibility |\n| --- | --- | --- |\n| `begin` | Once per frame | Apply frame-local state/start measurements |\n| `input` | Once per frame | Consume input collected by the host |\n| `before_fixed` | Per fixed step | Prepare simulation inputs |\n| `fixed_update` | Per fixed step | Perform a constant-duration update |\n| `after_fixed` | Per fixed step | Consume its results |\n| `update` | Once per frame | App/game variable-time work |\n| `late_update` | Once per frame | Follow-up work after updates |\n| `prepare_present` | Once per frame | Prepare display data |\n| `present` | Once per frame | Call consumer presentation |\n| `end` | Once per frame | Finalize the frame |\n",
+      "columns": [
+        "Stage",
+        "Frequency",
+        "Consumer responsibility"
+      ],
+      "rows": [
+        [
+          "`begin`",
+          "Once per frame",
+          "Apply frame-local state/start measurements"
+        ],
+        [
+          "`input`",
+          "Once per frame",
+          "Consume input collected by the host"
+        ],
+        [
+          "`before_fixed`",
+          "Per fixed step",
+          "Prepare simulation inputs"
+        ],
+        [
+          "`fixed_update`",
+          "Per fixed step",
+          "Perform a constant-duration update"
+        ],
+        [
+          "`after_fixed`",
+          "Per fixed step",
+          "Consume its results"
+        ],
+        [
+          "`update`",
+          "Once per frame",
+          "App/game variable-time work"
+        ],
+        [
+          "`late_update`",
+          "Once per frame",
+          "Follow-up work after updates"
+        ],
+        [
+          "`prepare_present`",
+          "Once per frame",
+          "Prepare display data"
+        ],
+        [
+          "`present`",
+          "Once per frame",
+          "Call consumer presentation"
+        ],
+        [
+          "`end`",
+          "Once per frame",
+          "Finalize the frame"
+        ]
+      ]
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 51,
+      "end_line": 51,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 52,
+      "end_line": 60,
+      "raw": "Fixed stages form a complete triplet per step and can run zero or several times\nbetween input and update. `present` neither submits GPU work nor guarantees pixels\non screen. `add_dependency(dependent, prerequisite)` reuses `DependencyGraph`.\nCycles and prerequisites in later phases are rejected. Fixed-stage ordering\napplies per step. Edges order eligible deliveries; they do not demand execution\nof disabled, interval-limited or paused ticks. Independent callbacks follow the\ngraph's deterministic topological order. Express an edge when order matters.\nThere is no automatic barrier for async jobs; post completed results through\nEventLoop/QueryPort before consuming them in a frame.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 61,
+      "end_line": 61,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "heading",
+      "start_line": 62,
+      "end_line": 62,
+      "raw": "## Time\n",
+      "level": 2,
+      "title": "Time"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 63,
+      "end_line": 63,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 64,
+      "end_line": 68,
+      "raw": "`step(timestamp)` accepts monotonic steady-clock timestamps for deterministic\ntests/offline consumers. The first frame establishes the clock with zero delta.\nEarlier timestamps throw `invalid_argument` without advancing state.\n`reset_clock(timestamp)` rebases after host discontinuities, clearing fractional\nbacklog while preserving elapsed time and counters.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 69,
+      "end_line": 69,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 70,
+      "end_line": 79,
+      "raw": "Raw host delta accumulates into `unscaled_elapsed`. Pause/time scale then apply,\nand scaled delta is capped by `max_delta` (default 250 ms). The fixed accumulator\nruns at most `max_fixed_steps` (default four), discarding excess whole steps and\ncarrying only the fractional remainder. Each fixed triplet receives\n`delta == fixed_step`. `interpolation` is remainder/fixed step, in [0, 1).\n`elapsed` is accepted scaled frame time; `fixed_elapsed` advances only by executed\nfixed steps. They intentionally diverge under overload. `fixed_tick` counts steps;\n`frame` counts attempted frames. In fixed callbacks `unscaled_delta` still means\nthe host frame's raw delta. Fractional scaling rounds down to integral clock ticks.\nTime arithmetic saturates instead of overflowing.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 80,
+      "end_line": 80,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 81,
+      "end_line": 87,
+      "raw": "Default `TickClock::scaled` callbacks stop while paused or at zero scale. Fixed\nstages require this clock. `TickClock::unscaled` callbacks run with raw real time\nduring pause, for menus, UI, input and presentation. `set_paused()` and finite\nnonnegative `set_time_scale()` apply next frame, including when called from input.\nThey do not suspend event work, timers, queries or I/O. EventLoop suspension stops\nevent and frame dispatch; on resume the next delta includes the host gap. Call\n`reset_clock()` when that gap must be excluded; simulation clamping still applies.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 88,
+      "end_line": 88,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 89,
+      "end_line": 94,
+      "raw": "A tick `interval` is minimum time on its chosen clock (fixed elapsed time for\nfixed stages). First eligible delivery is immediate, including zero-delta first\nframes. Later deliveries receive accumulated time since last execution; missed\nintervals coalesce into one call. Reenabling preserves last-delivery time. Use\ninterval zero for constant-step integration; positive fixed-tick intervals can\ndeliver multiple steps' accumulated delta.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 95,
+      "end_line": 95,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 96,
+      "end_line": 100,
+      "raw": "Reports/stats expose callbacks/steps, dropped steps, clamped scaled time, failures\nand actual frame work. `frame_budget` (default 16 ms) measures overruns without\npreempting callbacks or skipping presentation. `PumpBudget` separately bounds event\ndispatch in `poll()`. Neither promises hard real-time behavior. Move long blocking\nwork to Runtime/AsyncIO.\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 101,
+      "end_line": 101,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "heading",
+      "start_line": 102,
+      "end_line": 102,
+      "raw": "## Frame cadence and timer deadlines\n",
+      "level": 2,
+      "title": "Frame cadence and timer deadlines"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 103,
+      "end_line": 103,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 104,
+      "end_line": 108,
+      "raw": "An app and a game use the same `Application::frame_loop()`. Register an\n`update` tick with `interval == 0` for one delivery per eligible host frame.\nSelect `TickClock::unscaled` when UI or input must continue during simulation\npause. The display host supplies timestamps to `step`; do not also start\n`FrameLoop::run()` or a second periodic frame timer on that loop.\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 109,
+      "end_line": 109,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "table",
+      "start_line": 110,
+      "end_line": 115,
+      "raw": "| Work | Contract | Time source |\n| --- | --- | --- |\n| UI animation or variable game update | One eligible callback per host frame | Display host timestamps, through `FrameLoop::step` |\n| Physics or deterministic simulation step | Zero or several constant-duration updates per host frame | `FrameLoopOptions::fixed_step`, bounded catch-up |\n| Debounce, autosave, timeout or periodic service work | Deadline-based dispatch independent of display frames | `EventLoop::at`, `after` or `every` |\n| Frame-bound throttled work | At most one callback per host frame, after the minimum interval | `TickOptions::interval` on its selected clock |\n",
+      "columns": [
+        "Work",
+        "Contract",
+        "Time source"
+      ],
+      "rows": [
+        [
+          "UI animation or variable game update",
+          "One eligible callback per host frame",
+          "Display host timestamps, through `FrameLoop::step`"
+        ],
+        [
+          "Physics or deterministic simulation step",
+          "Zero or several constant-duration updates per host frame",
+          "`FrameLoopOptions::fixed_step`, bounded catch-up"
+        ],
+        [
+          "Debounce, autosave, timeout or periodic service work",
+          "Deadline-based dispatch independent of display frames",
+          "`EventLoop::at`, `after` or `every`"
+        ],
+        [
+          "Frame-bound throttled work",
+          "At most one callback per host frame, after the minimum interval",
+          "`TickOptions::interval` on its selected clock"
+        ]
+      ]
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 116,
+      "end_line": 116,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 117,
+      "end_line": 124,
+      "raw": "A 16 ms timer nominally requests 62.5 callbacks per second, not 60. A timer\nset to approximately 16.67 ms still does not synchronize with the display.\nWhen a host changes from 60 to 120 or 144 Hz, interval-zero frame callbacks\nfollow the supplied frame cadence without changing a timer interval. Their\n`delta` reflects the elapsed host time; game motion must use it rather than\nassume a fixed amount of motion per frame. A 10 ms fixed simulation step\ncontinues to request 100 simulation steps per elapsed second, subject to\npause, time scale, clamping and the configured catch-up limit.\n"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 125,
+      "end_line": 125,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "paragraph",
+      "start_line": 126,
+      "end_line": 131,
+      "raw": "Positive tick intervals are minimum delays quantized to host frames, not exact\nfrequency guarantees. A late host frame coalesces missed variable-tick intervals\ninto one delivery. Fixed-step catch-up has its separate bounded policy. For an\nevent-driven static app, omit the display frame source until continuous updates\nare needed; iiGUI can also avoid GPU submissions when frame callbacks leave the\nscene unchanged.\n"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 132,
+      "end_line": 132,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "paragraph",
+      "start_line": 133,
+      "end_line": 136,
+      "raw": "Count display callbacks, scene renders, GPU submissions/presentations and actual\nphysical scanout separately. A successful `present` phase or a timer count alone\ndoes not establish visible FPS. Scheduling, occlusion, system load and the\nrenderer can reduce delivery or presentation frequency.\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 137,
+      "end_line": 137,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "paragraph",
+      "start_line": 138,
+      "end_line": 144,
+      "raw": "`tests/frame_loop.cpp::host_cadence_and_display_changes` feeds deterministic\n60, 120 and 144 Hz timestamps, then switches those cadences on one loop. It checks\none variable update per host frame, an unchanged 100 Hz fixed simulation,\nframe-bound throttling without bursts and zero reserved EventLoop timer slots.\nThis proves the Core scheduling contract; it is not a measurement of a 120/144 Hz\nmonitor. Native display delivery and unchanged-scene presentation coalescing are\nverified separately by iiGUI's frame-host tests.\n"
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 145,
+      "end_line": 145,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "heading",
+      "start_line": 146,
+      "end_line": 146,
+      "raw": "## Ownership and mutation\n",
+      "level": 2,
+      "title": "Ownership and mutation"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 147,
+      "end_line": 147,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "paragraph",
+      "start_line": 148,
+      "end_line": 154,
+      "raw": "FrameLoop is constructed/used on one host thread; registration, controls, stats\nand drivers check affinity and throw `logic_error` elsewhere. Other threads post\ncontrols/results through EventLoop or use its thread-safe `request_stop()`.\nSlots and the frame schedule are preallocated. Graph edits/arbitrary captures may\nallocate; stable warmed-up frames do not. `tests/reuse.cpp` measures ordinary\noperator-new calls over 10,000 frames, not whole-application allocation freedom.\nTokens identify graph owner/slot/generation; foreign/stale tokens are rejected.\n"
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 155,
+      "end_line": 155,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "paragraph",
+      "start_line": 156,
+      "end_line": 168,
+      "raw": "Each frame snapshots order/options. Additions, dependency/enable changes and clock\ncontrols apply next frame. Removal immediately suppresses deliveries not started;\nself removal retires after return. Captures are destroyed before returning slot\ncapacity. Capture destructors may adjust other registrations but cannot advance\nor destroy the loop. Throwing ticks retire before their exception propagates.\nReferenced consumer state must outlive its callbacks; remove those registrations\non the host thread before destroying that state.\nRemaining fixed backlog is discarded; other registrations survive, without\nreplaying failed frames or rolling back consumer effects. `end` can be skipped on\nfailure/suspend/stop and is not an exception finalizer. Stats still finalize.\nStopping EventLoop suppresses subsequent frame callbacks. Destroy FrameLoop after\nstopping its driver to release captures. It does not stop the external EventLoop\nor remove other owners' work. Self/concurrent destruction during dispatch is invalid.\n"
+    },
+    {
+      "id": "b000050",
+      "kind": "blank",
+      "start_line": 169,
+      "end_line": 169,
+      "raw": "\n"
+    },
+    {
+      "id": "b000051",
+      "kind": "heading",
+      "start_line": 170,
+      "end_line": 170,
+      "raw": "## Drivers\n",
+      "level": 2,
+      "title": "Drivers"
+    },
+    {
+      "id": "b000052",
+      "kind": "blank",
+      "start_line": 171,
+      "end_line": 171,
+      "raw": "\n"
+    },
+    {
+      "id": "b000053",
+      "kind": "list",
+      "start_line": 172,
+      "end_line": 182,
+      "raw": "- Native `frames.run()` reserves one periodic EventLoop slot and uses existing\n  waiting/wakeup scheduling without busy spinning. Failed reservation is an error;\n  the timer retires on return/exception. Stop via `events.request_stop()`.\n- Existing UIKit, Android or desktop GUI frame callbacks call `frames.poll()`\n  after collecting input. Event/I/O work executes before the frame. It never\n  sleeps or creates another platform main loop.\n- Inside EventLoop dispatch, use `frames.step(timestamp)` for frame-only work,\n  avoiding recursive event polling.\n- Emscripten `BrowserLoop browser(frames)` uses requestAnimationFrame. Exceptions\n  are stored for `rethrow_if_failed()` and never cross the browser C boundary.\n  All three objects outlive the browser callback. Hidden-tab throttling applies.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "Native `frames.run()` reserves one periodic EventLoop slot and uses existing",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Existing UIKit, Android or desktop GUI frame callbacks call `frames.poll()`",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Inside EventLoop dispatch, use `frames.step(timestamp)` for frame-only work,",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Emscripten `BrowserLoop browser(frames)` uses requestAnimationFrame. Exceptions",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000054",
+      "kind": "blank",
+      "start_line": 183,
+      "end_line": 183,
+      "raw": "\n"
+    },
+    {
+      "id": "b000055",
+      "kind": "paragraph",
+      "start_line": 184,
+      "end_line": 189,
+      "raw": "The five OS targets use compiled native C++. WASM is a separate WebAssembly target\nexecuted by its host, not native-machine-code proof for those OSes. No common VM\nis required for native builds. Compile/link, Node, browser and device execution\nare different evidence. `examples/frame_loop.cpp` composes real-time UI, fixed\nsimulation, interpolation and stop. `tests/frame_loop.cpp` covers these contracts\nand runs against both source and installed packages.\n"
+    },
+    {
+      "id": "b000056",
+      "kind": "blank",
+      "start_line": 190,
+      "end_line": 190,
+      "raw": "\n"
+    },
+    {
+      "id": "b000057",
+      "kind": "heading",
+      "start_line": 191,
+      "end_line": 191,
+      "raw": "## External-host binding (0.16)\n",
+      "level": 2,
+      "title": "External-host binding (0.16)"
+    },
+    {
+      "id": "b000058",
+      "kind": "blank",
+      "start_line": 192,
+      "end_line": 192,
+      "raw": "\n"
+    },
+    {
+      "id": "b000059",
+      "kind": "paragraph",
+      "start_line": 193,
+      "end_line": 193,
+      "raw": "HostLoop pins EventLoop dispatch to the external owner and forwards direct Core submissions/cancellation to its native wake gate. For iiGUI, borrow Host::event_loop on the open UI owner, construct FrameLoop there, and drive step from UiExecutor timers or the host frame callback. Never invoke FrameLoop::poll inside existing dispatch or start another run driver. Keep Host alive until FrameLoop is destroyed; remove/destroy frame captures after run returns, not from inside their own tick. Window/GPU presentation remains in iiGUI. See [host-loop.md](host-loop.md).\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "App and game frame loop (0.11.0)",
+      "anchor": "app-and-game-frame-loop-0110",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000009",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "References",
+      "anchor": "references",
+      "start_line": 25
+    },
+    {
+      "block_id": "b000013",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Stages and prerequisites",
+      "anchor": "stages-and-prerequisites",
+      "start_line": 37
+    },
+    {
+      "block_id": "b000019",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Time",
+      "anchor": "time",
+      "start_line": 62
+    },
+    {
+      "block_id": "b000031",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Frame cadence and timer deadlines",
+      "anchor": "frame-cadence-and-timer-deadlines",
+      "start_line": 102
+    },
+    {
+      "block_id": "b000045",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Ownership and mutation",
+      "anchor": "ownership-and-mutation",
+      "start_line": 146
+    },
+    {
+      "block_id": "b000051",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Drivers",
+      "anchor": "drivers",
+      "start_line": 170
+    },
+    {
+      "block_id": "b000057",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "External-host binding (0.16)",
+      "anchor": "external-host-binding-016",
+      "start_line": 191
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000005",
+        "line": 12,
+        "text": "an interval throttles at frame boundaries and never creates catch-up bursts.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000017",
+        "line": 56,
+        "text": "applies per step. Edges order eligible deliveries; they do not demand execution",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000025",
+        "line": 85,
+        "text": "They do not suspend event work, timers, queries or I/O. EventLoop suspension stops",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000025",
+        "line": 87,
+        "text": "`reset_clock()` when that gap must be excluded; simulation clamping still applies.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000033",
+        "line": 106,
+        "text": "Select `TickClock::unscaled` when UI or input must continue during simulation",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000033",
+        "line": 107,
+        "text": "pause. The display host supplies timestamps to `step`; do not also start",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000037",
+        "line": 121,
+        "text": "`delta` reflects the elapsed host time; game motion must use it rather than",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000047",
+        "line": 152,
+        "text": "allocate; stable warmed-up frames do not. `tests/reuse.cpp` measures ordinary",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000049",
+        "line": 161,
+        "text": "Referenced consumer state must outlive its callbacks; remove those registrations",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000053",
+        "line": 176,
+        "text": "after collecting input. Event/I/O work executes before the frame. It never",
+        "basis": "lexical_match",
+        "context": "list"
+      },
+      {
+        "block_id": "b000053",
+        "line": 181,
+        "text": "are stored for `rethrow_if_failed()` and never cross the browser C boundary.",
+        "basis": "lexical_match",
+        "context": "list"
+      },
+      {
+        "block_id": "b000055",
+        "line": 186,
+        "text": "is required for native builds. Compile/link, Node, browser and device execution",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000059",
+        "line": 193,
+        "text": "HostLoop pins EventLoop dispatch to the external owner and forwards direct Core submissions/cancellation to its native wake gate. For iiGUI, borrow Host::event_loop on the open UI owner, construct FrameLoop there, and drive step from UiExecutor timers or the host frame callback. Never invoke FrameLoop::poll inside existing dispatch or start another run driver. Keep Host alive until FrameLoop is destroyed; remove/destroy frame captures after run returns, not from inside their own tick. Window/GPU presentation remains in iiGUI. See [host-loop.md](host-loop.md).",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000011",
+        "label": "Player loop",
+        "target": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/LowLevel.PlayerLoop.html",
+        "kind": "external",
+        "line": 27
+      },
+      {
+        "block_id": "b000011",
+        "label": "execution order",
+        "target": "https://docs.unity3d.com/Manual/execution-order.html",
+        "kind": "external",
+        "line": 28
+      },
+      {
+        "block_id": "b000011",
+        "label": "time management",
+        "target": "https://docs.unity3d.com/2022.3/Documentation/Manual/TimeFrameManagement.html",
+        "kind": "external",
+        "line": 30
+      },
+      {
+        "block_id": "b000011",
+        "label": "actor ticking",
+        "target": "https://dev.epicgames.com/documentation/en-us/unreal-engine/actor-ticking-in-unreal-engine",
+        "kind": "external",
+        "line": 32
+      },
+      {
+        "block_id": "b000059",
+        "label": "host-loop.md",
+        "target": "host-loop.md",
+        "kind": "relative",
+        "line": 193
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000015",
+        "columns": [
+          "Stage",
+          "Frequency",
+          "Consumer responsibility"
+        ],
+        "rows": [
+          [
+            "`begin`",
+            "Once per frame",
+            "Apply frame-local state/start measurements"
+          ],
+          [
+            "`input`",
+            "Once per frame",
+            "Consume input collected by the host"
+          ],
+          [
+            "`before_fixed`",
+            "Per fixed step",
+            "Prepare simulation inputs"
+          ],
+          [
+            "`fixed_update`",
+            "Per fixed step",
+            "Perform a constant-duration update"
+          ],
+          [
+            "`after_fixed`",
+            "Per fixed step",
+            "Consume its results"
+          ],
+          [
+            "`update`",
+            "Once per frame",
+            "App/game variable-time work"
+          ],
+          [
+            "`late_update`",
+            "Once per frame",
+            "Follow-up work after updates"
+          ],
+          [
+            "`prepare_present`",
+            "Once per frame",
+            "Prepare display data"
+          ],
+          [
+            "`present`",
+            "Once per frame",
+            "Call consumer presentation"
+          ],
+          [
+            "`end`",
+            "Once per frame",
+            "Finalize the frame"
+          ]
+        ]
+      },
+      {
+        "block_id": "b000035",
+        "columns": [
+          "Work",
+          "Contract",
+          "Time source"
+        ],
+        "rows": [
+          [
+            "UI animation or variable game update",
+            "One eligible callback per host frame",
+            "Display host timestamps, through `FrameLoop::step`"
+          ],
+          [
+            "Physics or deterministic simulation step",
+            "Zero or several constant-duration updates per host frame",
+            "`FrameLoopOptions::fixed_step`, bounded catch-up"
+          ],
+          [
+            "Debounce, autosave, timeout or periodic service work",
+            "Deadline-based dispatch independent of display frames",
+            "`EventLoop::at`, `after` or `every`"
+          ],
+          [
+            "Frame-bound throttled work",
+            "At most one callback per host frame, after the minimum interval",
+            "`TickOptions::interval` on its selected clock"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

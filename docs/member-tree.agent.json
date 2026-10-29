@@ -1,0 +1,520 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:40648871cf83a8096cd1b5c571e646107b3f345444212472da1d64208ef09cbf",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/member-tree.md",
+    "sha256": "12a85029e7e04155ca6bc475c00a71b004ac47bc3240f82f507454f99e2e1037",
+    "bytes": 7048,
+    "line_count": 81,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "객체의 멤버 트리",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# 객체의 멤버 트리\n",
+      "level": 1,
+      "title": "객체의 멤버 트리"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "iiSDK 객체는 C++23 중첩 인스턴스로 타입이 유지되는 멤버 트리를 구성한다. 각 노드는 값, 일반 메서드, QueryPort, 다른 노드를 함께 소유할 수 있다. public과 private 모두 임의의 유한 깊이로 구성할 수 있으며 상속은 필요하지 않다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 5,
+      "end_line": 5,
+      "raw": "이 문서는 표준 C++의 소유와 접근 제어로 구성하는 정적 멤버 트리의 계약이다. 기존 QueryPort는 어느 깊이의 노드에서도 사용할 수 있다. 실제 예제 구현은 `examples/objects/Device.h`, 사용자는 `examples/query.cpp`이다.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "생성 이후에도 인스턴스의 멤버 정의를 추가·교체·삭제해야 하는 경우에는 [ObjectProperties](object-properties.md)를 함께 소유한다. 이 동적 트리도 값·메서드·자식과 public/private를 지원하며, queryable/designable 정책을 쿼리 처리 시 검증한다. 정적 C++ 멤버의 물리적 구조와 접근 제어를 자동으로 수정하지 않는다. 공통 Object 베이스 클래스나 전역 레지스트리는 요구하지 않는다.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "heading",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "## 구현된 객체 구조\n",
+      "level": 2,
+      "title": "구현된 객체 구조"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 10,
+      "end_line": 10,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "fenced_code",
+      "start_line": 11,
+      "end_line": 33,
+      "raw": "```text\nDevice\n├─ public audio\n│  └─ public output\n│     ├─ public limits\n│     │  ├─ minimum, maximum             값\n│     │  └─ contains(value)              일반 메서드\n│     ├─ public level, revision          읽기 전용 값 참조\n│     ├─ public reset()                  일반 메서드\n│     ├─ public set_level                쿼리 메서드 포트\n│     ├─ private apply(query)            일반 메서드\n│     └─ private state_\n│        ├─ level                       값\n│        ├─ set_level(value)             메서드\n│        └─ history\n│           ├─ revision                 값\n│           └─ record()                 메서드\n├─ public read                          중첩 필드 조회 쿼리 포트\n└─ private internal_\n   └─ identity\n      ├─ name                           값\n      └─ read_name()                    메서드\n```\n",
+      "language": "text",
+      "code": "Device\n├─ public audio\n│  └─ public output\n│     ├─ public limits\n│     │  ├─ minimum, maximum             값\n│     │  └─ contains(value)              일반 메서드\n│     ├─ public level, revision          읽기 전용 값 참조\n│     ├─ public reset()                  일반 메서드\n│     ├─ public set_level                쿼리 메서드 포트\n│     ├─ private apply(query)            일반 메서드\n│     └─ private state_\n│        ├─ level                       값\n│        ├─ set_level(value)             메서드\n│        └─ history\n│           ├─ revision                 값\n│           └─ record()                 메서드\n├─ public read                          중첩 필드 조회 쿼리 포트\n└─ private internal_\n   └─ identity\n      ├─ name                           값\n      └─ read_name()                    메서드\n",
+      "closed": true
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 34,
+      "end_line": 34,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 35,
+      "end_line": 35,
+      "raw": "`Device::Audio::Output`은 타입 이름의 계층이며, `device.audio.output`은 실제 객체가 소유하는 인스턴스 경로이다. 중첩 타입을 선언하는 것만으로 노드가 생성되지는 않으므로 각 타입의 인스턴스를 멤버로 소유한다. 서로 다른 Device는 별도의 값과 상태 트리를 갖는다.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 36,
+      "end_line": 36,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "heading",
+      "start_line": 37,
+      "end_line": 37,
+      "raw": "## 값과 메서드 접근\n",
+      "level": 2,
+      "title": "값과 메서드 접근"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 38,
+      "end_line": 38,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "fenced_code",
+      "start_line": 39,
+      "end_line": 46,
+      "raw": "```cpp\nDevice device;\nint maximum = device.audio.output.limits.maximum;\nbool accepted = device.audio.output.limits.contains(42);\nauto changed = device.audio.output.set_level.send(SetLevel{42});\nint current = device.audio.output.level;\ndevice.audio.output.reset();\n```\n",
+      "language": "cpp",
+      "code": "Device device;\nint maximum = device.audio.output.limits.maximum;\nbool accepted = device.audio.output.limits.contains(42);\nauto changed = device.audio.output.set_level.send(SetLevel{42});\nint current = device.audio.output.level;\ndevice.audio.output.reset();\n",
+      "closed": true
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 47,
+      "end_line": 47,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 48,
+      "end_line": 48,
+      "raw": "값의 가변성은 노드가 정한다. 예제의 level/revision은 private 저장 공간을 바라보는 const 참조이고, limits는 const 인스턴스이다. 쓰기는 공개된 일반 메서드나 쿼리 포트를 통한다. 다른 객체가 public 값 자체를 직접 수정할 수 있어야 하는 도메인은 그 값을 public 비const 멤버로 선언할 수 있다. 트리가 일괄적으로 읽기 전용 또는 공개 상태를 강제하지 않는다.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 49,
+      "end_line": 49,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 50,
+      "end_line": 50,
+      "raw": "private 노드도 내부에서 `state_.history.record()`처럼 값과 메서드를 동일하게 사용한다. 예제의 private `apply()`는 private 상태 노드의 메서드를 호출한다. 내부 구현을 한 평면에 모을 필요가 없다.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 51,
+      "end_line": 51,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "heading",
+      "start_line": 52,
+      "end_line": 52,
+      "raw": "## 접근 제어\n",
+      "level": 2,
+      "title": "접근 제어"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 53,
+      "end_line": 53,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 54,
+      "end_line": 54,
+      "raw": "접근 가능한 경로의 모든 단계가 접근을 허용해야 한다. `audio`가 public이어도 `audio.output.state_`가 private이면 외부에서 그 하위 값을 읽거나 메서드를 호출할 수 없다. private `internal_`의 Identity가 내부적으로 public 필드를 갖더라도 루트 외부로 노출되지 않는다.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 55,
+      "end_line": 55,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 56,
+      "end_line": 56,
+      "raw": "중첩 클래스의 독립적인 private 권한도 C++ 규칙을 따른다. 부모 클래스라는 이유만으로 자식 클래스의 private 멤버에 접근하는 특권을 만들지 않는다. 노드 간 동작은 공개 메서드나 명시적 권한 관계로 연결한다. C++ 접근 제어는 컴파일 시의 캡슐화이며, 같은 프로세스 안의 임의 메모리 접근을 막는 보안 샌드박스는 아니다.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 57,
+      "end_line": 57,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 58,
+      "end_line": 58,
+      "raw": "쿼리도 private 트리의 자동 탐색을 제공하지 않는다. 공개 `read` 처리기가 `name`을 선택한 경우에만 `internal_.identity.read_name()`의 결과를 값으로 반환한다. 이는 객체 작성자가 명시적으로 허용한 공개 투영이다. 객체 전체 참조를 명시적으로 반환해도 C++ private 접근 권한은 바뀌지 않는다.\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 59,
+      "end_line": 59,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "heading",
+      "start_line": 60,
+      "end_line": 60,
+      "raw": "## 쿼리 트리와 필요한 필드 선택\n",
+      "level": 2,
+      "title": "쿼리 트리와 필요한 필드 선택"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 61,
+      "end_line": 61,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "fenced_code",
+      "start_line": 62,
+      "end_line": 65,
+      "raw": "```cpp\nauto fields = device.read.send({.audio = {.output = {.level = true}}});\n// fields->audio->output->level에만 값이 존재한다.\n```\n",
+      "language": "cpp",
+      "code": "auto fields = device.read.send({.audio = {.output = {.level = true}}});\n// fields->audio->output->level에만 값이 존재한다.\n",
+      "closed": true
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 66,
+      "end_line": 66,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "paragraph",
+      "start_line": 67,
+      "end_line": 67,
+      "raw": "요청·응답은 중첩 구조를 보존한다. 요청하지 않은 revision/name/object는 비어 있으며, 어떤 자식도 선택하지 않으면 audio/output 응답 노드도 생성하지 않는다. 식별자를 `audio_output_level`로 합치거나 dotted string 하나로 바꾸는 절차는 없다.\n"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 68,
+      "end_line": 68,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 69,
+      "end_line": 69,
+      "raw": "다른 객체에 전체 트리를 넘기지 않고 말단의 포트 참조만 전달할 수 있다. 예제의 Controller는 `device.audio.output.set_level`에 대한 `QueryPort<SetLevel>&`를 받아 필요한 요청 값 하나만 전달한다. EventLoop에 큐로 제출해도 동일한 말단 포트에서 실행된다.\n"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 70,
+      "end_line": 70,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "heading",
+      "start_line": 71,
+      "end_line": 71,
+      "raw": "## 수명과 비용\n",
+      "level": 2,
+      "title": "수명과 비용"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 72,
+      "end_line": 72,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "paragraph",
+      "start_line": 73,
+      "end_line": 73,
+      "raw": "트리의 값 노드는 부모 객체의 저장 공간과 수명을 따른다. 노드마다 별도의 런타임 등록이나 heap 할당을 하지 않는다. std::string 및 QueryPort 같은 개별 멤버의 할당 정책은 기존 계약을 따른다. 노드의 일반 값 구조가 복사/이동 가능한지는 그 멤버 타입이 결정하며, QueryPort가 있는 예제 Device는 복사/이동하지 않아 내부 참조와 this 캡처가 유지된다.\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 74,
+      "end_line": 74,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "paragraph",
+      "start_line": 75,
+      "end_line": 75,
+      "raw": "부모 객체가 소멸하면 자식 노드와 그 포트도 소멸한다. 포트 제거는 미실행 쿼리·completion과 캡처를 취소하고 실행 중 처리를 기다린다. 관련 상태보다 포트를 나중에 선언하고, 부모 소멸자 본문에서 상태를 수정할 때는 먼저 해당 포트를 닫는다. 빌린 값 참조·노드 참조의 수명은 부모보다 길 수 없으며 포트 밖의 직접 메서드·외부 작업은 호출자가 동기화한다. [제거 계약](cleanup.md)을 함께 따른다.\n"
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 76,
+      "end_line": 76,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "heading",
+      "start_line": 77,
+      "end_line": 77,
+      "raw": "## 검증\n",
+      "level": 2,
+      "title": "검증"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 78,
+      "end_line": 78,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "paragraph",
+      "start_line": 79,
+      "end_line": 79,
+      "raw": "`tests/member_tree.cpp`는 public 값·일반 메서드·쿼리 메서드의 중첩 접근을 검사하고, private 루트/자식/손자 경로와 private 메서드 접근이 허용되지 않음을 C++ requires/static_assert로 검사한다. 같은 컴파일 단위에서 public 접근도 성립함을 확인한다.\n"
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 80,
+      "end_line": 80,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "paragraph",
+      "start_line": 81,
+      "end_line": 81,
+      "raw": "실행 검사는 인스턴스 간 상태 분리, private 하위 메서드를 통한 값 갱신, 중첩 선택·응답, 미선택 하위 트리 생략, 비동기 말단 쿼리, 실패 시 상태 보존, 부모 소멸 후 자식 포트 만료를 포함한다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "객체의 멤버 트리",
+      "anchor": "객체의-멤버-트리",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000009",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "구현된 객체 구조",
+      "anchor": "구현된-객체-구조",
+      "start_line": 9
+    },
+    {
+      "block_id": "b000015",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "값과 메서드 접근",
+      "anchor": "값과-메서드-접근",
+      "start_line": 37
+    },
+    {
+      "block_id": "b000023",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "접근 제어",
+      "anchor": "접근-제어",
+      "start_line": 52
+    },
+    {
+      "block_id": "b000031",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "쿼리 트리와 필요한 필드 선택",
+      "anchor": "쿼리-트리와-필요한-필드-선택",
+      "start_line": 60
+    },
+    {
+      "block_id": "b000039",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "수명과 비용",
+      "anchor": "수명과-비용",
+      "start_line": 71
+    },
+    {
+      "block_id": "b000045",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "검증",
+      "anchor": "검증",
+      "start_line": 77
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000007",
+        "line": 7,
+        "text": "생성 이후에도 인스턴스의 멤버 정의를 추가·교체·삭제해야 하는 경우에는 [ObjectProperties](object-properties.md)를 함께 소유한다. 이 동적 트리도 값·메서드·자식과 public/private를 지원하며, queryable/designable 정책을 쿼리 처리 시 검증한다. 정적 C++ 멤버의 물리적 구조와 접근 제어를 자동으로 수정하지 않는다. 공통 Object 베이스 클래스나 전역 레지스트리는 요구하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000019",
+        "line": 48,
+        "text": "값의 가변성은 노드가 정한다. 예제의 level/revision은 private 저장 공간을 바라보는 const 참조이고, limits는 const 인스턴스이다. 쓰기는 공개된 일반 메서드나 쿼리 포트를 통한다. 다른 객체가 public 값 자체를 직접 수정할 수 있어야 하는 도메인은 그 값을 public 비const 멤버로 선언할 수 있다. 트리가 일괄적으로 읽기 전용 또는 공개 상태를 강제하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000025",
+        "line": 54,
+        "text": "접근 가능한 경로의 모든 단계가 접근을 허용해야 한다. `audio`가 public이어도 `audio.output.state_`가 private이면 외부에서 그 하위 값을 읽거나 메서드를 호출할 수 없다. private `internal_`의 Identity가 내부적으로 public 필드를 갖더라도 루트 외부로 노출되지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000029",
+        "line": 58,
+        "text": "쿼리도 private 트리의 자동 탐색을 제공하지 않는다. 공개 `read` 처리기가 `name`을 선택한 경우에만 `internal_.identity.read_name()`의 결과를 값으로 반환한다. 이는 객체 작성자가 명시적으로 허용한 공개 투영이다. 객체 전체 참조를 명시적으로 반환해도 C++ private 접근 권한은 바뀌지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000035",
+        "line": 67,
+        "text": "요청·응답은 중첩 구조를 보존한다. 요청하지 않은 revision/name/object는 비어 있으며, 어떤 자식도 선택하지 않으면 audio/output 응답 노드도 생성하지 않는다. 식별자를 `audio_output_level`로 합치거나 dotted string 하나로 바꾸는 절차는 없다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000041",
+        "line": 73,
+        "text": "트리의 값 노드는 부모 객체의 저장 공간과 수명을 따른다. 노드마다 별도의 런타임 등록이나 heap 할당을 하지 않는다. std::string 및 QueryPort 같은 개별 멤버의 할당 정책은 기존 계약을 따른다. 노드의 일반 값 구조가 복사/이동 가능한지는 그 멤버 타입이 결정하며, QueryPort가 있는 예제 Device는 복사/이동하지 않아 내부 참조와 this 캡처가 유지된다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000007",
+        "label": "ObjectProperties",
+        "target": "object-properties.md",
+        "kind": "relative",
+        "line": 7
+      },
+      {
+        "block_id": "b000043",
+        "label": "제거 계약",
+        "target": "cleanup.md",
+        "kind": "relative",
+        "line": 75
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

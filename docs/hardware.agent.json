@@ -1,0 +1,107 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:df951ede931ae47fe2df205a3729a3925556ac1f35abea53ebcd8a46431f7a8a",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/hardware.md",
+    "sha256": "8dc34c31369de20872338ba751c732794267ee9fef91089e45e78b3bbc9eaff5",
+    "bytes": 674,
+    "line_count": 11,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Device/media I/O moved to iiDeviceMultimedia",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Device/media I/O moved to iiDeviceMultimedia\n",
+      "level": 1,
+      "title": "Device/media I/O moved to iiDeviceMultimedia"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 5,
+      "raw": "Since iiSDKCore 0.12.0, USB/HID, BLE central/GATT, float32 PCM, MIDI UMP,\ntheir protocol parsers and native platform backends are owned by the independent\n[iiDeviceMultimedia](../../iiDeviceMultimedia/README.md) package.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 7,
+      "end_line": 11,
+      "raw": "The complete [hardware contract](../../iiDeviceMultimedia/docs/hardware.md) and\n[migration guide](device-extraction.md) describe current APIs and support limits.\nCore retains EventLoop, FrameLoop, Runtime, TaskScope, Thread, Channel and AsyncIO\nand has no dependency on the new module. Device 0.2 is likewise independent of\nCore; the application owns the connection through ii::device::Hardware::poll().\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Device/media I/O moved to iiDeviceMultimedia",
+      "anchor": "devicemedia-io-moved-to-iidevicemultimedia",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000003",
+        "label": "iiDeviceMultimedia",
+        "target": "../../iiDeviceMultimedia/README.md",
+        "kind": "relative",
+        "line": 5
+      },
+      {
+        "block_id": "b000005",
+        "label": "hardware contract",
+        "target": "../../iiDeviceMultimedia/docs/hardware.md",
+        "kind": "relative",
+        "line": 7
+      },
+      {
+        "block_id": "b000005",
+        "label": "migration guide",
+        "target": "device-extraction.md",
+        "kind": "relative",
+        "line": 8
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

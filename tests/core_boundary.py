@@ -22,13 +22,25 @@ def verify(source, build=None):
         if not manifests:
             raise RuntimeError("Core target dependency manifest missing")
         for path in manifests:
-            text = path.read_text()
-            for dependency in re.split(r'[;\n]+', text.strip()):
-                dependency = re.sub(r'^\$<LINK_ONLY:([^>]+)>$', r'\1', dependency)
-                if dependency and dependency not in {
-                    "Threads::Threads", "dl", "iiSDKCore::Contracts", "iiSDKCoreContracts"
-                }:
-                    raise RuntimeError("Core links a non-foundation dependency: " + dependency)
+            contracts={"iiSDKCore::Contracts","iiSDKCoreContracts"}
+            runtime=contracts|{"Threads::Threads","dl","iiSDKCore::Observation","iiSDKCoreObservation"}
+            allowed={"Runtime":runtime,"RuntimeInterface":runtime,"Contracts":set(),"Values":contracts,
+                     "Observation":contracts,"ObservationInterface":contracts}
+            sections={};current=None
+            for line in path.read_text().splitlines():
+                if re.fullmatch(r'\[[A-Za-z]+\]',line):
+                    current=line[1:-1]
+                    if current not in allowed or current in sections:raise RuntimeError("Invalid Core dependency section: "+current)
+                    sections[current]=[]
+                elif line.strip():
+                    if current is None:raise RuntimeError("Core dependency manifest lacks target sections")
+                    sections[current]+=line.split(';')
+            if set(sections)!=set(allowed):raise RuntimeError("Core dependency manifest is incomplete")
+            for section,dependencies in sections.items():
+                for dependency in dependencies:
+                    dependency=re.sub(r'^\$<LINK_ONLY:([^>]+)>$',r'\1',dependency)
+                    if dependency and dependency not in allowed[section]:
+                        raise RuntimeError(section+" links a non-foundation dependency: "+dependency)
         if (build / "include/iiSDKCore/IO/AtomicFile.h").exists():
             raise RuntimeError("Stale concrete file header in generated Core includes")
     print("Core foundation boundary passed: standard/platform dependencies only")

@@ -1,0 +1,923 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:c8b8853a11bb5b4d2a8a95f5d5b1f696fbb22b2c7b9931ff9a9fb5a6c686d553",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/serialization.md",
+    "sha256": "5f521a87219799063fb18f026f0378396a03d6e8a2ca7b8d8aa91e165579cd3a",
+    "bytes": 12535,
+    "line_count": 113,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "Data type serialization (0.9.0)",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Data type serialization (0.9.0)\n",
+      "level": 1,
+      "title": "Data type serialization (0.9.0)"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "JSON grammar and DTO codecs are available separately in [iiJson](../../iiJson/README.md), above Core Contracts. The CBOR profile and persisted envelopes below are unchanged by the 0.14 migration.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 5,
+      "end_line": 5,
+      "raw": "`ii::serialization` serializes owned C++ values to CBOR and reconstructs new owned values. `Core/Serialization/CBOR.h` owns the wire parser, limits and errors; `Core/Serialization/Serialization.h` owns typed codecs. Both are header-only C++23 and use only the standard library. Link `iiSDKCore::Values` with `find_package(iiSDKCore 0.9 CONFIG REQUIRED COMPONENTS Values)` to use them independently of Runtime, Threads, Qt and native hardware libraries.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "`Runtime/Serialization.h` adds an instance-owned `DynamicSerializer` for the existing `DynamicValue` (`std::any`). It uses explicit type registration and standard synchronization. It never exports an object's layout, addresses, `typeid().name()`, implementation hashes, private fields, methods or query ports.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "heading",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "## Wire profile\n",
+      "level": 2,
+      "title": "Wire profile"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 10,
+      "end_line": 10,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 11,
+      "end_line": 11,
+      "raw": "The format is [CBOR, RFC 8949](https://www.rfc-editor.org/rfc/rfc8949), restricted to these application data types:\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 12,
+      "end_line": 12,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "list",
+      "start_line": 13,
+      "end_line": 15,
+      "raw": "- Unsigned integers up to `UINT64_MAX` and negative integers using major type 1. Typed signed decoding checks the destination range, including `INT64_MIN`. Positive CBOR integers have no C++ signedness or width; the static destination codec or dynamic envelope supplies that information.\n- Boolean, null, IEEE 754 binary16/binary32/binary64 floating point, definite-length byte strings and valid UTF-8 text.\n- Definite-length arrays and maps with unique UTF-8 text keys.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "Unsigned integers up to `UINT64_MAX` and negative integers using major type 1. Typed signed decoding checks the destination range, including `INT64_MIN`. Positive CBOR integers have no C++ signedness or width; the static destination codec or dynamic envelope supplies that information.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Boolean, null, IEEE 754 binary16/binary32/binary64 floating point, definite-length byte strings and valid UTF-8 text.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Definite-length arrays and maps with unique UTF-8 text keys.",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 16,
+      "end_line": 16,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 17,
+      "end_line": 17,
+      "raw": "Encoding follows core deterministic encoding for this profile: shortest integer and length arguments, the shortest floating-point representation that preserves the value, canonical NaN `f9 7e 00`, and bytewise lexical order of encoded map keys. Signed zero is preserved; floating point remains floating point even when integral. Standard map codecs sort keys by UTF-8 byte length then byte order, equivalent to encoded byte order for these text keys. Encoder finalization checks the complete output, including order and uniqueness of custom codec map keys.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 18,
+      "end_line": 18,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 19,
+      "end_line": 19,
+      "raw": "Decoding accepts valid nonpreferred integer lengths, binary16/32/64 floats and unsorted maps, then normalizes them when re-encoded. Duplicate keys, invalid UTF-8, reserved additional-information values, trailing bytes and incomplete input fail. Indefinite lengths, tags (including self-described CBOR and typed-array tags), arbitrary map key types, undefined and other simple values are outside this profile and are rejected. This is a defined subset, not an implementation of every CBOR feature. Text validation does not perform Unicode normalization.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 20,
+      "end_line": 20,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 21,
+      "end_line": 21,
+      "raw": "Examples of stable bytes:\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 22,
+      "end_line": 22,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "table",
+      "start_line": 23,
+      "end_line": 32,
+      "raw": "| Value | Bytes (hex) |\n| --- | --- |\n| `uint64_t{24}` | `18 18` |\n| `int64_t{-1000}` | `39 03 e7` |\n| `uint64_t{UINT64_MAX}` | `1b ff ff ff ff ff ff ff ff` |\n| `1.5` | `f9 3e 00` |\n| `-0.0` | `f9 80 00` |\n| UTF-8 `\"한\"` | `63 ed 95 9c` |\n| `vector<int>{1,2,3}` | `83 01 02 03` |\n| map `{\"b\":1,\"aa\":2}` | `a2 61 62 01 62 61 61 02` |\n",
+      "columns": [
+        "Value",
+        "Bytes (hex)"
+      ],
+      "rows": [
+        [
+          "`uint64_t{24}`",
+          "`18 18`"
+        ],
+        [
+          "`int64_t{-1000}`",
+          "`39 03 e7`"
+        ],
+        [
+          "`uint64_t{UINT64_MAX}`",
+          "`1b ff ff ff ff ff ff ff ff`"
+        ],
+        [
+          "`1.5`",
+          "`f9 3e 00`"
+        ],
+        [
+          "`-0.0`",
+          "`f9 80 00`"
+        ],
+        [
+          "UTF-8 `\"한\"`",
+          "`63 ed 95 9c`"
+        ],
+        [
+          "`vector<int>{1,2,3}`",
+          "`83 01 02 03`"
+        ],
+        [
+          "map `{\"b\":1,\"aa\":2}`",
+          "`a2 61 62 01 62 61 61 02`"
+        ]
+      ]
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 33,
+      "end_line": 33,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 34,
+      "end_line": 34,
+      "raw": "No SDK magic prefix is added to static CBOR. The caller selects the static type; custom record schemas explicitly include their own version when evolution is needed. CBOR does not authenticate, encrypt, compress or frame an external stream. Read a complete bounded message before decoding; channel/file/transport ownership remains with the existing I/O layer. USB/HID/MIDI protocol wire formats remain separate contracts.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 35,
+      "end_line": 35,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "heading",
+      "start_line": 36,
+      "end_line": 36,
+      "raw": "## Supported C++ types\n",
+      "level": 2,
+      "title": "Supported C++ types"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 37,
+      "end_line": 37,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "table",
+      "start_line": 38,
+      "end_line": 50,
+      "raw": "| Type | Mapping |\n| --- | --- |\n| Integral types of at most 64 bits, except bool | CBOR integer; checked range on decode |\n| `bool`, `nullptr_t`, `monostate` | Boolean or null |\n| `float`, `double` | Floating point; float decoding rejects finite precision loss or overflow |\n| `string` | Owned UTF-8 text, embedded NUL supported |\n| `vector<byte>`, `array<byte,N>` | Byte string; fixed size checked |\n| `vector<T>` (including bool), `array<T,N>` | Array; element codecs, fixed size checked |\n| `map<string,T>`, `unordered_map<string,T>` | Unique-key map, sorted during encoding |\n| `optional<T>` | Zero-or-one-element array; nested optional states remain distinct |\n| `tuple<T...>`, `pair<A,B>` | Positional array with exact length |\n| `variant<T...>` | `[alternative_index, payload]`; declaration order is part of the schema |\n| Application record or enum | Explicit `Codec<T>` specialization |\n",
+      "columns": [
+        "Type",
+        "Mapping"
+      ],
+      "rows": [
+        [
+          "Integral types of at most 64 bits, except bool",
+          "CBOR integer; checked range on decode"
+        ],
+        [
+          "`bool`, `nullptr_t`, `monostate`",
+          "Boolean or null"
+        ],
+        [
+          "`float`, `double`",
+          "Floating point; float decoding rejects finite precision loss or overflow"
+        ],
+        [
+          "`string`",
+          "Owned UTF-8 text, embedded NUL supported"
+        ],
+        [
+          "`vector<byte>`, `array<byte,N>`",
+          "Byte string; fixed size checked"
+        ],
+        [
+          "`vector<T>` (including bool), `array<T,N>`",
+          "Array; element codecs, fixed size checked"
+        ],
+        [
+          "`map<string,T>`, `unordered_map<string,T>`",
+          "Unique-key map, sorted during encoding"
+        ],
+        [
+          "`optional<T>`",
+          "Zero-or-one-element array; nested optional states remain distinct"
+        ],
+        [
+          "`tuple<T...>`, `pair<A,B>`",
+          "Positional array with exact length"
+        ],
+        [
+          "`variant<T...>`",
+          "`[alternative_index, payload]`; declaration order is part of the schema"
+        ],
+        [
+          "Application record or enum",
+          "Explicit `Codec<T>` specialization"
+        ]
+      ]
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 51,
+      "end_line": 51,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 52,
+      "end_line": 52,
+      "raw": "Pointers, references, `reference_wrapper`, `string_view`, spans, `long double`, native handles, arbitrary `std::any`, class memory dumps and automatic reflection have no implicit codec. This prevents dangling decoded views and ABI-dependent persistence. Enums need explicit validation of their permitted values. Time points and durations need an explicit schema identifying epoch and units. Stateful custom comparators/allocators are not serialized; decoded standard maps use default-constructed policy objects, whose equality rules can also reject colliding keys.\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 53,
+      "end_line": 53,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "fenced_code",
+      "start_line": 54,
+      "end_line": 64,
+      "raw": "```cpp\n#include <iiSDKCore/Core/Serialization/Serialization.h>\n\nstd::vector<double> samples{0.25, 0.5, 0.75};\nauto bytes = ii::serialization::serialize(samples);\nif (!bytes) {\n    // error().code, offset, message and optional exception cause\n    return;\n}\nauto restored = ii::serialization::deserialize<std::vector<double>>(*bytes);\n```\n",
+      "language": "cpp",
+      "code": "#include <iiSDKCore/Core/Serialization/Serialization.h>\n\nstd::vector<double> samples{0.25, 0.5, 0.75};\nauto bytes = ii::serialization::serialize(samples);\nif (!bytes) {\n    // error().code, offset, message and optional exception cause\n    return;\n}\nauto restored = ii::serialization::deserialize<std::vector<double>>(*bytes);\n",
+      "closed": true
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 65,
+      "end_line": 65,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 66,
+      "end_line": 66,
+      "raw": "The free functions perform complete-message validation. Direct `Encoder`/`Decoder` primitives are available for custom schemas; direct readers must call `finish()` and perform schema validation. A failed operation is sticky, so ignoring an error inside a codec cannot turn a partial operation into successful output. `Encoder::finish()` moves out a valid payload; encoder and decoder instances are per-message state and should not be reused for another message.\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 67,
+      "end_line": 67,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "heading",
+      "start_line": 68,
+      "end_line": 68,
+      "raw": "## Record extension and schema versions\n",
+      "level": 2,
+      "title": "Record extension and schema versions"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 69,
+      "end_line": 69,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 70,
+      "end_line": 70,
+      "raw": "Specialize `Codec<T>` with `static Result<void> encode(Encoder&, const T&)` and `static Result<T> decode(Decoder&)`. It is a final, composed value contract. Check every primitive result, validate field count/version and return a new value. Call `write`/`read` for nested fields to retain limits and exception handling. Use `reject<T>(code, \"static message\")` for domain errors; error message text must have static storage duration. Custom allocations must use `allocate(count, sizeof(Element))` before requesting storage when they are to count toward the storage budget.\n"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 71,
+      "end_line": 71,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "paragraph",
+      "start_line": 72,
+      "end_line": 72,
+      "raw": "[tests/serialization_record.h](../tests/serialization_record.h) is a concrete audio/sample DTO schema: `[1, sequence, label, samples]`. Its decoder migrates `[0, sequence, samples]` by supplying `label=\"legacy\"`; it rejects unknown versions and wrong field counts. This is explicit application-controlled migration, not inferred reflection. Record field order, variant alternative order, meanings and units are schema decisions.\n"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 73,
+      "end_line": 73,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "paragraph",
+      "start_line": 74,
+      "end_line": 74,
+      "raw": "Codecs may throw. The wrapper returns `codec_failed` with an `exception_ptr`; already constructed local values and buffers retire through RAII before returning. The returned error owns its exception until that error is released. Arbitrary codec external effects, allocations without accounting or global mutable state are the codec author's responsibility.\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 75,
+      "end_line": 75,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "heading",
+      "start_line": 76,
+      "end_line": 76,
+      "raw": "## Dynamic values\n",
+      "level": 2,
+      "title": "Dynamic values"
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 77,
+      "end_line": 77,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "paragraph",
+      "start_line": 78,
+      "end_line": 78,
+      "raw": "`DynamicSerializer` emits either `[]` for an empty `std::any`, or `[stable_id, codec_version, payload]`. Explicit `nullptr` is a registered value and differs from an empty any. The outer codec version is a positive `uint32_t` and must match the receiving registry exactly. Migration inside a compatible codec is explicit in its payload schema. Unknown IDs, unsupported C++ types and version mismatches return errors.\n"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 79,
+      "end_line": 79,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "fenced_code",
+      "start_line": 80,
+      "end_line": 91,
+      "raw": "```cpp\n#include <iiSDKCore/Runtime/Serialization.h>\n\nii::runtime::DynamicSerializer serializer;\nauto bytes = serializer.serialize(ii::runtime::DynamicValue{42});\nif (bytes) {\n    auto value = serializer.deserialize(*bytes);\n    // successful result has exact type int; use value_cast<int>() or any_cast\n}\n// For a copyable application DTO with Codec<Sample>:\n// auto registered = serializer.register_type<Sample>(\"app.sample\", 1);\n```\n",
+      "language": "cpp",
+      "code": "#include <iiSDKCore/Runtime/Serialization.h>\n\nii::runtime::DynamicSerializer serializer;\nauto bytes = serializer.serialize(ii::runtime::DynamicValue{42});\nif (bytes) {\n    auto value = serializer.deserialize(*bytes);\n    // successful result has exact type int; use value_cast<int>() or any_cast\n}\n// For a copyable application DTO with Codec<Sample>:\n// auto registered = serializer.register_type<Sample>(\"app.sample\", 1);\n",
+      "closed": true
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 92,
+      "end_line": 92,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "paragraph",
+      "start_line": 93,
+      "end_line": 93,
+      "raw": "The default registry installs 17 exact C++ types with stable IDs: `cpp.bool`, `cpp.char`, `cpp.signed-char`, `cpp.unsigned-char`, `cpp.short`, `cpp.unsigned-short`, `cpp.int`, `cpp.unsigned-int`, `cpp.long`, `cpp.unsigned-long`, `cpp.long-long`, `cpp.unsigned-long-long`, `cpp.float`, `cpp.double`, `cpp.string`, `cpp.bytes`, `cpp.null`. C++ typedef aliases are the same registered type. Platform integer widths and char signedness can differ; range checks apply on the receiver. Prefer static fixed-width schemas for protocols with strict numerical widths.\n"
+    },
+    {
+      "id": "b000050",
+      "kind": "blank",
+      "start_line": 94,
+      "end_line": 94,
+      "raw": "\n"
+    },
+    {
+      "id": "b000051",
+      "kind": "paragraph",
+      "start_line": 95,
+      "end_line": 95,
+      "raw": "`DynamicSerializer(false, capacity)` starts empty. IDs are 1..128 ASCII letters/digits or `._-/`. Duplicate IDs or C++ types are rejected; the default capacity is 64 including builtins. A builtin registry capacity below 17 throws at construction. Registrations and lookups are synchronized; each operation copies a small stateless codec entry and runs the codec after releasing the lock, allowing independent calls in parallel. A custom codec must be thread-safe. Registry destruction must follow completion of callers referencing that instance, as with other C++ objects.\n"
+    },
+    {
+      "id": "b000052",
+      "kind": "blank",
+      "start_line": 96,
+      "end_line": 96,
+      "raw": "\n"
+    },
+    {
+      "id": "b000053",
+      "kind": "paragraph",
+      "start_line": 97,
+      "end_line": 97,
+      "raw": "There is no process-wide registry, runtime object base, inheritance registration or automatic traversal of ObjectProperties. Serialize only an explicitly selected DTO/snapshot. Releasing a result, decoder or registry releases its owned data; no worker, device or quota reservation is retained by serialization itself.\n"
+    },
+    {
+      "id": "b000054",
+      "kind": "blank",
+      "start_line": 98,
+      "end_line": 98,
+      "raw": "\n"
+    },
+    {
+      "id": "b000055",
+      "kind": "heading",
+      "start_line": 99,
+      "end_line": 99,
+      "raw": "## Bounds, errors and runtime composition\n",
+      "level": 2,
+      "title": "Bounds, errors and runtime composition"
+    },
+    {
+      "id": "b000056",
+      "kind": "blank",
+      "start_line": 100,
+      "end_line": 100,
+      "raw": "\n"
+    },
+    {
+      "id": "b000057",
+      "kind": "paragraph",
+      "start_line": 101,
+      "end_line": 101,
+      "raw": "The default `Limits` are 16 MiB input/output, 8 MiB per text/byte string, 100,000 entries per container, 200,000 total CBOR items, depth 64, and 32 MiB cumulative requested storage per validation/typed-construction phase. Strings, vectors, map entries and map sorting scratch are accounted before allocation. Declared lengths are checked against limits and the remaining input before container storage is requested; arithmetic uses division to avoid multiplication overflow. Wire nesting and nested codec calls are both bounded.\n"
+    },
+    {
+      "id": "b000058",
+      "kind": "blank",
+      "start_line": 102,
+      "end_line": 102,
+      "raw": "\n"
+    },
+    {
+      "id": "b000059",
+      "kind": "paragraph",
+      "start_line": 103,
+      "end_line": 103,
+      "raw": "Requested-storage accounting is a guardrail, not an exact heap/RSS ceiling. Allocator metadata, standard unordered bucket policy, stack objects and unaccounted custom code are not included. Encoded vector capacity is capped at `max_bytes`; arbitrary custom code is not an allocation-free or real-time promise. Validation completes before typed construction, so invalid complete messages never publish a partially populated destination. Parsing errors report the cursor position where the problem was detected; registry errors have offset zero. No existing destination object is mutated.\n"
+    },
+    {
+      "id": "b000060",
+      "kind": "blank",
+      "start_line": 104,
+      "end_line": 104,
+      "raw": "\n"
+    },
+    {
+      "id": "b000061",
+      "kind": "paragraph",
+      "start_line": 105,
+      "end_line": 105,
+      "raw": "Serialization is synchronous per message. Run independent batches on existing Runtime workers or `parallel_transform`; a stateful object uses its SerialQueue and a typed QueryPort. [examples/serialization.cpp](../examples/serialization.cpp) sends a sample-map query to a persistent worker and restores the result. A long codec is not preempted and must not occupy a time-sensitive callback. Transport backpressure, live timestamps and cancellation remain the corresponding runtime/I/O contracts. The separate iiFileProvider CoreIO AtomicFile persists owned bytes with commit/cancel semantics. Its integration suite preserves the complete file-to-DynamicSerializer test relocated from Core in 0.13.\n"
+    },
+    {
+      "id": "b000062",
+      "kind": "blank",
+      "start_line": 106,
+      "end_line": 106,
+      "raw": "\n"
+    },
+    {
+      "id": "b000063",
+      "kind": "heading",
+      "start_line": 107,
+      "end_line": 107,
+      "raw": "## Verification\n",
+      "level": 2,
+      "title": "Verification"
+    },
+    {
+      "id": "b000064",
+      "kind": "blank",
+      "start_line": 108,
+      "end_line": 108,
+      "raw": "\n"
+    },
+    {
+      "id": "b000065",
+      "kind": "paragraph",
+      "start_line": 109,
+      "end_line": 109,
+      "raw": "[tests/serialization.cpp](../tests/serialization.cpp) checks exact wire fixtures, every binary16 bit pattern, random 64-bit integer/floating-point roundtrips, malformed random input, every truncated prefix of a record, UTF-8 failures, duplicate keys, precision/range errors and each limit. [tests/dynamic_serialization.cpp](../tests/dynamic_serialization.cpp) checks exact dynamic types, custom registration, ID/type/version rejection, exceptions, sticky failures, owned object retirement, atomic-file persistence and concurrent use. See [validation.md](validation.md) for executed configurations and cross-build scope.\n"
+    },
+    {
+      "id": "b000066",
+      "kind": "blank",
+      "start_line": 110,
+      "end_line": 110,
+      "raw": "\n"
+    },
+    {
+      "id": "b000067",
+      "kind": "heading",
+      "start_line": 111,
+      "end_line": 111,
+      "raw": "## Shared values (0.10.0)\n",
+      "level": 2,
+      "title": "Shared values (0.10.0)"
+    },
+    {
+      "id": "b000068",
+      "kind": "blank",
+      "start_line": 112,
+      "end_line": 112,
+      "raw": "\n"
+    },
+    {
+      "id": "b000069",
+      "kind": "paragraph",
+      "start_line": 113,
+      "end_line": 113,
+      "raw": "Include `Core/Serialization/SharedValue.h` for the optional `Codec<core::SharedValue<T>>`. It emits T's exact logical wire format and restores fresh storage at revision zero. Owner counts, locks, addresses and revisions remain process-local. The payload block's requested storage is counted before construction. DynamicSerializer can register this copyable wrapper under an application stable ID. The sharing and snapshot publication contracts are in [implicit-sharing.md](implicit-sharing.md).\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Data type serialization (0.9.0)",
+      "anchor": "data-type-serialization-090",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000009",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Wire profile",
+      "anchor": "wire-profile",
+      "start_line": 9
+    },
+    {
+      "block_id": "b000025",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Supported C++ types",
+      "anchor": "supported-c-types",
+      "start_line": 36
+    },
+    {
+      "block_id": "b000035",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Record extension and schema versions",
+      "anchor": "record-extension-and-schema-versions",
+      "start_line": 68
+    },
+    {
+      "block_id": "b000043",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Dynamic values",
+      "anchor": "dynamic-values",
+      "start_line": 76
+    },
+    {
+      "block_id": "b000055",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Bounds, errors and runtime composition",
+      "anchor": "bounds-errors-and-runtime-composition",
+      "start_line": 99
+    },
+    {
+      "block_id": "b000063",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Verification",
+      "anchor": "verification",
+      "start_line": 107
+    },
+    {
+      "block_id": "b000067",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Shared values (0.10.0)",
+      "anchor": "shared-values-0100",
+      "start_line": 111
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000005",
+        "line": 5,
+        "text": "`ii::serialization` serializes owned C++ values to CBOR and reconstructs new owned values. `Core/Serialization/CBOR.h` owns the wire parser, limits and errors; `Core/Serialization/Serialization.h` owns typed codecs. Both are header-only C++23 and use only the standard library. Link `iiSDKCore::Values` with `find_package(iiSDKCore 0.9 CONFIG REQUIRED COMPONENTS Values)` to use them independently of Runtime, Threads, Qt and native hardware libraries.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000007",
+        "line": 7,
+        "text": "`Runtime/Serialization.h` adds an instance-owned `DynamicSerializer` for the existing `DynamicValue` (`std::any`). It uses explicit type registration and standard synchronization. It never exports an object's layout, addresses, `typeid().name()`, implementation hashes, private fields, methods or query ports.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000033",
+        "line": 66,
+        "text": "The free functions perform complete-message validation. Direct `Encoder`/`Decoder` primitives are available for custom schemas; direct readers must call `finish()` and perform schema validation. A failed operation is sticky, so ignoring an error inside a codec cannot turn a partial operation into successful output. `Encoder::finish()` moves out a valid payload; encoder and decoder instances are per-message state and should not be reused for another message.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000037",
+        "line": 70,
+        "text": "Specialize `Codec<T>` with `static Result<void> encode(Encoder&, const T&)` and `static Result<T> decode(Decoder&)`. It is a final, composed value contract. Check every primitive result, validate field count/version and return a new value. Call `write`/`read` for nested fields to retain limits and exception handling. Use `reject<T>(code, \"static message\")` for domain errors; error message text must have static storage duration. Custom allocations must use `allocate(count, sizeof(Element))` before requesting storage when they are to count toward the storage budget.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000045",
+        "line": 78,
+        "text": "`DynamicSerializer` emits either `[]` for an empty `std::any`, or `[stable_id, codec_version, payload]`. Explicit `nullptr` is a registered value and differs from an empty any. The outer codec version is a positive `uint32_t` and must match the receiving registry exactly. Migration inside a compatible codec is explicit in its payload schema. Unknown IDs, unsupported C++ types and version mismatches return errors.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000051",
+        "line": 95,
+        "text": "`DynamicSerializer(false, capacity)` starts empty. IDs are 1..128 ASCII letters/digits or `._-/`. Duplicate IDs or C++ types are rejected; the default capacity is 64 including builtins. A builtin registry capacity below 17 throws at construction. Registrations and lookups are synchronized; each operation copies a small stateless codec entry and runs the codec after releasing the lock, allowing independent calls in parallel. A custom codec must be thread-safe. Registry destruction must follow completion of callers referencing that instance, as with other C++ objects.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000059",
+        "line": 103,
+        "text": "Requested-storage accounting is a guardrail, not an exact heap/RSS ceiling. Allocator metadata, standard unordered bucket policy, stack objects and unaccounted custom code are not included. Encoded vector capacity is capped at `max_bytes`; arbitrary custom code is not an allocation-free or real-time promise. Validation completes before typed construction, so invalid complete messages never publish a partially populated destination. Parsing errors report the cursor position where the problem was detected; registry errors have offset zero. No existing destination object is mutated.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000061",
+        "line": 105,
+        "text": "Serialization is synchronous per message. Run independent batches on existing Runtime workers or `parallel_transform`; a stateful object uses its SerialQueue and a typed QueryPort. [examples/serialization.cpp](../examples/serialization.cpp) sends a sample-map query to a persistent worker and restores the result. A long codec is not preempted and must not occupy a time-sensitive callback. Transport backpressure, live timestamps and cancellation remain the corresponding runtime/I/O contracts. The separate iiFileProvider CoreIO AtomicFile persists owned bytes with commit/cancel semantics. Its integration suite preserves the complete file-to-DynamicSerializer test relocated from Core in 0.13.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000003",
+        "label": "iiJson",
+        "target": "../../iiJson/README.md",
+        "kind": "relative",
+        "line": 3
+      },
+      {
+        "block_id": "b000011",
+        "label": "CBOR, RFC 8949",
+        "target": "https://www.rfc-editor.org/rfc/rfc8949",
+        "kind": "external",
+        "line": 11
+      },
+      {
+        "block_id": "b000039",
+        "label": "tests/serialization_record.h",
+        "target": "../tests/serialization_record.h",
+        "kind": "relative",
+        "line": 72
+      },
+      {
+        "block_id": "b000061",
+        "label": "examples/serialization.cpp",
+        "target": "../examples/serialization.cpp",
+        "kind": "relative",
+        "line": 105
+      },
+      {
+        "block_id": "b000065",
+        "label": "tests/serialization.cpp",
+        "target": "../tests/serialization.cpp",
+        "kind": "relative",
+        "line": 109
+      },
+      {
+        "block_id": "b000065",
+        "label": "tests/dynamic_serialization.cpp",
+        "target": "../tests/dynamic_serialization.cpp",
+        "kind": "relative",
+        "line": 109
+      },
+      {
+        "block_id": "b000065",
+        "label": "validation.md",
+        "target": "validation.md",
+        "kind": "relative",
+        "line": 109
+      },
+      {
+        "block_id": "b000069",
+        "label": "implicit-sharing.md",
+        "target": "implicit-sharing.md",
+        "kind": "relative",
+        "line": 113
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000021",
+        "columns": [
+          "Value",
+          "Bytes (hex)"
+        ],
+        "rows": [
+          [
+            "`uint64_t{24}`",
+            "`18 18`"
+          ],
+          [
+            "`int64_t{-1000}`",
+            "`39 03 e7`"
+          ],
+          [
+            "`uint64_t{UINT64_MAX}`",
+            "`1b ff ff ff ff ff ff ff ff`"
+          ],
+          [
+            "`1.5`",
+            "`f9 3e 00`"
+          ],
+          [
+            "`-0.0`",
+            "`f9 80 00`"
+          ],
+          [
+            "UTF-8 `\"한\"`",
+            "`63 ed 95 9c`"
+          ],
+          [
+            "`vector<int>{1,2,3}`",
+            "`83 01 02 03`"
+          ],
+          [
+            "map `{\"b\":1,\"aa\":2}`",
+            "`a2 61 62 01 62 61 61 02`"
+          ]
+        ]
+      },
+      {
+        "block_id": "b000027",
+        "columns": [
+          "Type",
+          "Mapping"
+        ],
+        "rows": [
+          [
+            "Integral types of at most 64 bits, except bool",
+            "CBOR integer; checked range on decode"
+          ],
+          [
+            "`bool`, `nullptr_t`, `monostate`",
+            "Boolean or null"
+          ],
+          [
+            "`float`, `double`",
+            "Floating point; float decoding rejects finite precision loss or overflow"
+          ],
+          [
+            "`string`",
+            "Owned UTF-8 text, embedded NUL supported"
+          ],
+          [
+            "`vector<byte>`, `array<byte,N>`",
+            "Byte string; fixed size checked"
+          ],
+          [
+            "`vector<T>` (including bool), `array<T,N>`",
+            "Array; element codecs, fixed size checked"
+          ],
+          [
+            "`map<string,T>`, `unordered_map<string,T>`",
+            "Unique-key map, sorted during encoding"
+          ],
+          [
+            "`optional<T>`",
+            "Zero-or-one-element array; nested optional states remain distinct"
+          ],
+          [
+            "`tuple<T...>`, `pair<A,B>`",
+            "Positional array with exact length"
+          ],
+          [
+            "`variant<T...>`",
+            "`[alternative_index, payload]`; declaration order is part of the schema"
+          ],
+          [
+            "Application record or enum",
+            "Explicit `Codec<T>` specialization"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

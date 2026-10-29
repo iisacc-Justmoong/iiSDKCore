@@ -1,0 +1,287 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:ea3b93ff74ef4f02253a1b7f951ff13d15877ee6b77f8a2e70b40da6587cd5ca",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/application.md",
+    "sha256": "4ffa097279cf624c8ac8651a60ce4fc426e64264762e737b5d4f4a519a53fabd",
+    "bytes": 5118,
+    "line_count": 88,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Native application ownership and final executable",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Native application ownership and final executable\n",
+      "level": 1,
+      "title": "Native application ownership and final executable"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 6,
+      "raw": "`iiSDKCore/Runtime/Application.h` provides the application owner for native SDK\nprograms. Core owns one EventLoop, one shared Runtime worker pool, an owned\nTaskScope, a cooperative stop token, arguments, exit status and named native\nattachments. It does not include or link iiGUI, LVUI, LVRS, Qt or an OS widget API.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 8,
+      "end_line": 15,
+      "raw": "`Application::frame_loop()` owns the same native frame phases for apps and games,\non the application's EventLoop. `ApplicationOptions::frames` configures fixed-step,\ndelta clamp, callback capacity and catch-up budget. Registration alone starts no\ntimer or display polling. A native display host can call `step(timestamp)` once\nper display callback; a headless driver can use `poll` or the explicit timer-based\n`FrameLoop::run`. A duration timer is not a display synchronization source.\nDuring shutdown Core retires frame callback captures after workers finish and\nbefore attachments deactivate, so they cannot retain a view/backend past detach.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 16,
+      "end_line": 16,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 17,
+      "end_line": 23,
+      "raw": "An upper module supplies an `ApplicationDriver` through ordinary C++ callbacks.\nIts `run(start)` invokes `start` exactly once when native attachment is safe and\nreturns after the native host has closed. It must not retain start. Core activates\nattachments in declaration order; shutdown retires owned work and deactivates\nattempted attachments in reverse order, including partially failed activation.\nThe first error is preserved while later cleanup continues. A missing driver,\nduplicate attachment, duplicate start, wrong owner or a second exec is rejected.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 24,
+      "end_line": 24,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 25,
+      "end_line": 35,
+      "raw": "`Application::post` submits to the shared worker pool through its owned TaskScope.\nOn exit Core requests cooperative stop, stops event admission, cancels pending\nowned work, waits for active work and joins workers before attachment deactivation.\nActive work must cooperate with stop or finish; no C++ thread is forcibly killed.\n`Application::workers()` borrows that same Runtime for existing SDK APIs such as\nSerialQueue and Concurrent; it does not construct another pool. Direct submissions\nto it remain subject to Core's runtime shutdown/join barrier.\nExternal runtimes and unowned work remain the caller's responsibility. Lifecycle\nmethods and destruction require the construction thread. `stop_token`, `post`\nand the EventLoop's weak Sender provide worker communication. The application\nowner must outlive callers; a borrowed Application reference is not a weak handle.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 36,
+      "end_line": 36,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "heading",
+      "start_line": 37,
+      "end_line": 37,
+      "raw": "## The final executable\n",
+      "level": 2,
+      "title": "The final executable"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 38,
+      "end_line": 38,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "fenced_code",
+      "start_line": 39,
+      "end_line": 42,
+      "raw": "```cmake\nfind_package(iiSDKCore 0.18 CONFIG REQUIRED COMPONENTS Runtime)\niisdkcore_add_application(MyApp SOURCES application.cpp)\n```\n",
+      "language": "cmake",
+      "code": "find_package(iiSDKCore 0.18 CONFIG REQUIRED COMPONENTS Runtime)\niisdkcore_add_application(MyApp SOURCES application.cpp)\n",
+      "closed": true
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 43,
+      "end_line": 43,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 44,
+      "end_line": 49,
+      "raw": "Core's installed `ApplicationEntry.cpp` supplies `main`. The application supplies\n`ii::runtime::configure_application(Application&)`, returning Result<void> after\nconfiguring a driver and attachments. Core then calls exec, propagates errors\nand returns the application exit status. Configuration failure also retires owned\nwork. Standard native C++ compilation/linking produces the executable; there is\nno language VM, interpreter or runtime code compilation.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 50,
+      "end_line": 50,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 51,
+      "end_line": 56,
+      "raw": "`iisdkcore_add_application` accepts `GUI`, `SOURCES`, `LIBRARIES` and `RESOURCES`.\nIt enforces C++23 without compiler extensions and links Core Runtime. GUI targets\nuse a macOS app bundle or Windows GUI subsystem as appropriate. Resources are\nattached to the macOS bundle; other targets receive a resources directory beside\nthe executable. CRT arguments are preserved as strings; target-specific argument\nencoding and a production distribution/signing policy remain application concerns.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 57,
+      "end_line": 57,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "heading",
+      "start_line": 58,
+      "end_line": 58,
+      "raw": "## SDK GUI programming\n",
+      "level": 2,
+      "title": "SDK GUI programming"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 59,
+      "end_line": 59,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 60,
+      "end_line": 64,
+      "raw": "iiGUI's `attach_application` installs a native OS driver borrowing the exact Core\nEventLoop. `view_attachment` adapts a native C++ object's attach/detach methods to\nCore's generic attachment record. LVUI AOT emits an instantiable C++ widget class\nwith that interface. The same interface accepts an ordinary hand-written C++\nwidget; Core knows neither widget names nor declarative syntax.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 65,
+      "end_line": 65,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "fenced_code",
+      "start_line": 66,
+      "end_line": 77,
+      "raw": "```cpp\n#include \"MainView.generated.h\"\n#include <iiGUI/Application.h>\n\nii::core::Result<void> ii::runtime::configure_application(Application& app) {\n    using View = lvui_generated::MainView;\n    auto host = ii::gui::attach_application(app, View::options());\n    if (!host) return std::unexpected(host.error());\n    return app.attach(ii::gui::view_attachment(\n        \"main\", *host, std::make_shared<View>()));\n}\n```\n",
+      "language": "cpp",
+      "code": "#include \"MainView.generated.h\"\n#include <iiGUI/Application.h>\n\nii::core::Result<void> ii::runtime::configure_application(Application& app) {\n    using View = lvui_generated::MainView;\n    auto host = ii::gui::attach_application(app, View::options());\n    if (!host) return std::unexpected(host.error());\n    return app.attach(ii::gui::view_attachment(\n        \"main\", *host, std::make_shared<View>()));\n}\n",
+      "closed": true
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 78,
+      "end_line": 78,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 79,
+      "end_line": 82,
+      "raw": "The GUI adapter owns platform window behavior and native controls. A closing\nwindow revokes native handles immediately. The generated C++ widget retains its\nimported C++ backend until Core finishes owned work and detaches that widget.\nLVRS supplies appearance data/fonts, without adding a Qt/QML runtime dependency.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 83,
+      "end_line": 83,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 84,
+      "end_line": 88,
+      "raw": "Tests in `tests/application.cpp` cover ordered lifetime, partial rollback, wrong\nthread, single-use/driver contracts and worker retirement. `application_entry.cpp`\nis compiled with the actual Core entry source. Core's full dependency and sealed\nrecord checks also include these additions. Interactive GUI/runtime verification\nbelongs to iiGUI and does not establish Windows/Linux/mobile execution on a Mac.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Native application ownership and final executable",
+      "anchor": "native-application-ownership-and-final-executable",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000011",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "The final executable",
+      "anchor": "the-final-executable",
+      "start_line": 37
+    },
+    {
+      "block_id": "b000019",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "SDK GUI programming",
+      "anchor": "sdk-gui-programming",
+      "start_line": 58
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000007",
+        "line": 19,
+        "text": "returns after the native host has closed. It must not retain start. Core activates",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000009",
+        "line": 28,
+        "text": "Active work must cooperate with stop or finish; no C++ thread is forcibly killed.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000009",
+        "line": 35,
+        "text": "owner must outlive callers; a borrowed Application reference is not a weak handle.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:05afb52a7d1934f8ce76c00a9718376b0cf4312a122ea84cf459f22cde04aa66",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/performance.md",
+    "sha256": "8b1e6a55a08cf9f3d59c7da184a1410ecbd06ad2c13f1988387842ebd4dde13a",
+    "bytes": 1689,
+    "line_count": 26,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Runtime performance contracts",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Runtime performance contracts\n",
+      "level": 1,
+      "title": "Runtime performance contracts"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 10,
+      "raw": "The event loop keeps a dense private index of live reservations. Steady-state\nreadiness, deadlines and dispatch inspect live slots rather than the configured\nmaximum capacity. Ordinary task retirement does not rescan real-time utilization;\nreal-time admission/retirement still recompute the exact reserved sum. The extra\nindex and per-slot position use two size_t values per capacity slot. Capacity,\nbackpressure, generational token identity, FIFO within priority, the 4:2:1 weighted\npriority wheel and real-time EDF order remain unchanged. User captures still\nretire outside loop locks. Stop retains its bounded one-time capacity traversal.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 11,
+      "end_line": 11,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 12,
+      "end_line": 16,
+      "raw": "Normal dispatch collects the oldest eligible task per priority in one pass, then\nadvances the same priority wheel. Callback cancellation and slot reuse cannot\nchange FIFO order. The runtime regression covers a sparsely populated 65,536-slot\nloop, non-tail cancellations, reused slots, mixed priorities and future deadlines.\nExisting I/O, host, real-time, cleanup and concurrency tests remain applicable.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 17,
+      "end_line": 17,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 18,
+      "end_line": 22,
+      "raw": "UTF-8 validation skips ASCII runs in alignment-safe eight-byte loads. Native byte\norder does not affect the high-bit test; non-ASCII scalar validation keeps its\noverlong, surrogate, truncation and range rejection. Tests compare all 65,536\npossible two-byte inputs with UTF-16 conversion and cover invalid sequences across\nword boundaries and embedded NUL. No platform SIMD extension or Qt is required.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 23,
+      "end_line": 23,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 24,
+      "end_line": 26,
+      "raw": "Measured results and module-wide source review evidence are recorded under\n`SDK/build/performance-20261020/`. These method measurements do not establish\nwhole-application frame rate or memory consumption.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Runtime performance contracts",
+      "anchor": "runtime-performance-contracts",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000007",
+        "line": 22,
+        "text": "word boundaries and embedded NUL. No platform SIMD extension or Qt is required.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000009",
+        "line": 25,
+        "text": "`SDK/build/performance-20261020/`. These method measurements do not establish",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

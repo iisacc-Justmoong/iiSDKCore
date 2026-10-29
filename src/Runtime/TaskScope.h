@@ -77,6 +77,9 @@ public:
     // Capture destructors still run synchronously; close() is the final barrier.
     void request_close() const;
     [[nodiscard]] ThreadResult close() const;
+    // Close admission/cancel queued work and finish only if all callbacks,
+    // captures and executor slots have retired. Never wait for active work.
+    [[nodiscard]] ThreadResult try_close() const;
     [[nodiscard]] bool is_current() const noexcept;
     [[nodiscard]] bool closed() const;
     [[nodiscard]] Sender sender() const { return Sender(impl_); }
@@ -86,5 +89,6 @@ private:
     static std::shared_ptr<Job> prepare(const std::shared_ptr<Impl>&,Task);
     static Task callback(const std::shared_ptr<Job>&);
     static void registered(const std::shared_ptr<Job>&, TaskToken);
+    [[nodiscard]] ThreadResult finish(bool wait) const;
 };
 } // namespace ii::runtime

@@ -1,0 +1,638 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:17056c6bc11af547f0814368229417124d2ccb9b76fac5f100fe286c14dd8c08",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/process.md",
+    "sha256": "848aeb4cc9c4b7d43c5f07a644c4736a3d1ba5a81fe087ae6376c30269eb5854",
+    "bytes": 11379,
+    "line_count": 175,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "Native process ownership (0.15.0)",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Native process ownership (0.15.0)\n",
+      "level": 1,
+      "title": "Native process ownership (0.15.0)"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 8,
+      "raw": "`<iiSDKCore/Process/Process.h>` belongs to the compiled Runtime target. It\nprovides argument-vector execution, child-local environment/cwd, standard pipes,\nexit status and owned-tree cancellation using OS process APIs. It has no Qt,\nfile-provider, command shell, interpreter or per-process worker dependency.\niiSDKBuilder 0.1.1 is the first consumer. Applications can use the same API for\nnative helpers; a platform refusing process launch returns `unsupported`.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "fenced_code",
+      "start_line": 10,
+      "end_line": 29,
+      "raw": "```cpp\n#include <iiSDKCore/Process/Process.h>\n\nusing namespace ii::process;\nLaunch launch;\nlaunch.arguments = {\"cmake\", \"--version\"}; // argv[0], then literal arguments\nlaunch.input = Input::closed;\nlaunch.error = ErrorOutput::merge_output;\nlaunch.environment[\"EXAMPLE_MODE\"] = \"build\";\nlaunch.environment[\"UNWANTED_VARIABLE\"] = std::nullopt;\n// launch.working_directory = an_existing_native_path;\nauto child = Process::start(launch);\nif (!child) { /* spawn/validation failure, with a system_error cause */ }\nelse {\n    CommunicationOptions options;\n    options.deadline = ii::core::Deadline::after(std::chrono::seconds(30));\n    auto result = child->communicate({}, options);\n    // Check result, exit.reason, exit.code/signal and truncation flags.\n}\n```\n",
+      "language": "cpp",
+      "code": "#include <iiSDKCore/Process/Process.h>\n\nusing namespace ii::process;\nLaunch launch;\nlaunch.arguments = {\"cmake\", \"--version\"}; // argv[0], then literal arguments\nlaunch.input = Input::closed;\nlaunch.error = ErrorOutput::merge_output;\nlaunch.environment[\"EXAMPLE_MODE\"] = \"build\";\nlaunch.environment[\"UNWANTED_VARIABLE\"] = std::nullopt;\n// launch.working_directory = an_existing_native_path;\nauto child = Process::start(launch);\nif (!child) { /* spawn/validation failure, with a system_error cause */ }\nelse {\n    CommunicationOptions options;\n    options.deadline = ii::core::Deadline::after(std::chrono::seconds(30));\n    auto result = child->communicate({}, options);\n    // Check result, exit.reason, exit.code/signal and truncation flags.\n}\n",
+      "closed": true
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 30,
+      "end_line": 30,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "heading",
+      "start_line": 31,
+      "end_line": 31,
+      "raw": "## Input and execution environment\n",
+      "level": 2,
+      "title": "Input and execution environment"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 32,
+      "end_line": 32,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 33,
+      "end_line": 38,
+      "raw": "Arguments and explicit environment keys/values require valid UTF-8 and reject\nembedded NUL. `working_directory` is a native `std::filesystem::path`; empty\ninherits, a relative path is relative to the host cwd at launch. The child alone\nchanges directory. The host must coordinate any external process-global cwd or\nenvironment mutations while snapshotting/launching. Core never calls chdir,\nsetenv, putenv or SetEnvironmentVariable on the host.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 39,
+      "end_line": 39,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 40,
+      "end_line": 47,
+      "raw": "`current_environment()` returns an owned snapshot. POSIX inherits existing\nnative environment bytes without a Unicode rewrite; explicitly supplied values\nare UTF-8. Windows snapshots UTF-16 into UTF-8 and builds a case-insensitively\nsorted Unicode environment block, preserving native drive-cwd entries. Windows\noverrides/removals match names case-insensitively; POSIX names are case-sensitive.\n`inherit_environment=false` begins with an empty environment. Empty string and\nunset are distinct. A snapshot contains the host's values; callers decide what\nthey may expose or log.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 48,
+      "end_line": 48,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 49,
+      "end_line": 56,
+      "raw": "Executable lookup uses the child's effective PATH and cwd. POSIX uses\n`/usr/bin:/bin` if PATH is absent; an empty PATH component searches child cwd.\nWindows searches child cwd followed by its PATH, adding `.exe` for a bare name.\nAn executable containing a directory is resolved in child cwd. Arguments are\npassed literally: shell substitutions, redirection, globbing and `.bat`/script\ncommand parsing are not performed. Windows quoting follows the CRT argv rules;\na child with a custom command-line parser owns that different interpretation.\nNo ENOEXEC shell fallback is used. Windows retains the original argv[0].\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 57,
+      "end_line": 57,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "heading",
+      "start_line": 58,
+      "end_line": 58,
+      "raw": "## Ownership, exits and cancellation\n",
+      "level": 2,
+      "title": "Ownership, exits and cancellation"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 59,
+      "end_line": 59,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 60,
+      "end_line": 67,
+      "raw": "`Process` is a move-only RAII owner. The implementation keeps identity until\ncleanup: a POSIX child is observed with WNOWAIT, remaining group members are\nkilled, and only then is the direct child reaped. Windows creates a suspended\nchild, assigns it to a kill-on-close Job Object before resume, and uses an exact\ninherited-handle whitelist. Unrelated inheritable descriptors/handles are not\npassed to the child. Closed host stdin/stdout/stderr are supported when the\ncorresponding child stream is piped or discarded; explicit inheritance of an\ninvalid host stream fails.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 68,
+      "end_line": 68,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 69,
+      "end_line": 77,
+      "raw": "`poll()` and `wait_for()` return an optional stable terminal `Exit`.\n`wait_for()` timing out returns no exit and leaves the child running; it does not\ndrain pipes. `cancel()` kills the owned tree and waits/reaps the direct child;\nrepeated calls return the original exit. `communicate()` cancellation/deadline\nreturns partial output and `cancelled`/`timed_out`. Nonzero normal exits and POSIX\nsignal exits are outcomes, while validation/spawn/wait/pipe failures are\n`core::Error`, retaining a `system_error` exception cause for native failures.\nWindows exit codes retain all 32 bits. `id()` is diagnostic, not a transferable\nownership capability. An already observed exit wins over later cancellation.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 78,
+      "end_line": 78,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 79,
+      "end_line": 88,
+      "raw": "Destruction and move-assignment retire the previous owned tree, reap the direct\nchild and close all standard-channel aliases. A normal root exit also kills\nremaining owned descendants: this is a structured lifetime, not detached launch.\nThere is no detach or graceful-termination promise. SIGKILL/TerminateJobObject\nis deliberate for builder cancellation, and does not roll back external effects.\nA POSIX descendant that deliberately leaves the process group is outside this\ncontract; this is not a security sandbox. Orphan descendant reaping belongs to\nthe OS; Core reaps its direct child. The host must not use SIGCHLD=SIG_IGN,\nSA_NOCLDWAIT, or competing waits to reap Core-owned children. If identity was\nlost, Core reports the wait failure and never signals a possibly reused PID.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 89,
+      "end_line": 89,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 90,
+      "end_line": 96,
+      "raw": "Control calls serialize internally. Only one `communicate()` can run at a time;\nconcurrent admission returns `busy`. Object movement/destruction must not race\nmember calls. Cancel and drain externally submitted Channel waits/transfers\nbefore removing their Process owner; an active Channel operation can return\nbusy to close. Pipe transfers belong to one consumer: do not drain through\nChannel/EventLoop while communicate is using the same endpoint. Callback code\nmust not reenter communication or destroy the process owner.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 97,
+      "end_line": 97,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "heading",
+      "start_line": 98,
+      "end_line": 98,
+      "raw": "## Pipes, bounded capture and runtime composition\n",
+      "level": 2,
+      "title": "Pipes, bounded capture and runtime composition"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 99,
+      "end_line": 99,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 100,
+      "end_line": 106,
+      "raw": "Defaults are three pipes. Input can instead be closed (the OS null input) or\ninherited; stdout/stderr can be discarded or inherited; stderr can merge into\nstdout's actual OS endpoint. An unpiped/merged endpoint returns an empty Channel.\n`input()/output()/error()` are owning Channel aliases. Closing one closes all\naliases, including the owner, and explicit pipe closure during communication is\nan error. Native handles remain in the implementation or the explicit platform\nextension `io::NativePipe::adopt`.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 107,
+      "end_line": 107,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 108,
+      "end_line": 123,
+      "raw": "NativePipe takes ownership even on validation/allocation failure, verifies a\npipe/FIFO, and configures nonblocking transfers. It cannot adopt a regular file;\nNativeFile retains its regular-file-only contract. A pipe is nonseekable and\nnonflushable, with partial transfer, would_block, EOF and closed-peer results.\nPOSIX writes suppress newly generated SIGPIPE without changing the host's signal\nhandler or consuming a previously pending signal. Windows uses byte-mode named\npipes with PIPE_NOWAIT. Read readiness includes EOF. Windows writable readiness\nis an advisory probe; a following nonblocking write can still return would_block.\nAlready nonblocking byte-mode read handles are adopted without changing their\nmode. This supports read-only server handles without FILE_WRITE_ATTRIBUTES;\nhandles that still require a mode change must have the Windows access rights\nrequired by SetNamedPipeHandleState. The native ownership regression checks\nread-only adoption, would-block, transfer and handle retirement on Windows.\nThe Windows process handle-accounting test first exercises one real missing-file\nspawn error to warm process-global error-handling resources, then requires the\nexact same handle count after repeated successful and rejected launches.\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 124,
+      "end_line": 124,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "paragraph",
+      "start_line": 125,
+      "end_line": 134,
+      "raw": "`communicate` pumps stdin/stdout/stderr fairly on the calling thread, closes input\nat the end of the supplied bytes, and drains outputs through EOF. Binary NUL is\npreserved. Each capture defaults to 8 MiB, with explicit truncation flags; limits\nof zero disable capture. The optional synchronous sink still receives every\nchunk after capture fills. Input_closed_early records a peer closing stdin before\nall bytes were sent. A throwing sink or allocation failure retires/reaps the tree\nbefore returning an error with its exception cause. Sink code must return\npromptly; Core cannot preempt application callback code. After root cleanup,\nexternal escaped pipe holders have a two-second EOF drain limit, then failure\nis reported rather than hanging indefinitely or claiming complete capture.\n"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 135,
+      "end_line": 135,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 136,
+      "end_line": 141,
+      "raw": "No thread is created by Process. Run blocking communication on an existing\nRuntime worker, compose with OperationOwner/TaskScope, or drive the pipe Channels\nthrough EventLoop::watch/read/write. Do not block a GUI dispatch thread. The\nexisting read/write buffer ownership and readiness cancellation contracts apply.\nA process wait alone can block a full-pipe writer: use communicate or concurrently\npump all enabled endpoints. Process destruction is the terminal resource boundary.\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 142,
+      "end_line": 142,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "paragraph",
+      "start_line": 143,
+      "end_line": 146,
+      "raw": "Core creates pipe handles and opens OS null devices; it never creates application\nlog/document files. Builder's streaming log is owned and presented by\n`iiFileProvider::native::OutputFile`. Its sink sets capture limits to zero, so\nbuild output does not accumulate in Core memory.\n"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 147,
+      "end_line": 147,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "heading",
+      "start_line": 148,
+      "end_line": 148,
+      "raw": "## Platform contract and evidence\n",
+      "level": 2,
+      "title": "Platform contract and evidence"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 149,
+      "end_line": 149,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "table",
+      "start_line": 150,
+      "end_line": 157,
+      "raw": "| Target | Compiled implementation |\n|---|---|\n| macOS 10.15+ | posix_spawn, child cwd file action, CLOEXEC_DEFAULT, process group, waitid/waitpid |\n| Linux | POSIX spawn when libc exposes child cwd and closefrom file actions (for example glibc 2.34+); otherwise capabilities are false |\n| Windows | CreateProcessW, Unicode environment/cwd, named byte pipes, exact handle whitelist, owned Job Object |\n| Android | Same native POSIX path when NDK API level exposes cwd actions and CLOEXEC_DEFAULT (API 34+); lower configured API reports unsupported |\n| iOS | Process launch and process pipes report unsupported; no interpreter bridge |\n| WASM | Process launch and process pipes report unsupported, including under Node; no host child_process bridge |\n",
+      "columns": [
+        "Target",
+        "Compiled implementation"
+      ],
+      "rows": [
+        [
+          "macOS 10.15+",
+          "posix_spawn, child cwd file action, CLOEXEC_DEFAULT, process group, waitid/waitpid"
+        ],
+        [
+          "Linux",
+          "POSIX spawn when libc exposes child cwd and closefrom file actions (for example glibc 2.34+); otherwise capabilities are false"
+        ],
+        [
+          "Windows",
+          "CreateProcessW, Unicode environment/cwd, named byte pipes, exact handle whitelist, owned Job Object"
+        ],
+        [
+          "Android",
+          "Same native POSIX path when NDK API level exposes cwd actions and CLOEXEC_DEFAULT (API 34+); lower configured API reports unsupported"
+        ],
+        [
+          "iOS",
+          "Process launch and process pipes report unsupported; no interpreter bridge"
+        ],
+        [
+          "WASM",
+          "Process launch and process pipes report unsupported, including under Node; no host child_process bridge"
+        ]
+      ]
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 158,
+      "end_line": 158,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "paragraph",
+      "start_line": 159,
+      "end_line": 162,
+      "raw": "Capability is a compiled OS-API contract, not proof that a sandbox/permission\npolicy permits a particular executable. Cross-compilation is distinct from\nexecution. Actual local, sanitizer and installed-consumer results are recorded\nin [validation](validation.md).\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 163,
+      "end_line": 163,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "paragraph",
+      "start_line": 164,
+      "end_line": 168,
+      "raw": "Implementation references: [Microsoft redirected child I/O](https://learn.microsoft.com/en-us/windows/win32/procthread/creating-a-child-process-with-redirected-input-and-output),\n[Job Objects](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects),\n[pipe wait modes](https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipe-type-read-and-wait-modes),\nand the target SDK's spawn.h/unistd.h/wait.h declarations. The build checks\nactual POSIX extension availability instead of substituting a shell runtime.\n"
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 169,
+      "end_line": 169,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "paragraph",
+      "start_line": 170,
+      "end_line": 171,
+      "raw": "The communicate input view remains borrowed for the complete call. An\nasynchronously submitted caller must capture owning input bytes for that lifetime.\n"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 172,
+      "end_line": 172,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "heading",
+      "start_line": 173,
+      "end_line": 173,
+      "raw": "## 빠른 자식 종료와 출력 감시 취소\n",
+      "level": 2,
+      "title": "빠른 자식 종료와 출력 감시 취소"
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 174,
+      "end_line": 174,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "paragraph",
+      "start_line": 175,
+      "end_line": 175,
+      "raw": "출력을 관측한 콜백이 취소를 요청하는 동안 자식이 먼저 종료할 수 있다. Darwin에서는 `waitid`가 실행 중을 반환한 직후 그룹이 좀비만 남은 상태가 되어 `killpg`가 `EPERM`을 반환할 수 있다. 이 경우 재사용되지 않은 소유 PID를 유지한 채 모든 그룹 구성원이 종료되었음을 확인해야 한다. 초기 관측이 실행 중이었다는 이유만으로 이 확인을 생략하지 않는다. 살아 있는 구성원, 열거 실패, 다른 권한 오류는 계속 오류로 반환한다. `tests/process.cpp`는 즉시 종료 자식의 첫 출력에서 취소하는 사례를 64회 검증한다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Native process ownership (0.15.0)",
+      "anchor": "native-process-ownership-0150",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000007",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Input and execution environment",
+      "anchor": "input-and-execution-environment",
+      "start_line": 31
+    },
+    {
+      "block_id": "b000015",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Ownership, exits and cancellation",
+      "anchor": "ownership-exits-and-cancellation",
+      "start_line": 58
+    },
+    {
+      "block_id": "b000025",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Pipes, bounded capture and runtime composition",
+      "anchor": "pipes-bounded-capture-and-runtime-composition",
+      "start_line": 98
+    },
+    {
+      "block_id": "b000037",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Platform contract and evidence",
+      "anchor": "platform-contract-and-evidence",
+      "start_line": 148
+    },
+    {
+      "block_id": "b000047",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "빠른 자식 종료와 출력 감시 취소",
+      "anchor": "빠른-자식-종료와-출력-감시-취소",
+      "start_line": 173
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000009",
+        "line": 36,
+        "text": "changes directory. The host must coordinate any external process-global cwd or",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000009",
+        "line": 37,
+        "text": "environment mutations while snapshotting/launching. Core never calls chdir,",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000021",
+        "line": 86,
+        "text": "the OS; Core reaps its direct child. The host must not use SIGCHLD=SIG_IGN,",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000021",
+        "line": 88,
+        "text": "lost, Core reports the wait failure and never signals a possibly reused PID.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000023",
+        "line": 91,
+        "text": "concurrent admission returns `busy`. Object movement/destruction must not race",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000023",
+        "line": 94,
+        "text": "busy to close. Pipe transfers belong to one consumer: do not drain through",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000023",
+        "line": 96,
+        "text": "must not reenter communication or destroy the process owner.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000029",
+        "line": 118,
+        "text": "handles that still require a mode change must have the Windows access rights",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000029",
+        "line": 119,
+        "text": "required by SetNamedPipeHandleState. The native ownership regression checks",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000031",
+        "line": 131,
+        "text": "before returning an error with its exception cause. Sink code must return",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000033",
+        "line": 138,
+        "text": "through EventLoop::watch/read/write. Do not block a GUI dispatch thread. The",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000035",
+        "line": 143,
+        "text": "Core creates pipe handles and opens OS null devices; it never creates application",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000045",
+        "line": 171,
+        "text": "asynchronously submitted caller must capture owning input bytes for that lifetime.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000049",
+        "line": 175,
+        "text": "출력을 관측한 콜백이 취소를 요청하는 동안 자식이 먼저 종료할 수 있다. Darwin에서는 `waitid`가 실행 중을 반환한 직후 그룹이 좀비만 남은 상태가 되어 `killpg`가 `EPERM`을 반환할 수 있다. 이 경우 재사용되지 않은 소유 PID를 유지한 채 모든 그룹 구성원이 종료되었음을 확인해야 한다. 초기 관측이 실행 중이었다는 이유만으로 이 확인을 생략하지 않는다. 살아 있는 구성원, 열거 실패, 다른 권한 오류는 계속 오류로 반환한다. `tests/process.cpp`는 즉시 종료 자식의 첫 출력에서 취소하는 사례를 64회 검증한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000041",
+        "label": "validation",
+        "target": "validation.md",
+        "kind": "relative",
+        "line": 162
+      },
+      {
+        "block_id": "b000043",
+        "label": "Microsoft redirected child I/O",
+        "target": "https://learn.microsoft.com/en-us/windows/win32/procthread/creating-a-child-process-with-redirected-input-and-output",
+        "kind": "external",
+        "line": 164
+      },
+      {
+        "block_id": "b000043",
+        "label": "Job Objects",
+        "target": "https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects",
+        "kind": "external",
+        "line": 165
+      },
+      {
+        "block_id": "b000043",
+        "label": "pipe wait modes",
+        "target": "https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipe-type-read-and-wait-modes",
+        "kind": "external",
+        "line": 166
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000039",
+        "columns": [
+          "Target",
+          "Compiled implementation"
+        ],
+        "rows": [
+          [
+            "macOS 10.15+",
+            "posix_spawn, child cwd file action, CLOEXEC_DEFAULT, process group, waitid/waitpid"
+          ],
+          [
+            "Linux",
+            "POSIX spawn when libc exposes child cwd and closefrom file actions (for example glibc 2.34+); otherwise capabilities are false"
+          ],
+          [
+            "Windows",
+            "CreateProcessW, Unicode environment/cwd, named byte pipes, exact handle whitelist, owned Job Object"
+          ],
+          [
+            "Android",
+            "Same native POSIX path when NDK API level exposes cwd actions and CLOEXEC_DEFAULT (API 34+); lower configured API reports unsupported"
+          ],
+          [
+            "iOS",
+            "Process launch and process pipes report unsupported; no interpreter bridge"
+          ],
+          [
+            "WASM",
+            "Process launch and process pipes report unsupported, including under Node; no host child_process bridge"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

@@ -139,7 +139,9 @@ void TaskScope::request_close() const {
         lock.unlock(); (void)token.cancel(); lock.lock();
     }
 }
-ThreadResult TaskScope::close() const {
+ThreadResult TaskScope::close() const { return finish(true); }
+ThreadResult TaskScope::try_close() const { return finish(false); }
+ThreadResult TaskScope::finish(bool wait) const {
     if (is_current()) return error(ThreadErrorCode::self_join);
     request_close();
     std::unique_lock lock(impl_->mutex);
@@ -158,7 +160,7 @@ ThreadResult TaskScope::close() const {
             continue;
         }
         if (impl_->jobs.empty() && !impl_->active && !impl_->cleaning) break;
-        if (browser_host() || Runtime::is_worker_thread()) return error(ThreadErrorCode::would_block);
+        if (!wait || browser_host() || Runtime::is_worker_thread()) return error(ThreadErrorCode::would_block);
         // The executor returns quota just after destroying its task wrapper.
         // Poll only these final retirement records, which hold no user resources.
         const bool retiring_only=!impl_->active && !impl_->cleaning &&

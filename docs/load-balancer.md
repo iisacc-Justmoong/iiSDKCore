@@ -1,5 +1,10 @@
 # 네이티브 컴퓨팅 리소스 로드 밸런서
 
+0.20의 [ComputeRouter](compute-router.md)는 동적 영역·범위와 실제 Runtime 관측을
+조합한다. 공통 acquire(request, candidates)는 호출 중 빌린 대상 ID 집합 안에서만
+선택하며 명시적으로 빈 집합은 overloaded이다. 그룹·건강·자원 한도는 후보에도 그대로
+적용한다. 기본 acquire(request)의 전체 대상 선택은 유지한다.
+
 0.19의 [Application·Classic 라우팅과 비동기 예약](load-routing.md)은 대상 그룹,
 least_outstanding·flow_hash 정책과 LoadLease의 수명을 확장한다. 아래 0.18 이전의
 기본 계산 분산 계약과 검증 기록은 유지하며 새 예약의 종료 규칙은 해당 문서를 따른다.

@@ -1,5 +1,12 @@
 # iiSDKCore
 
+Typed observable read scopes collect dependencies inside ordinary native C++
+getters without exposing private fields or depending on a GUI framework.
+Link `iiSDKCore::Observation` to share that execution state across hosted modules;
+`Contracts` remains independent of both observation execution and the worker Runtime.
+See [observable contracts](docs/observable.md) for lexical collection, lifetime,
+nesting, execution-domain isolation and bounded admission.
+
 Native applications can now use [Core-owned application lifetime and executable entry](docs/application.md).
 `Application` owns the event loop, shared workers and native attachment lifecycle;
 `iisdkcore_add_application` supplies Core's main and links the final C++23 program.
@@ -12,11 +19,12 @@ or manual stepping. Core retires frame captures before detaching application own
 back overshoot for native app/game animation. These are Values-only C++23 math;
 frame cadence and framework-specific motion preferences remain separate owners.
 
-[Windows 빌드 및 실행](docs/WindowsBuildAndRun.md)
+[Windows build and execution](docs/WindowsBuildAndRun.md)
 
-Package release: **0.19.0** (2026-10-25). Application/Classic routing adds
-bounded target groups, least-outstanding requests and lifetime-owned asynchronous
-reservations. Rebuild binary consumers of the extended public load-balancing records.
+Package release: **0.20.0** (2026-10-25). Dynamic compute routing adds logical
+availability zones, configurable execution scopes, live Runtime pressure monitoring
+and owned native-process routing. Application/Classic routing and asynchronous
+reservations from 0.19 remain available.
 Earlier versioned feature notes remain historical.
 
 
@@ -37,6 +45,7 @@ for package selection, ownership and the 0.12 migration.
 - [Concurrent computations](docs/concurrent.md): instance-owned `Concurrent` work on existing Runtime workers, `Future`/`Promise` results and progress, cooperative cancellation and suspension, coalescing `FutureWatcher` delivery, explicit `FutureSynchronizer` waits, configurable `TaskBuilder`, ordered parallel map/filter and sequential reductions. Inputs are owned standard vectors; Qt and global thread pools are not required. See the [runnable example](examples/concurrent.cpp).
 - [Native compute load balancing](docs/load-balancer.md): bounded dispatch across existing TaskExecutor instances, capacity-normalized load or round-robin routing, declared memory/capability admission, health thresholds, draining, cancellation-safe cleanup and per-target statistics. No AWS, Qt, remote protocol or extra worker dependency is introduced. See the [two-Runtime example](examples/load_balancer.cpp).
 - [Application and Classic load routing](docs/load-routing.md): priority-ordered host/path/method/header/query routing, independent target groups, least-outstanding HTTP requests, round-robin TCP/TLS admission and asynchronous `LoadLease` ownership through response completion. Network flow keys and backend endpoints belong to [iiNetwork](../iiNetwork/docs/LoadBalancer.md). See the [runnable example](example/load_routing.cpp).
+- [Dynamic compute routing](docs/compute-router.md): reconfigurable availability zones and execution scopes, shared budgets, live worker queue/processing snapshots, freshness-aware resource observations, periodic monitoring on an existing EventLoop and structured native-process routing through existing workers. See the [runnable example](example/compute_router.cpp).
 - [Selective live query streams](docs/query-stream.md): typed filter/projection queries, independent subscribers, query revisions, bounded output rings, executor backpressure/retry and removal barriers. Existing Runtime workers, EventLoop/HostLoop and QueryPort supply execution and control.
 - [Native resources](docs/resources.md): deterministic indexed packs, 64-byte-aligned shared payloads, immutable embedded/owned/native-mapped views, explicit integrity/paging hints and native lifetime after channel/pack removal. iiSDKBuilder supplies the build-host compiler and target selection; iiFileProvider owns outputs. Core imports neither module.
 
@@ -158,3 +167,16 @@ SPDX-License-Identifier: MIT
 The original code and documentation in this repository are licensed under the
 [MIT License](LICENSE). Third-party code, libraries, fonts, tools, and model
 weights retain their respective licenses.
+
+## Freestanding Embedded component
+
+`iiSDKCore::Embedded` provides bounded native C++23 callbacks, timers, cancellation and dispatch budgets without allocation, threads, OS services or an interpreter. `IISDKCORE_EMBEDDED_ONLY=ON` builds this component with the mandatory architecture policy check. See [the Embedded contract](docs/embedded.md).
+
+<!-- workspace-docs:readme:start -->
+## Documentation entry points
+
+- Human overview: this English `README.md`.
+- Agent instructions: [AGENT.md](AGENT.md).
+- Human documentation: [documentation index](docs/README.md).
+- Structured agent documentation: [agent index](docs/agent-index.json).
+<!-- workspace-docs:readme:end -->
