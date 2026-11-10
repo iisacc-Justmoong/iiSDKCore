@@ -1,0 +1,121 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:c0e7026934cd65907c36b94b33a984b9461fc1ea02e1bde02ee4b904f0b75c4c",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/static-plugins.md",
+    "sha256": "f082d348fd03e1532678d4b9a3c840f6abfc8dd856b8bc85210f02c922f4068d",
+    "bytes": 1553,
+    "line_count": 20,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "앱별 정적 플러그인",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# 앱별 정적 플러그인\n",
+      "level": 1,
+      "title": "앱별 정적 플러그인"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 5,
+      "raw": "`IISDKCORE_STATIC_PLUGINS=ON`은 Core의 플러그인 동적 로더를 빌드에서 제외하고\n앱별로 생성한 정적 진입점 목록을 사용한다. 이 모드는 공유 Core를 허용하지 않으며\nObservation도 정적으로 연결한다. CPython 호스트는 이 모드와 함께 켤 수 없다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 7,
+      "end_line": 14,
+      "raw": "`IISDKCORE_STATIC_PLUGIN_SOURCES`는 플러그인 ABI의\n`ii_sdk_plugin_v1`을 구현하는 C++ 소스 목록이다. 빌드는 각 진입점을 고유한\n심볼로 바꾸고 목록과 구현을 동일한 `iiSDKCore` 정적 아카이브에 넣는다. 외부 앱\n소스가 필요한 include 경로는 `IISDKCORE_STATIC_PLUGIN_INCLUDE_DIRS`로 제공한다.\n`Plugin::open_static(identifier)`은 기술자의 식별자로 인스턴스를 생성하며,\n중복 식별자는 오류이다. 이 모드의 `Plugin::load(absolute_path)`는 파일을 열지\n않고 파일명에서 식별자를 추출해 정적 목록을 조회한다. 파일명과 식별자가 다른\n앱은 `open_static`을 사용해야 한다.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 15,
+      "end_line": 15,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 16,
+      "end_line": 20,
+      "raw": "`IISDKCORE_STATIC_PYTHON_SOURCES`와 `IISDKCORE_STATIC_PYTHON_COMPILER`는\n호스트 컴파일러가 지원하는 Python 부분 집합을 C++ 플러그인으로 생성하는 경계이다.\n변환 실패는 CMake 구성 실패이며 실행 시 CPython으로 대체하지 않는다. 빌드 도구가\n앱별 소스와 컴파일러를 제공하며 Core는 빌더 모듈을 찾거나 링크하지 않는다.\n데스크톱 기본 구성의 기존 동적 플러그인 경로는 정적 모드 밖에서만 유지된다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "앱별 정적 플러그인",
+      "anchor": "앱별-정적-플러그인",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000005",
+        "line": 14,
+        "text": "앱은 `open_static`을 사용해야 한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000007",
+        "line": 18,
+        "text": "변환 실패는 CMake 구성 실패이며 실행 시 CPython으로 대체하지 않는다. 빌드 도구가",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000007",
+        "line": 19,
+        "text": "앱별 소스와 컴파일러를 제공하며 Core는 빌더 모듈을 찾거나 링크하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

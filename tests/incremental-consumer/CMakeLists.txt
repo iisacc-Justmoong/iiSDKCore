@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.23)
+project(iiSDKCoreIncrementalConsumer LANGUAGES CXX)
+find_package(iiSDKCore CONFIG REQUIRED)
+enable_testing()
+add_executable(incremental_consumer main.cpp)
+target_link_libraries(incremental_consumer PRIVATE iiSDKCore::iiSDKCore)
+target_compile_features(incremental_consumer PRIVATE cxx_std_23)
+add_test(NAME incremental_consumer COMMAND incremental_consumer)

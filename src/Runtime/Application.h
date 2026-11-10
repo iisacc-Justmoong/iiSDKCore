@@ -3,10 +3,15 @@
 #include "TaskScope.h"
 #include "FrameLoop.h"
 #include "../Core/Result/Result.h"
+#include <functional>
 #include <span>
 #include <stop_token>
 #include <string>
 #include <vector>
+
+#define IISDKCORE_APPLICATION_CONFIGURATION_TRANSACTION_API 1
+#define IISDKCORE_APPLICATION_BEFORE_DRIVER_API 1
+#define IISDKCORE_APPLICATION_DRIVER_STOPPED_API 1
 
 namespace ii::runtime {
 class Application;
@@ -37,13 +42,25 @@ public:
     Application& operator=(const Application&) = delete;
     [[nodiscard]] core::Result<void> set_driver(ApplicationDriver);
     [[nodiscard]] core::Result<void> attach(ApplicationAttachment);
+    // Activate before the driver enters its native event loop, and retire after
+    // all driver-ready attachments and application-owned work have stopped.
+    [[nodiscard]] core::Result<void> attach_before_driver(ApplicationAttachment);
+    // Rolls back only driver/attachment registrations made by this callback.
+    // External side effects and independently submitted work remain caller-owned.
+    [[nodiscard]] core::Result<void> configure_atomically(
+        std::function<core::Result<void>(Application&)>);
     [[nodiscard]] core::Result<int> exec();
     [[nodiscard]] core::Result<void> quit(int exit_code = 0);
+    // A native driver may report its host stopped while its OS loop is still
+    // running. Call only on the owner thread after native callbacks have drained.
+    [[nodiscard]] core::Result<void> driver_stopped();
     [[nodiscard]] Submission post(Task, Priority = Priority::normal);
     [[nodiscard]] EventLoop& event_loop() noexcept;
     // Same native frame phases for applications and games. An external display
     // source calls step(); headless consumers can use the timer driver or poll.
-    [[nodiscard]] FrameLoop& frame_loop() noexcept;
+    [[nodiscard]] FrameLoop& frame_loop();
+    // Frame state is created only when frame_loop() is explicitly accessed.
+    [[nodiscard]] bool has_frame_loop() const noexcept;
     // Borrow for existing SDK APIs such as SerialQueue/Concurrent. This is the
     // same application pool, not another runtime. Application must outlive use.
     [[nodiscard]] Runtime& workers() noexcept;

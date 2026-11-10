@@ -65,6 +65,7 @@ struct LoadBalancer::Target final {
     std::stop_source stop;
     std::uint32_t successes=0,failures=0;
     std::exception_ptr failure;
+    std::shared_ptr<std::atomic<std::uint64_t>> version=std::make_shared<std::atomic<std::uint64_t>>(1);
     Target(SubmitFunction execute,LoadTargetOptions settings):options(std::move(settings)),submit(std::move(execute)) {
         statistics.name=options.name;
         statistics.capacity=options.capacity;
@@ -74,6 +75,11 @@ struct LoadBalancer::Target final {
         statistics.health=options.require_health_check ? TargetHealth::initial : TargetHealth::healthy;
     }
     Submission post(Task task,Priority priority) { return submit(std::move(task),priority); }
+    // Caller holds the balancer mutex.
+    void touch() noexcept {
+        const auto value=version->load(std::memory_order_relaxed);
+        if(value!=(std::numeric_limits<std::uint64_t>::max)()) version->store(value+1,std::memory_order_release);
+    }
 };
 
 struct LoadBalancer::Impl final {
@@ -146,6 +152,7 @@ struct LoadBalancer::Ticket final {
                 case Outcome::cancelled: ++all.cancelled; ++selected.cancelled; break;
             }
         } else { ++all.rejected; ++selected.rejected; }
+        target->touch();
         owner->changed.notify_all();
     }
     void admit() {
@@ -153,6 +160,7 @@ struct LoadBalancer::Ticket final {
         if(!admitted) {
             admitted=true;
             ++owner->statistics.submitted; ++target->statistics.submitted;
+            target->touch();
         }
     }
     void run() {
@@ -282,6 +290,7 @@ LoadBalancer::prepare(Task task,LoadRequest request,bool reservation,std::span<c
         ++impl_->statistics.in_flight;
         ticket->reservation=reservation;
         if(reservation) { ++selected.reservations; ++impl_->statistics.reservations; }
+        ticket->target->touch();
         impl_->statistics.high_watermark=std::max(impl_->statistics.high_watermark,impl_->statistics.in_flight);
     }
     return ticket;
@@ -302,6 +311,7 @@ bool LoadBalancer::report_health(LoadTarget id,bool healthy) {
     std::lock_guard lock(impl_->mutex);
     const auto target=impl_->find(id);
     if(!target || target->statistics.draining) return false;
+    const auto previous=target->statistics.health;
     if(healthy) {
         target->failures=0;
         if(target->successes<target->options.healthy_threshold) ++target->successes;
@@ -311,13 +321,14 @@ bool LoadBalancer::report_health(LoadTarget id,bool healthy) {
         if(target->failures<target->options.unhealthy_threshold) ++target->failures;
         if(target->failures==target->options.unhealthy_threshold) target->statistics.health=TargetHealth::unhealthy;
     }
+    if(previous!=target->statistics.health) target->touch();
     return true;
 }
 bool LoadBalancer::request_drain(LoadTarget id) {
     std::lock_guard lock(impl_->mutex);
     const auto target=impl_->find(id);
     if(!target) return false;
-    target->statistics.draining=true;
+    if(!target->statistics.draining) { target->statistics.draining=true; target->touch(); }
     return true;
 }
 ThreadResult LoadBalancer::remove_target(LoadTarget id,ShutdownMode mode) {
@@ -330,7 +341,7 @@ ThreadResult LoadBalancer::remove_target(LoadTarget id,ShutdownMode mode) {
         std::lock_guard lock(impl_->mutex);
         target=impl_->find(id);
         if(!target) return error(ThreadErrorCode::invalid_work);
-        target->statistics.draining=true;
+        if(!target->statistics.draining) { target->statistics.draining=true; target->touch(); }
     }
     if(mode==ShutdownMode::drain) {
         const auto idle=impl_->wait(target,true);
@@ -343,7 +354,7 @@ ThreadResult LoadBalancer::remove_target(LoadTarget id,ShutdownMode mode) {
     if(!idle && idle.error().code!=ThreadErrorCode::work_failed) return idle;
     {
         std::lock_guard lock(impl_->mutex);
-        for(auto& slot:impl_->targets) if(slot==target) { slot.reset(); --impl_->statistics.targets; break; }
+        for(auto& slot:impl_->targets) if(slot==target) { target->touch(); slot.reset(); --impl_->statistics.targets; break; }
         for(auto& group:impl_->groups) if(group.targets && group.id==target->options.group) { --group.targets; break; }
     }
     return idle;
@@ -351,9 +362,14 @@ ThreadResult LoadBalancer::remove_target(LoadTarget id,ShutdownMode mode) {
 void LoadBalancer::request_stop() {
     std::lock_guard lock(impl_->mutex);
     impl_->statistics.stopped=true;
-    for(const auto& target:impl_->targets) if(target) target->statistics.draining=true;
+    for(const auto& target:impl_->targets) if(target && !target->statistics.draining) { target->statistics.draining=true; target->touch(); }
 }
 ThreadResult LoadBalancer::wait_idle() const { return impl_->wait(); }
+ThreadResult LoadBalancer::wait_idle(LoadTarget id) const {
+    std::shared_ptr<Target> target;
+    { std::lock_guard lock(impl_->mutex); target=impl_->find(id); }
+    return target ? impl_->wait(target) : error(ThreadErrorCode::invalid_work);
+}
 ThreadResult LoadBalancer::close(ShutdownMode mode) {
     if(!valid(mode)) return error(ThreadErrorCode::invalid_work);
     if(Activity::contains(impl_.get())) return error(ThreadErrorCode::self_join);
@@ -385,7 +401,7 @@ ThreadResult LoadBalancer::close(ShutdownMode mode) {
     if(!idle && idle.error().code!=ThreadErrorCode::work_failed) return idle;
     for(auto& slot:impl_->targets) {
         std::shared_ptr<Target> retired;
-        { std::lock_guard lock(impl_->mutex); retired.swap(slot); }
+        { std::lock_guard lock(impl_->mutex); if(slot) slot->touch(); retired.swap(slot); }
     }
     {
         std::lock_guard lock(impl_->mutex);
@@ -407,6 +423,17 @@ std::optional<LoadTargetStats> LoadBalancer::target_stats(LoadTarget id) const {
     std::lock_guard lock(impl_->mutex);
     const auto target=impl_->find(id);
     return target ? std::optional(target->statistics) : std::nullopt;
+}
+std::shared_ptr<const std::atomic<std::uint64_t>> LoadBalancer::target_revision(LoadTarget id) const {
+    std::lock_guard lock(impl_->mutex);
+    const auto target=impl_->find(id);
+    return target ? target->version : nullptr;
+}
+std::optional<std::pair<LoadTargetStats,std::uint64_t>> LoadBalancer::versioned_target_stats(LoadTarget id) const {
+    std::lock_guard lock(impl_->mutex);
+    const auto target=impl_->find(id);
+    if(!target) return std::nullopt;
+    return std::pair{target->statistics,target->version->load(std::memory_order_relaxed)};
 }
 LoadLease::~LoadLease()=default;
 LoadLease::LoadLease(LoadLease&&) noexcept=default;

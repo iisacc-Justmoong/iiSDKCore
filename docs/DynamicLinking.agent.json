@@ -1,0 +1,114 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:a2ecd6f824b420d9a1bc94a3af7ab84dbb5c1af5bbaa6a5b059d48329b75de5a",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/DynamicLinking.md",
+    "sha256": "bc2fdc0c7675d7a17327c884659e063fae9c3f4eea0afe5739cf1d166b242b71",
+    "bytes": 1031,
+    "line_count": 17,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Dynamic linking",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Dynamic linking\n",
+      "level": 1,
+      "title": "Dynamic linking"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 7,
+      "raw": "The Runtime, Observation and optional CPython embedding host are shared\nlibraries by default. New iOS and WebAssembly configurations select the\nframework and side-module variants when shared linking is enabled. CPython\nrequires the matching native interpreter and embedding library; its shared\nhost supports both older weak-reference APIs and Python 3.13 and later.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 9,
+      "end_line": 13,
+      "raw": "`IISDKCORE_STATIC_PLUGINS=ON` with `BUILD_SHARED_LIBS=OFF` remains an explicit\napplication-specific static mode. The `Embedded` target is shared in normal\nOS builds; the freestanding-only profile remains an archive for boards without\na dynamic loader.\nApplications must bundle compatible runtime libraries and dependencies.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 14,
+      "end_line": 14,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 15,
+      "end_line": 17,
+      "raw": "The Emscripten package configuration enables CMake shared-library imports for side modules. The builder or application must supply the main-module compile and link options.\nThe imported Runtime also supplies the installed Observation directory to the\nWasm linker so the transitive side module resolves after relocation.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Dynamic linking",
+      "anchor": "dynamic-linking",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000005",
+        "line": 13,
+        "text": "Applications must bundle compatible runtime libraries and dependencies.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000007",
+        "line": 15,
+        "text": "The Emscripten package configuration enables CMake shared-library imports for side modules. The builder or application must supply the main-module compile and link options.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

@@ -106,6 +106,102 @@ void monitoring_and_processing() {
     const auto done=router.monitor();
     check(done.load.completed==21 && std::ranges::all_of(done.targets,[](const auto& item){return item.active_callbacks==0;}),"processing counters settle after captures retire");
 }
+void monitoring_changes_only() {
+    std::vector<std::unique_ptr<Runtime>> runtimes;
+    ComputeRouter router({.max_targets=8});
+    const auto zone=router.add_zone({.name="incremental-monitor"}).value();
+    for(int i=0;i<8;++i) {
+        runtimes.push_back(std::make_unique<Runtime>(RuntimeOptions{.workers=1,.capacity=8}));
+        (void)router.add_target(*runtimes.back(),zone,{.load={.capacity=8}}).value();
+    }
+    EventLoop loop(8);
+    check(bool(router.start_monitoring(loop,1ms)) && loop.poll()==1,"initial event samples each target");
+    const auto before=router.monitor();
+    check(before.monitor_target_visits==8,"initial monitoring observes all registered targets once");
+    const auto executions=loop.stats().executed;
+    check(bool(runtimes[3]->post([]{})) && bool(runtimes[3]->wait_idle()),"one observed runtime changes");
+    until([&]{loop.poll(); return loop.stats().executed>executions;});
+    const auto after=router.monitor();
+    check(after.monitor_target_visits==before.monitor_target_visits+1,
+          "monitoring visits only the runtime affected by the coalesced event");
+    check(bool(router.stop_monitoring()) && bool(router.close(ShutdownMode::drain)),"incremental monitor closes");
+}
+void monitoring_replaced_target_overflow() {
+    auto old=std::make_unique<Runtime>(RuntimeOptions{.workers=1,.capacity=4});
+    auto replacement=std::make_unique<Runtime>(RuntimeOptions{.workers=1,.capacity=4});
+    ComputeRouter router({.max_targets=1});
+    const auto zone=router.add_zone({.name="monitor-replacement"}).value();
+    const auto first=router.add_target(*old,zone).value();
+    EventLoop loop(8);
+    check(bool(router.start_monitoring(loop,1ms)) && loop.poll()==1,"start bounded target monitoring");
+    const auto before=router.monitor();
+    const auto executions=loop.stats().executed;
+    check(bool(old->post([]{})) && bool(old->wait_idle()),"queue a change for the old target");
+    check(bool(router.remove_target(first,ShutdownMode::drain)),"remove the dirty target before its sample");
+    old.reset();
+    const auto next=router.add_target(*replacement,zone).value();
+    check(bool(replacement->post([]{})) && bool(replacement->wait_idle()),"replacement changes while the bounded queue is full");
+    until([&]{loop.poll(); return loop.stats().executed>executions;});
+    const auto after=router.monitor();
+    check(after.monitor_target_visits==before.monitor_target_visits+1 &&
+          target(after,next).runtime.executed==1,"overflow resamples the current target without touching the retired runtime");
+    check(bool(router.stop_monitoring()) && bool(router.close(ShutdownMode::drain)),"replacement monitoring closes");
+}
+void partial_queries_and_refresh() {
+    Runtime first({.workers=1,.capacity=8}),second({.workers=1,.capacity=8});
+    ComputeRouter router;
+    const auto zone=router.add_zone({.name="selective"}).value();
+    const auto a=router.add_target(first,zone,{.load={.capacity=8}}).value();
+    const auto b=router.add_target(second,zone,{.load={.capacity=8}}).value();
+    const auto initial=router.monitor();
+    const auto a_time=target(initial,a).runtime_sampled_at;
+    const auto b_time=target(initial,b).runtime_sampled_at;
+    std::this_thread::sleep_for(2ms);
+    const auto unchanged=router.monitor();
+    check(target(unchanged,a).runtime_sampled_at==a_time && target(unchanged,b).runtime_sampled_at==b_time,
+          "unchanged runtimes reuse their previous samples");
+    check(bool(first.post([]{})) && bool(first.wait_idle()),"one runtime changes");
+    const auto changed=router.monitor();
+    check(target(changed,a).runtime_sampled_at>a_time && target(changed,b).runtime_sampled_at==b_time &&
+          target(changed,a).runtime.executed==1,"only the changed runtime is sampled again");
+    const auto empty=router.query_target({.target=a});
+    check(empty && !empty->runtime && !empty->load && !empty->usage && !empty->zone && !empty->observation && !empty->activity && !empty->state,
+          "empty query exposes no implicit fields");
+    const auto selected=router.query_target({.target=a,.runtime=true,.usage=true});
+    check(selected && selected->runtime && selected->runtime->stats.executed==1 && selected->usage &&
+          !selected->load && !selected->observation && !selected->state,"requested fields alone are returned");
+    const auto observation=router.query_target({.target=a,.observation=true});
+    check(observation && observation->observation && !observation->observation->value &&
+          !observation->observation->fresh,"selected missing observation differs from omission");
+    const auto details=router.query_target({.target=a,.zone=true,.activity=true,.state=true});
+    check(details && details->zone && *details->zone==zone && details->activity &&
+          details->activity->active_callbacks==0 && details->state && details->state->enabled &&
+          !details->state->retiring && !details->load,"zone, activity and lifecycle fields are independently selectable");
+    auto held=router.acquire(router.default_scope()).value();
+    const auto held_id=held.placement().target;
+    const auto reserved=router.query_target({.target=held_id,.load=true});
+    check(reserved && reserved->load && reserved->load->stats.in_flight==1,
+          "target admission invalidates only its load sample");
+    held.complete();
+    const auto returned=router.query_target({.target=held_id,.load=true});
+    check(returned && returned->load && returned->load->stats.in_flight==0 &&
+          returned->load->stats.completed==1,"completion is reflected in the selected target load");
+    const auto load_a=router.query_target({.target=a,.load=true});
+    const auto load_b=router.query_target({.target=b,.load=true});
+    check(load_a && load_a->load && load_b && load_b->load,"load views are selected explicitly");
+    std::this_thread::sleep_for(2ms);
+    check(router.report_health(a,false) && router.report_health(a,false) && router.report_health(a,false),
+          "one target health changes");
+    const auto next_a=router.query_target({.target=a,.load=true});
+    const auto next_b=router.query_target({.target=b,.load=true});
+    check(next_a && next_a->load && next_b && next_b->load &&
+          next_a->load->stats.health==TargetHealth::unhealthy &&
+          next_a->load->sampled_at>load_a->load->sampled_at &&
+          next_b->load->sampled_at==load_b->load->sampled_at,
+          "only the affected target load is refreshed");
+    check(!router.query_target({.target=LoadTarget{999999}}),"unknown target is rejected");
+    check(bool(router.close(ShutdownMode::drain)),"partial query router closes");
+}
 void observations_and_timer() {
     Runtime runtime({.workers=1,.capacity=16});
     ComputeRouter router;
@@ -122,9 +218,33 @@ void observations_and_timer() {
     auto fits=router.acquire(router.default_scope(),{.work={.memory_bytes=8}}).value(); fits.complete();
     EventLoop loop(8);
     const auto before=router.monitor().monitor_samples;
-    check(bool(router.start_monitoring(loop,1ms)),"periodic monitoring uses the existing loop");
+    check(bool(router.start_monitoring(loop,1ms)),"event-based monitoring uses the existing loop");
+    check(loop.poll()==1,"initial monitoring sample");
+    std::this_thread::sleep_for(10ms);
+    check(loop.poll()==0 && !loop.next_deadline(),"idle monitoring does not resample");
+    check(bool(runtime.post([]{})) && bool(runtime.wait_idle()),"external runtime state changes");
     until([&]{loop.poll(); return loop.stats().executed>=2;});
-    check(bool(router.stop_monitoring()) && loop.stats().pending==0 && router.monitor().monitor_samples>=before+3,"monitor timer and captures are retired");
+    std::this_thread::sleep_for(10ms);
+    check(loop.poll()==0 && !loop.next_deadline(),"changed-state sample returns to idle");
+    check(router.report_load(id,{.cpu_utilization=0.3}),"new observation wakes monitoring");
+    until([&]{loop.poll(); return loop.stats().executed>=3;});
+    Runtime added({.workers=1,.capacity=16});
+    check(bool(router.add_target(added,zone,{.load={.capacity=16}})),"target can join active monitoring");
+    until([&]{loop.poll(); return loop.stats().executed>=4;});
+    check(bool(added.post([]{})) && bool(added.wait_idle()),"new target produces runtime updates");
+    until([&]{loop.poll(); return loop.stats().executed>=5;});
+    check(bool(router.stop_monitoring()) && loop.stats().pending==0 && router.monitor().monitor_samples>=before+4,"monitor subscriptions and captures are retired");
+    EventLoop retired(8),replacement(8);
+    check(bool(router.start_monitoring(retired,1ms)),"restart monitoring on another loop");
+    retired.poll();
+    retired.request_stop();
+    const auto rebound=router.start_monitoring(replacement,1ms);
+    check(bool(rebound),"stopped executor releases its monitoring subscriptions");
+    replacement.poll();
+    check(rebound.token.cancel() && bool(router.start_monitoring(replacement,1ms)),
+          "direct token cancellation releases the monitoring binding");
+    replacement.poll();
+    check(bool(router.stop_monitoring()),"replacement monitoring closes cleanly");
     check(bool(router.close(ShutdownMode::drain)),"monitor owner closes");
 }
 void concurrent_reconfiguration() {
@@ -203,7 +323,7 @@ static_assert(TaskExecutor<ComputeRouter>);
 static_assert(TaskExecutor<ComputeLease>);
 int main(int argc,char** argv) {
     try {
-        topology_and_live_assignment(); bounds_and_filtered_selection(); monitoring_and_processing();
+        topology_and_live_assignment(); bounds_and_filtered_selection(); monitoring_and_processing(); monitoring_changes_only(); monitoring_replaced_target_overflow(); partial_queries_and_refresh();
         observations_and_timer(); concurrent_reconfiguration();
         if(argc>1) native_processes(argv[1]);
         std::cout<<"dynamic availability, monitoring and process routing contracts passed\n";

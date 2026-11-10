@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/loop-io.md",
-    "sha256": "a9bee87e5417b625f1d164b2c265745395cbe9ec746059d15bedaa024544d74f",
-    "bytes": 10736,
-    "line_count": 73,
+    "sha256": "3526f84e99a6afe0fee5170a84f2e9ddad1f47e46a5f8dc4817e175135f57dd5",
+    "bytes": 13996,
+    "line_count": 92,
     "encoding": "utf-8",
     "language": "ko"
   },
@@ -98,27 +98,27 @@
     },
     {
       "id": "b000011",
-      "kind": "fenced_code",
+      "kind": "paragraph",
       "start_line": 11,
-      "end_line": 25,
-      "raw": "```cpp\n#include <iiSDKCore/Runtime/EventLoop.h>\nusing namespace std::chrono_literals;\n\nii::runtime::EventLoop loop(64);\nauto sensor = ii::io::open_serial(device_path).value();\nii::io::Buffer input(256);\nauto reading = loop.read(sensor, ii::io::Read{input, 0, 256, 1s},\n    [&](ii::io::IOResult result) {\n        if (!result) { /* result.error()를 처리한다. */ return; }\n        auto bytes = result->buffer.bytes().first(result->transfer.bytes);\n        // bytes를 해석하고, 필요한 값만 다른 객체의 QueryPort에 post한다.\n    });\n// 네이티브 전용 실행 스레드에서는 loop.run(), 호스트 구동에서는 loop.poll().\n```\n",
-      "language": "cpp",
-      "code": "#include <iiSDKCore/Runtime/EventLoop.h>\nusing namespace std::chrono_literals;\n\nii::runtime::EventLoop loop(64);\nauto sensor = ii::io::open_serial(device_path).value();\nii::io::Buffer input(256);\nauto reading = loop.read(sensor, ii::io::Read{input, 0, 256, 1s},\n    [&](ii::io::IOResult result) {\n        if (!result) { /* result.error()를 처리한다. */ return; }\n        auto bytes = result->buffer.bytes().first(result->transfer.bytes);\n        // bytes를 해석하고, 필요한 값만 다른 객체의 QueryPort에 post한다.\n    });\n// 네이티브 전용 실행 스레드에서는 loop.run(), 호스트 구동에서는 loop.poll().\n",
-      "closed": true
+      "end_line": 11,
+      "raw": "POSIX 채널이 다른 작업에 점유되어 준비 감시를 설치할 수 없으면 잠금 해제 통지를 기다린다. 준비 확인과 실제 전송 사이에 `would_block`이나 `busy`가 발생해도 타이머를 설정하지 않고 해당 채널의 네이티브 준비 감시를 다시 설정한다. 사용자가 명시한 요청 기한과 반복 타이머는 그대로 유지한다. Windows의 기존 비동기 미지원 파이프·시리얼은 즉시 준비되지 않으면 `unsupported`를 완료로 반환한다. 반복 확인이 필요한 호출자는 `IOWatchOptions`, `Read`, `Write`의 `polling_interval`에 양의 주기를 명시한다.\n"
     },
     {
       "id": "b000012",
       "kind": "blank",
-      "start_line": 26,
-      "end_line": 26,
+      "start_line": 12,
+      "end_line": 12,
       "raw": "\n"
     },
     {
       "id": "b000013",
-      "kind": "paragraph",
-      "start_line": 27,
+      "kind": "fenced_code",
+      "start_line": 13,
       "end_line": 27,
-      "raw": "Read/Write.timeout은 이 경로에서는 **접수 시점부터 준비 상태를 기다리는 시간**이다. 0은 probe이며 데이터가 없으면 would_block으로 완료한다. 양수 대기의 만료는 timed_out이다. watch의 생략한 timeout은 무기한, 명시적인 0은 probe이다. std::chrono의 큰 timeout은 시계 최댓값으로 포화시키며 음수는 접수 전에 invalid로 거절한다. 준비 완료를 감지한 뒤 실제 전송에서 would_block/busy를 만났으면 양수 대기 요청은 같은 슬롯·기한 안에서 다시 준비 상태를 기다린다.\n"
+      "raw": "```cpp\n#include <iiSDKCore/Runtime/EventLoop.h>\nusing namespace std::chrono_literals;\n\nii::runtime::EventLoop loop(64);\nauto sensor = ii::io::open_serial(device_path).value();\nii::io::Buffer input(256);\nauto reading = loop.read(sensor, ii::io::Read{input, 0, 256, 1s},\n    [&](ii::io::IOResult result) {\n        if (!result) { /* result.error()를 처리한다. */ return; }\n        auto bytes = result->buffer.bytes().first(result->transfer.bytes);\n        // bytes를 해석하고, 필요한 값만 다른 객체의 QueryPort에 post한다.\n    });\n// 네이티브 전용 실행 스레드에서는 loop.run(), 호스트 구동에서는 loop.poll().\n```\n",
+      "language": "cpp",
+      "code": "#include <iiSDKCore/Runtime/EventLoop.h>\nusing namespace std::chrono_literals;\n\nii::runtime::EventLoop loop(64);\nauto sensor = ii::io::open_serial(device_path).value();\nii::io::Buffer input(256);\nauto reading = loop.read(sensor, ii::io::Read{input, 0, 256, 1s},\n    [&](ii::io::IOResult result) {\n        if (!result) { /* result.error()를 처리한다. */ return; }\n        auto bytes = result->buffer.bytes().first(result->transfer.bytes);\n        // bytes를 해석하고, 필요한 값만 다른 객체의 QueryPort에 post한다.\n    });\n// 네이티브 전용 실행 스레드에서는 loop.run(), 호스트 구동에서는 loop.poll().\n",
+      "closed": true
     },
     {
       "id": "b000014",
@@ -132,7 +132,7 @@
       "kind": "paragraph",
       "start_line": 29,
       "end_line": 29,
-      "raw": "길이 0 요청은 준비 대기를 생략하지만 채널의 닫힘과 접근 권한을 검사한다. 잘못된 버퍼 범위·빈 콜백·잘못된 우선순위는 SubmitError::invalid이다. 유효한 요청의 채널 닫힘·권한·장치 오류는 IOResult 또는 IOReady의 오류로 전달한다. 실제 전송은 한 번의 read/write이므로 부분 전송을 허용한다. 전체 프레임·패킷의 전송이 필요하면 bytes를 기준으로 나머지 요청을 제출한다.\n"
+      "raw": "Read/Write.timeout은 이 경로에서는 **접수 시점부터 준비 상태를 기다리는 시간**이다. 0은 probe이며 데이터가 없으면 would_block으로 완료한다. 양수 대기의 만료는 timed_out이다. watch의 생략한 timeout은 무기한, 명시적인 0은 probe이다. std::chrono의 큰 timeout은 시계 최댓값으로 포화시키며 음수는 접수 전에 invalid로 거절한다. 준비 완료를 감지한 뒤 실제 전송에서 would_block/busy를 만났으면 양수 대기 요청은 같은 슬롯·기한 안에서 다시 준비 상태를 기다린다.\n"
     },
     {
       "id": "b000016",
@@ -143,12 +143,10 @@
     },
     {
       "id": "b000017",
-      "kind": "heading",
+      "kind": "paragraph",
       "start_line": 31,
       "end_line": 31,
-      "raw": "## 실행과 예산\n",
-      "level": 2,
-      "title": "실행과 예산"
+      "raw": "길이 0 요청은 준비 대기를 생략하지만 채널의 닫힘과 접근 권한을 검사한다. 잘못된 버퍼 범위·빈 콜백·잘못된 우선순위는 SubmitError::invalid이다. 유효한 요청의 채널 닫힘·권한·장치 오류는 IOResult 또는 IOReady의 오류로 전달한다. 실제 전송은 한 번의 read/write이므로 부분 전송을 허용한다. 전체 프레임·패킷의 전송이 필요하면 bytes를 기준으로 나머지 요청을 제출한다.\n"
     },
     {
       "id": "b000018",
@@ -159,10 +157,12 @@
     },
     {
       "id": "b000019",
-      "kind": "paragraph",
+      "kind": "heading",
       "start_line": 33,
       "end_line": 33,
-      "raw": "watch/read/write는 같은 EventLoop의 고정 작업 슬롯을 사용한다. 일반 작업·타이머와 합쳐 capacity를 초과하면 full이며, 별도의 무제한 장치 큐를 생성하지 않는다. 우선순위의 4:2:1 선택 규칙, callback/time budget, suspend/resume과 stopped 접수 거절을 공유한다. 완료는 해당 루프의 dispatch 스레드에서 호출하며 한 요청은 한 번만 완료한다. 콜백 예외는 슬롯과 캡처를 정리한 뒤 poll/run의 호출자에게 전달한다.\n"
+      "raw": "## 실행과 예산\n",
+      "level": 2,
+      "title": "실행과 예산"
     },
     {
       "id": "b000020",
@@ -176,7 +176,7 @@
       "kind": "paragraph",
       "start_line": 35,
       "end_line": 35,
-      "raw": "poll은 준비 상태를 0 timeout으로 검사하며 잠드는 커널 대기를 수행하지 않는다. UIKit·Android·GUI·WASM 호스트가 poll을 호출할 때 감지가 이루어진다. next_deadline은 타이머와 I/O의 기한·재시도 시각을 제공하며, 무기한 감시의 향후 장치 이벤트 시각을 예측하지 않는다. run은 네이티브 또는 지원되는 WASM 워커에서 대기를 구동하며 브라우저 메인 스레드 제한을 유지한다.\n"
+      "raw": "watch/read/write는 같은 EventLoop의 고정 작업 슬롯을 사용한다. 일반 작업·타이머와 합쳐 capacity를 초과하면 full이며, 별도의 무제한 장치 큐를 생성하지 않는다. 우선순위의 4:2:1 선택 규칙, callback/time budget, suspend/resume과 stopped 접수 거절을 공유한다. 완료는 해당 루프의 dispatch 스레드에서 호출하며 한 요청은 한 번만 완료한다. 콜백 예외는 슬롯과 캡처를 정리한 뒤 poll/run의 호출자에게 전달한다.\n"
     },
     {
       "id": "b000022",
@@ -190,7 +190,7 @@
       "kind": "paragraph",
       "start_line": 37,
       "end_line": 37,
-      "raw": "네이티브 POSIX에서는 모든 대기 채널과 비차단 wake pipe를 같은 poll 집합으로 기다린다. 작업 제출·TaskToken 취소·suspend/resume·stop은 이 파이프를 통해 커널 대기를 깨운다. 채널 핸들은 대기 동안 잠금과 소유 참조로 고정하여 close/FD 재사용과의 경쟁을 막는다. 취소 확인과 busy 재시도를 위해 한 대기 구간은 최대 20ms로 제한하며 OS 스케줄링 지연의 상한을 보장하지 않는다. 실제로 대기 집합을 준비한 횟수는 LoopStats.io_waits로 관찰할 수 있다.\n"
+      "raw": "I/O 준비 검사와 네이티브 대기 집합은 요청의 등록·반환 시 갱신하는 I/O 슬롯 목록만 사용한다. 일반 작업이나 타이머는 검사 후보에 포함되지 않으며, 완료·취소한 I/O 슬롯은 재사용 전에 목록에서 제거된다. 한 번의 dispatch에서 무관한 콜백마다 모든 I/O를 다시 검사하지 않는다. 네이티브 준비 감시가 있는 HostLoop는 I/O 상태가 바뀌거나 대기·기한이 완료될 때 검사하며, 빈 poll이나 일반 작업만으로 대기 스레드를 깨우거나 채널을 재검사하지 않는다. 자동 감시가 없는 직접 구동 `poll()`은 호출자가 요청한 준비 확인을 한 번 수행한다. `LoopStats.io_candidates`는 준비 검사에서 방문한 I/O 슬롯의 누적 횟수이다.\n"
     },
     {
       "id": "b000024",
@@ -203,66 +203,122 @@
       "id": "b000025",
       "kind": "paragraph",
       "start_line": 39,
-      "end_line": 39,
-      "raw": "Windows는 기존 COM 큐 상태와 파일 준비 검사에 네이티브 wake event를 결합하며 20ms 구간으로 COM 상태를 재검사한다. IOCP/overlapped COM 구현은 아니다. WASM은 가상 파일 채널을 호스트 또는 워커에서 처리하며, 물리 장치 접근을 모사하지 않는다.\n"
+      "end_line": 42,
+      "raw": "준비된 I/O 완료와 그 기한은 다른 작업과 함께 인덱싱하므로 dispatch의 작업 선택과\n다음 기한 조회에서 전체 활성 슬롯을 검색하지 않는다. 네이티브 대기 후 준비 확인은\n현재 감시 중인 I/O 목록을 검사한다. 이는 개별 OS 준비 이벤트를 각 채널에 직접\n매핑하는 최적화까지 구현했다는 뜻은 아니다.\n"
     },
     {
       "id": "b000026",
       "kind": "blank",
-      "start_line": 40,
-      "end_line": 40,
+      "start_line": 43,
+      "end_line": 43,
       "raw": "\n"
     },
     {
       "id": "b000027",
-      "kind": "heading",
-      "start_line": 41,
-      "end_line": 41,
-      "raw": "## 장치 경계\n",
-      "level": 2,
-      "title": "장치 경계"
+      "kind": "paragraph",
+      "start_line": 44,
+      "end_line": 44,
+      "raw": "poll은 준비 상태를 0 timeout으로 검사하며 잠드는 커널 대기를 수행하지 않는다. UIKit·Android·GUI·WASM 호스트가 poll을 호출할 때 감지가 이루어진다. next_deadline은 타이머와 I/O의 기한을 제공하며, 무기한 감시의 향후 장치 이벤트 시각을 예측하지 않는다. run은 네이티브 또는 지원되는 WASM 워커에서 대기를 구동하며 브라우저 메인 스레드 제한을 유지한다.\n"
     },
     {
       "id": "b000028",
       "kind": "blank",
-      "start_line": 42,
-      "end_line": 42,
+      "start_line": 45,
+      "end_line": 45,
       "raw": "\n"
     },
     {
       "id": "b000029",
       "kind": "paragraph",
-      "start_line": 43,
-      "end_line": 43,
-      "raw": "open_serial은 기존 raw 8N1 시리얼 설정을 사용한다. USB 시리얼도 OS가 노출한 tty/COM 경로가 있어야 한다. open_device(path, DeviceOptions)는 POSIX의 기존 문자 장치 또는 FIFO를 O_NONBLOCK로 연다. 생성·truncate·프로토콜 설정을 수행하지 않고 일반 파일·디렉터리·블록 장치는 unsupported로 거절한다. 센서·Linux input/evdev·hidraw 등은 드라이버가 노출한 문자 장치의 바이트 경로를 사용할 수 있으며, 장치별 제어 명령이나 보고서 해석은 별도이다. FIFO의 끊어진 출력은 SIGPIPE로 프로세스를 종료하지 않고 EPIPE/closed를 반환하며 호스트의 신호 처리기와 기존 pending 신호를 보존한다.\n"
+      "start_line": 46,
+      "end_line": 46,
+      "raw": "네이티브 POSIX에서는 모든 대기 채널과 비차단 wake pipe를 같은 poll 집합으로 기다린다. 작업 제출·TaskToken 취소·I/O 취소 신호·suspend/resume·stop은 이 파이프를 통해 커널 대기를 깨운다. 준비 상태와 정해진 기한이 없으면 대기 구간을 주기적으로 재검사하지 않는다. 다른 스레드가 채널 잠금을 점유하면 해제 통지가 대기를 깨운다. 채널 핸들은 대기 동안 잠금과 소유 참조로 고정하여 close/FD 재사용과의 경쟁을 막는다. 실제로 대기 집합을 준비한 횟수는 LoopStats.io_waits로 관찰할 수 있다.\n"
     },
     {
       "id": "b000030",
       "kind": "blank",
-      "start_line": 44,
-      "end_line": 44,
+      "start_line": 47,
+      "end_line": 47,
       "raw": "\n"
     },
     {
       "id": "b000031",
       "kind": "paragraph",
-      "start_line": 45,
-      "end_line": 45,
-      "raw": "일반 파일은 항상 준비된 것으로 처리한다. 저장장치 페이지 로드·파일시스템 지연과 O_NONBLOCK를 무시하는 장치 드라이버 호출은 루프를 지연시킬 수 있다. 기존 AsyncIO는 느린 동기 파일/드라이버 작업을 별도 Runtime 워커에 격리하는 경로로 유지한다. 예산은 이미 시작한 OS 호출이나 사용자 콜백을 선점하지 않으며 Windows 시리얼 쓰기는 기존 드라이버 타임아웃 계약을 유지한다.\n"
+      "start_line": 48,
+      "end_line": 48,
+      "raw": "Windows는 기존 COM 큐 상태와 파일 준비 검사에 네이티브 wake event를 결합한다. IOCP/overlapped COM 구현이 아니므로, 반복 상태 확인은 호출자가 주기를 지정해야 한다. 특히 비동기 미지원 파이프가 쓰기 가능으로 표시된 뒤 실제 쓰기가 `would_block`을 반환하면 지정된 다음 확인 시각 전에는 재시도하지 않는다. 취소와 원래 기한은 그 주기를 기다리지 않고 처리한다. WASM은 가상 파일 채널을 호스트 또는 워커에서 처리하며, 물리 장치 접근을 모사하지 않는다.\n"
     },
     {
       "id": "b000032",
       "kind": "blank",
-      "start_line": 46,
-      "end_line": 46,
+      "start_line": 49,
+      "end_line": 49,
       "raw": "\n"
     },
     {
       "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 50,
+      "end_line": 58,
+      "raw": "POSIX 대기 집합은 채널의 임시 참조를 재사용 가능한 배열에 모아 정렬한 뒤\n같은 채널의 읽기·쓰기 관심을 하나로 합친다. 서로 다른 채널마다 앞의 전체\n채널을 다시 검색하지 않으므로 집합 구성의 정렬 비용은 O(n log n)이다.\n실제 poll 대기 중에는 이전과 같이 채널 소유 참조와 잠금을 유지한다. 잠금이\n경합하면 해당 채널은 빠르게 건너뛰고 잠금 해제 알림을 구독한다.\n이는 목록 구성의 복잡도 설명이며 Qt 또는 특정 장치 대비 속도 측정은 아니다.\n회귀 검사는 POSIX 파이프 64개와 각각 중복된 감시를 사용해 준비 신호와 채널\n소유 잠금의 반환을 확인한다. Windows 전용 포화 파이프 회귀 사례도 제공한다.\nWindows의 실행 검증 여부는 별도로 기록해야 한다.\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 59,
+      "end_line": 59,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "heading",
+      "start_line": 60,
+      "end_line": 60,
+      "raw": "## 장치 경계\n",
+      "level": 2,
+      "title": "장치 경계"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 61,
+      "end_line": 61,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 62,
+      "end_line": 62,
+      "raw": "open_serial은 기존 raw 8N1 시리얼 설정을 사용한다. USB 시리얼도 OS가 노출한 tty/COM 경로가 있어야 한다. open_device(path, DeviceOptions)는 POSIX의 기존 문자 장치 또는 FIFO를 O_NONBLOCK로 연다. 생성·truncate·프로토콜 설정을 수행하지 않고 일반 파일·디렉터리·블록 장치는 unsupported로 거절한다. 센서·Linux input/evdev·hidraw 등은 드라이버가 노출한 문자 장치의 바이트 경로를 사용할 수 있으며, 장치별 제어 명령이나 보고서 해석은 별도이다. FIFO의 끊어진 출력은 SIGPIPE로 프로세스를 종료하지 않고 EPIPE/closed를 반환하며 호스트의 신호 처리기와 기존 pending 신호를 보존한다.\n"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 63,
+      "end_line": 63,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "paragraph",
+      "start_line": 64,
+      "end_line": 64,
+      "raw": "일반 파일은 항상 준비된 것으로 처리한다. 저장장치 페이지 로드·파일시스템 지연과 O_NONBLOCK를 무시하는 장치 드라이버 호출은 루프를 지연시킬 수 있다. 기존 AsyncIO는 느린 동기 파일/드라이버 작업을 별도 Runtime 워커에 격리하는 경로로 유지한다. 예산은 이미 시작한 OS 호출이나 사용자 콜백을 선점하지 않으며 Windows 시리얼 쓰기는 기존 드라이버 타임아웃 계약을 유지한다.\n"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 65,
+      "end_line": 65,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
       "kind": "table",
-      "start_line": 47,
-      "end_line": 53,
-      "raw": "| 플랫폼 | 이 변경의 채널 경로 |\n|---|---|\n| macOS/Linux | POSIX 파일·시리얼·문자 장치·FIFO, poll+wake pipe |\n| Android | 앱이 접근 가능한 POSIX 파일·tty·문자 장치·FIFO; USB Host 브리지 없음 |\n| iOS | 앱이 접근 가능한 POSIX 파일·문자 장치·FIFO; 시리얼 열기와 ExternalAccessory/CoreBluetooth 브리지 없음 |\n| Windows | 기존 파일·COM, 상태 재검사+wake event; open_device는 unsupported |\n| WASM | 가상 파일; open_serial/open_device는 unsupported |\n",
+      "start_line": 66,
+      "end_line": 72,
+      "raw": "| 플랫폼 | 이 변경의 채널 경로 |\n|---|---|\n| macOS/Linux | POSIX 파일·시리얼·문자 장치·FIFO, poll+wake pipe |\n| Android | 앱이 접근 가능한 POSIX 파일·tty·문자 장치·FIFO; USB Host 브리지 없음 |\n| iOS | 앱이 접근 가능한 POSIX 파일·문자 장치·FIFO; 시리얼 열기와 ExternalAccessory/CoreBluetooth 브리지 없음 |\n| Windows | 파일은 즉시 준비; 기존 파이프·COM의 반복 확인은 명시적 주기가 필요; open_device는 unsupported |\n| WASM | 가상 파일; open_serial/open_device는 unsupported |\n",
       "columns": [
         "플랫폼",
         "이 변경의 채널 경로"
@@ -282,7 +338,7 @@
         ],
         [
           "Windows",
-          "기존 파일·COM, 상태 재검사+wake event; open_device는 unsupported"
+          "파일은 즉시 준비; 기존 파이프·COM의 반복 확인은 명시적 주기가 필요; open_device는 unsupported"
         ],
         [
           "WASM",
@@ -291,150 +347,150 @@
       ]
     },
     {
-      "id": "b000034",
-      "kind": "blank",
-      "start_line": 54,
-      "end_line": 54,
-      "raw": "\n"
-    },
-    {
-      "id": "b000035",
-      "kind": "paragraph",
-      "start_line": 55,
-      "end_line": 55,
-      "raw": "이 문서의 0.5.0 채널 기능은 열어 둔 채널의 준비 상태를 감지한다. USB/HID 장치 목록 열거·hotplug 서비스·Bluetooth·오디오·MIDI·소켓 연결 또는 장치별 ioctl API를 추가한 것은 아니다. OS 접근 권한과 드라이버 지원은 그대로 적용된다. 0.6.0에 추가한 Hardware·Protocols API는 0.12.0부터 독립 동위 모듈 iiDeviceMultimedia로 이동했다. Core는 그 모듈 없이 일반 채널 I/O를 제공하며, 장치 모듈 0.2 역시 Core 없이 동작한다. 두 모듈의 연결은 앱의 poll() 드라이버가 소유한다. 현재 장치 지원 범위는 [새 모듈 계약](../../iiDeviceMultimedia/docs/hardware.md)을 따른다.\n"
-    },
-    {
-      "id": "b000036",
-      "kind": "blank",
-      "start_line": 56,
-      "end_line": 56,
-      "raw": "\n"
-    },
-    {
-      "id": "b000037",
-      "kind": "heading",
-      "start_line": 57,
-      "end_line": 57,
-      "raw": "## 제거와 소유권\n",
-      "level": 2,
-      "title": "제거와 소유권"
-    },
-    {
-      "id": "b000038",
-      "kind": "blank",
-      "start_line": 58,
-      "end_line": 58,
-      "raw": "\n"
-    },
-    {
-      "id": "b000039",
-      "kind": "paragraph",
-      "start_line": 59,
-      "end_line": 59,
-      "raw": "각 요청은 Channel·Buffer와 콜백 캡처의 소유 참조를 유지한다. 전송 완료 전에는 같은 Buffer를 다른 실행 영역에서 읽거나 수정하지 않는다. 완료를 다른 객체의 큐로 전달하였다면 해당 소비가 끝난 뒤 버퍼를 재사용한다.\n"
-    },
-    {
-      "id": "b000040",
-      "kind": "blank",
-      "start_line": 60,
-      "end_line": 60,
-      "raw": "\n"
-    },
-    {
-      "id": "b000041",
-      "kind": "paragraph",
-      "start_line": 61,
-      "end_line": 61,
-      "raw": "대기 요청의 TaskToken::cancel은 완료 전달을 생략하고, 해당 네이티브 대기 구간의 핸들 잠금과 소유 참조까지 해제되는 것을 기다린다. 이후 요청의 Channel·Buffer·콜백을 파괴하고 슬롯을 반환한다. 콜백 함수는 빈 함수와 교환하여 이동 후 상태에 의존하지 않으며 캡처 소멸자의 재진입은 루프 잠금 밖에서 처리한다. 제거 중에는 같은 슬롯을 새 요청에 노출하지 않는다. request_stop과 루프 소멸도 대기 감시를 같은 경로로 정리한다. 이미 실행 중인 전송·완료는 선점하지 않으며 token.pending이 false가 되는 것은 슬롯 정리가 끝난 상태이다.\n"
-    },
-    {
       "id": "b000042",
       "kind": "blank",
-      "start_line": 62,
-      "end_line": 62,
+      "start_line": 73,
+      "end_line": 73,
       "raw": "\n"
     },
     {
       "id": "b000043",
       "kind": "paragraph",
-      "start_line": 63,
-      "end_line": 63,
-      "raw": "CancellationToken의 취소는 cancelled 결과를 전달하며, 콜백 없는 TaskToken 취소와 구분한다. 외부 Channel 별칭은 유지한다. 모든 별칭을 닫으려면 Channel::close를 호출한다. 네이티브 대기나 직접 전송이 핸들을 사용하는 순간의 close는 busy일 수 있으므로 등록 토큰을 먼저 취소한 뒤 닫는다. run을 사용하는 Thread는 루프를 소멸시키기 전에 종료·join한다. 이 규칙은 [객체 제거 계약](cleanup.md)을 따른다.\n"
+      "start_line": 74,
+      "end_line": 74,
+      "raw": "이 문서의 0.5.0 채널 기능은 열어 둔 채널의 준비 상태를 감지한다. USB/HID 장치 목록 열거·hotplug 서비스·Bluetooth·오디오·MIDI·소켓 연결 또는 장치별 ioctl API를 추가한 것은 아니다. OS 접근 권한과 드라이버 지원은 그대로 적용된다. 0.6.0에 추가한 Hardware·Protocols API는 0.12.0부터 독립 동위 모듈 iiDeviceMultimedia로 이동했다. Core는 그 모듈 없이 일반 채널 I/O를 제공하며, 장치 모듈 0.2 역시 Core 없이 동작한다. 두 모듈의 연결은 앱의 poll() 드라이버가 소유한다. 현재 장치 지원 범위는 [새 모듈 계약](../../iiDeviceMultimedia/docs/hardware.md)을 따른다.\n"
     },
     {
       "id": "b000044",
       "kind": "blank",
-      "start_line": 64,
-      "end_line": 64,
+      "start_line": 75,
+      "end_line": 75,
       "raw": "\n"
     },
     {
       "id": "b000045",
       "kind": "heading",
-      "start_line": 65,
-      "end_line": 65,
-      "raw": "## 검증\n",
+      "start_line": 76,
+      "end_line": 76,
+      "raw": "## 제거와 소유권\n",
       "level": 2,
-      "title": "검증"
+      "title": "제거와 소유권"
     },
     {
       "id": "b000046",
       "kind": "blank",
-      "start_line": 66,
-      "end_line": 66,
+      "start_line": 77,
+      "end_line": 77,
       "raw": "\n"
     },
     {
       "id": "b000047",
       "kind": "paragraph",
-      "start_line": 67,
-      "end_line": 67,
-      "raw": "tests/loop_io.cpp는 파일·FIFO·PTY의 입력과 출력, typed QueryPort 전달, 준비 완료·EOF·빈 전송·기한·취소·종료·슬롯 재사용과 native wakeup을 검증한다. examples/loop_io.cpp는 실제 파일 입력을 루프에서 읽고 다른 채널로 방출한 뒤 저장된 바이트를 대조한다. 설치 소비자에서도 같은 LoopIO 계약을 실행한다. tests/reuse.cpp는 준비된 Buffer와 루프 슬롯의 반복 재사용을 측정한다.\n"
+      "start_line": 78,
+      "end_line": 78,
+      "raw": "각 요청은 Channel·Buffer와 콜백 캡처의 소유 참조를 유지한다. 전송 완료 전에는 같은 Buffer를 다른 실행 영역에서 읽거나 수정하지 않는다. 완료를 다른 객체의 큐로 전달하였다면 해당 소비가 끝난 뒤 버퍼를 재사용한다.\n"
     },
     {
       "id": "b000048",
       "kind": "blank",
-      "start_line": 68,
-      "end_line": 68,
+      "start_line": 79,
+      "end_line": 79,
       "raw": "\n"
     },
     {
       "id": "b000049",
       "kind": "paragraph",
-      "start_line": 69,
-      "end_line": 69,
-      "raw": "플랫폼 근거: [poll](https://man7.org/linux/man-pages/man2/poll.2.html), [pipe](https://man7.org/linux/man-pages/man2/pipe.2.html), [Windows ClearCommError](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-clearcommerror), [Windows WaitForSingleObject](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject). 실제 실행·교차 빌드·물리 장치의 증거 범위는 [validation.md](validation.md)에 구분한다.\n"
+      "start_line": 80,
+      "end_line": 80,
+      "raw": "대기 요청의 TaskToken::cancel은 완료 전달을 생략하고, 해당 네이티브 대기 구간의 핸들 잠금과 소유 참조까지 해제되는 것을 기다린다. 이후 요청의 Channel·Buffer·콜백을 파괴하고 슬롯을 반환한다. 콜백 함수는 빈 함수와 교환하여 이동 후 상태에 의존하지 않으며 캡처 소멸자의 재진입은 루프 잠금 밖에서 처리한다. 제거 중에는 같은 슬롯을 새 요청에 노출하지 않는다. request_stop과 루프 소멸도 대기 감시를 같은 경로로 정리한다. 이미 실행 중인 전송·완료는 선점하지 않으며 token.pending이 false가 되는 것은 슬롯 정리가 끝난 상태이다.\n"
     },
     {
       "id": "b000050",
       "kind": "blank",
-      "start_line": 70,
-      "end_line": 70,
+      "start_line": 81,
+      "end_line": 81,
       "raw": "\n"
     },
     {
       "id": "b000051",
+      "kind": "paragraph",
+      "start_line": 82,
+      "end_line": 82,
+      "raw": "CancellationToken의 취소는 cancelled 결과를 전달하며, 콜백 없는 TaskToken 취소와 구분한다. 외부 Channel 별칭은 유지한다. 모든 별칭을 닫으려면 Channel::close를 호출한다. 네이티브 대기나 직접 전송이 핸들을 사용하는 순간의 close는 busy일 수 있으므로 등록 토큰을 먼저 취소한 뒤 닫는다. run을 사용하는 Thread는 루프를 소멸시키기 전에 종료·join한다. 이 규칙은 [객체 제거 계약](cleanup.md)을 따른다.\n"
+    },
+    {
+      "id": "b000052",
+      "kind": "blank",
+      "start_line": 83,
+      "end_line": 83,
+      "raw": "\n"
+    },
+    {
+      "id": "b000053",
       "kind": "heading",
-      "start_line": 71,
-      "end_line": 71,
+      "start_line": 84,
+      "end_line": 84,
+      "raw": "## 검증\n",
+      "level": 2,
+      "title": "검증"
+    },
+    {
+      "id": "b000054",
+      "kind": "blank",
+      "start_line": 85,
+      "end_line": 85,
+      "raw": "\n"
+    },
+    {
+      "id": "b000055",
+      "kind": "paragraph",
+      "start_line": 86,
+      "end_line": 86,
+      "raw": "tests/loop_io.cpp는 파일·FIFO·PTY의 입력과 출력, typed QueryPort 전달, 준비 완료·EOF·빈 전송·기한·취소·종료·슬롯 재사용과 native wakeup을 검증한다. examples/loop_io.cpp는 실제 파일 입력을 루프에서 읽고 다른 채널로 방출한 뒤 저장된 바이트를 대조한다. 설치 소비자에서도 같은 LoopIO 계약을 실행한다. tests/reuse.cpp는 준비된 Buffer와 루프 슬롯의 반복 재사용을 측정한다.\n"
+    },
+    {
+      "id": "b000056",
+      "kind": "blank",
+      "start_line": 87,
+      "end_line": 87,
+      "raw": "\n"
+    },
+    {
+      "id": "b000057",
+      "kind": "paragraph",
+      "start_line": 88,
+      "end_line": 88,
+      "raw": "플랫폼 근거: [poll](https://man7.org/linux/man-pages/man2/poll.2.html), [pipe](https://man7.org/linux/man-pages/man2/pipe.2.html), [Windows ClearCommError](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-clearcommerror), [Windows WaitForSingleObject](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject). 실제 실행·교차 빌드·물리 장치의 증거 범위는 [validation.md](validation.md)에 구분한다.\n"
+    },
+    {
+      "id": "b000058",
+      "kind": "blank",
+      "start_line": 89,
+      "end_line": 89,
+      "raw": "\n"
+    },
+    {
+      "id": "b000059",
+      "kind": "heading",
+      "start_line": 90,
+      "end_line": 90,
       "raw": "## 외부 GUI·이벤트 호스트 (0.16)\n",
       "level": 2,
       "title": "외부 GUI·이벤트 호스트 (0.16)"
     },
     {
-      "id": "b000052",
+      "id": "b000060",
       "kind": "blank",
-      "start_line": 72,
-      "end_line": 72,
+      "start_line": 91,
+      "end_line": 91,
       "raw": "\n"
     },
     {
-      "id": "b000053",
+      "id": "b000061",
       "kind": "paragraph",
-      "start_line": 73,
-      "end_line": 73,
-      "raw": "외부 루프에서 poll만 호출하고 긴 타이머로 잠들면 채널 준비를 통지받을 수 없다. HostLoop의 기본 준비 대기 연결은 이 경계를 해결한다. 하나의 관리형 대기 스레드가 기존 폴러를 사용하고 완료는 소유 호스트의 poll에서 전달한다. 미완료 I/O가 없으면 대기 스레드는 조건 변수에서 잠든다. 대기 중 I/O의 협력적 취소·닫힘 확인에는 기존 최대 20ms 대기 한도가 적용된다. 느린 동기 파일·드라이버 호출은 계속 AsyncIO·Runtime에 격리한다. [호스트 연결 계약](host-loop.md)을 따른다.\n"
+      "start_line": 92,
+      "end_line": 92,
+      "raw": "외부 루프에서 poll만 호출하고 긴 타이머로 잠들면 채널 준비를 통지받을 수 없다. HostLoop의 준비 대기 연결은 이 경계를 해결한다. 명시적인 I/O 감시가 처음 등록될 때 하나의 관리형 대기 스레드를 할당하며, 기존 폴러를 사용하고 완료는 소유 호스트의 poll에서 전달한다. 감시가 없으면 아직 스레드를 만들지 않으며, 이미 할당된 스레드는 미완료 I/O가 없을 때 조건 변수에서 잠들고 호스트 연결 종료 시 반환된다. POSIX 취소와 채널 점유 해제는 네이티브 대기를 직접 깨운다. 느린 동기 파일·드라이버 호출은 계속 AsyncIO·Runtime에 격리한다. [호스트 연결 계약](host-loop.md)을 따른다.\n"
     }
   ],
   "outline": [
@@ -455,86 +511,107 @@
       "start_line": 5
     },
     {
-      "block_id": "b000017",
+      "block_id": "b000019",
       "parent_id": "b000001",
       "level": 2,
       "title": "실행과 예산",
       "anchor": "실행과-예산",
-      "start_line": 31
+      "start_line": 33
     },
     {
-      "block_id": "b000027",
+      "block_id": "b000035",
       "parent_id": "b000001",
       "level": 2,
       "title": "장치 경계",
       "anchor": "장치-경계",
-      "start_line": 41
-    },
-    {
-      "block_id": "b000037",
-      "parent_id": "b000001",
-      "level": 2,
-      "title": "제거와 소유권",
-      "anchor": "제거와-소유권",
-      "start_line": 57
+      "start_line": 60
     },
     {
       "block_id": "b000045",
       "parent_id": "b000001",
       "level": 2,
-      "title": "검증",
-      "anchor": "검증",
-      "start_line": 65
+      "title": "제거와 소유권",
+      "anchor": "제거와-소유권",
+      "start_line": 76
     },
     {
-      "block_id": "b000051",
+      "block_id": "b000053",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "검증",
+      "anchor": "검증",
+      "start_line": 84
+    },
+    {
+      "block_id": "b000059",
       "parent_id": "b000001",
       "level": 2,
       "title": "외부 GUI·이벤트 호스트 (0.16)",
       "anchor": "외부-gui이벤트-호스트-016",
-      "start_line": 71
+      "start_line": 90
     }
   ],
   "indexes": {
     "directive_candidates": [
       {
-        "block_id": "b000019",
-        "line": 33,
-        "text": "watch/read/write는 같은 EventLoop의 고정 작업 슬롯을 사용한다. 일반 작업·타이머와 합쳐 capacity를 초과하면 full이며, 별도의 무제한 장치 큐를 생성하지 않는다. 우선순위의 4:2:1 선택 규칙, callback/time budget, suspend/resume과 stopped 접수 거절을 공유한다. 완료는 해당 루프의 dispatch 스레드에서 호출하며 한 요청은 한 번만 완료한다. 콜백 예외는 슬롯과 캡처를 정리한 뒤 poll/run의 호출자에게 전달한다.",
-        "basis": "lexical_match",
-        "context": "paragraph"
-      },
-      {
         "block_id": "b000021",
         "line": 35,
-        "text": "poll은 준비 상태를 0 timeout으로 검사하며 잠드는 커널 대기를 수행하지 않는다. UIKit·Android·GUI·WASM 호스트가 poll을 호출할 때 감지가 이루어진다. next_deadline은 타이머와 I/O의 기한·재시도 시각을 제공하며, 무기한 감시의 향후 장치 이벤트 시각을 예측하지 않는다. run은 네이티브 또는 지원되는 WASM 워커에서 대기를 구동하며 브라우저 메인 스레드 제한을 유지한다.",
+        "text": "watch/read/write는 같은 EventLoop의 고정 작업 슬롯을 사용한다. 일반 작업·타이머와 합쳐 capacity를 초과하면 full이며, 별도의 무제한 장치 큐를 생성하지 않는다. 우선순위의 4:2:1 선택 규칙, callback/time budget, suspend/resume과 stopped 접수 거절을 공유한다. 완료는 해당 루프의 dispatch 스레드에서 호출하며 한 요청은 한 번만 완료한다. 콜백 예외는 슬롯과 캡처를 정리한 뒤 poll/run의 호출자에게 전달한다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000023",
         "line": 37,
-        "text": "네이티브 POSIX에서는 모든 대기 채널과 비차단 wake pipe를 같은 poll 집합으로 기다린다. 작업 제출·TaskToken 취소·suspend/resume·stop은 이 파이프를 통해 커널 대기를 깨운다. 채널 핸들은 대기 동안 잠금과 소유 참조로 고정하여 close/FD 재사용과의 경쟁을 막는다. 취소 확인과 busy 재시도를 위해 한 대기 구간은 최대 20ms로 제한하며 OS 스케줄링 지연의 상한을 보장하지 않는다. 실제로 대기 집합을 준비한 횟수는 LoopStats.io_waits로 관찰할 수 있다.",
+        "text": "I/O 준비 검사와 네이티브 대기 집합은 요청의 등록·반환 시 갱신하는 I/O 슬롯 목록만 사용한다. 일반 작업이나 타이머는 검사 후보에 포함되지 않으며, 완료·취소한 I/O 슬롯은 재사용 전에 목록에서 제거된다. 한 번의 dispatch에서 무관한 콜백마다 모든 I/O를 다시 검사하지 않는다. 네이티브 준비 감시가 있는 HostLoop는 I/O 상태가 바뀌거나 대기·기한이 완료될 때 검사하며, 빈 poll이나 일반 작업만으로 대기 스레드를 깨우거나 채널을 재검사하지 않는다. 자동 감시가 없는 직접 구동 `poll()`은 호출자가 요청한 준비 확인을 한 번 수행한다. `LoopStats.io_candidates`는 준비 검사에서 방문한 I/O 슬롯의 누적 횟수이다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000025",
-        "line": 39,
-        "text": "Windows는 기존 COM 큐 상태와 파일 준비 검사에 네이티브 wake event를 결합하며 20ms 구간으로 COM 상태를 재검사한다. IOCP/overlapped COM 구현은 아니다. WASM은 가상 파일 채널을 호스트 또는 워커에서 처리하며, 물리 장치 접근을 모사하지 않는다.",
+        "line": 40,
+        "text": "다음 기한 조회에서 전체 활성 슬롯을 검색하지 않는다. 네이티브 대기 후 준비 확인은",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000039",
-        "line": 59,
+        "block_id": "b000027",
+        "line": 44,
+        "text": "poll은 준비 상태를 0 timeout으로 검사하며 잠드는 커널 대기를 수행하지 않는다. UIKit·Android·GUI·WASM 호스트가 poll을 호출할 때 감지가 이루어진다. next_deadline은 타이머와 I/O의 기한을 제공하며, 무기한 감시의 향후 장치 이벤트 시각을 예측하지 않는다. run은 네이티브 또는 지원되는 WASM 워커에서 대기를 구동하며 브라우저 메인 스레드 제한을 유지한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000029",
+        "line": 46,
+        "text": "네이티브 POSIX에서는 모든 대기 채널과 비차단 wake pipe를 같은 poll 집합으로 기다린다. 작업 제출·TaskToken 취소·I/O 취소 신호·suspend/resume·stop은 이 파이프를 통해 커널 대기를 깨운다. 준비 상태와 정해진 기한이 없으면 대기 구간을 주기적으로 재검사하지 않는다. 다른 스레드가 채널 잠금을 점유하면 해제 통지가 대기를 깨운다. 채널 핸들은 대기 동안 잠금과 소유 참조로 고정하여 close/FD 재사용과의 경쟁을 막는다. 실제로 대기 집합을 준비한 횟수는 LoopStats.io_waits로 관찰할 수 있다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000031",
+        "line": 48,
+        "text": "Windows는 기존 COM 큐 상태와 파일 준비 검사에 네이티브 wake event를 결합한다. IOCP/overlapped COM 구현이 아니므로, 반복 상태 확인은 호출자가 주기를 지정해야 한다. 특히 비동기 미지원 파이프가 쓰기 가능으로 표시된 뒤 실제 쓰기가 `would_block`을 반환하면 지정된 다음 확인 시각 전에는 재시도하지 않는다. 취소와 원래 기한은 그 주기를 기다리지 않고 처리한다. WASM은 가상 파일 채널을 호스트 또는 워커에서 처리하며, 물리 장치 접근을 모사하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000033",
+        "line": 58,
+        "text": "Windows의 실행 검증 여부는 별도로 기록해야 한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000047",
+        "line": 78,
         "text": "각 요청은 Channel·Buffer와 콜백 캡처의 소유 참조를 유지한다. 전송 완료 전에는 같은 Buffer를 다른 실행 영역에서 읽거나 수정하지 않는다. 완료를 다른 객체의 큐로 전달하였다면 해당 소비가 끝난 뒤 버퍼를 재사용한다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000041",
-        "line": 61,
+        "block_id": "b000049",
+        "line": 80,
         "text": "대기 요청의 TaskToken::cancel은 완료 전달을 생략하고, 해당 네이티브 대기 구간의 핸들 잠금과 소유 참조까지 해제되는 것을 기다린다. 이후 요청의 Channel·Buffer·콜백을 파괴하고 슬롯을 반환한다. 콜백 함수는 빈 함수와 교환하여 이동 후 상태에 의존하지 않으며 캡처 소멸자의 재진입은 루프 잠금 밖에서 처리한다. 제거 중에는 같은 슬롯을 새 요청에 노출하지 않는다. request_stop과 루프 소멸도 대기 감시를 같은 경로로 정리한다. 이미 실행 중인 전송·완료는 선점하지 않으며 token.pending이 false가 되는 것은 슬롯 정리가 끝난 상태이다.",
         "basis": "lexical_match",
         "context": "paragraph"
@@ -543,65 +620,65 @@
     "commands": [],
     "links": [
       {
-        "block_id": "b000035",
+        "block_id": "b000043",
         "label": "새 모듈 계약",
         "target": "../../iiDeviceMultimedia/docs/hardware.md",
         "kind": "relative",
-        "line": 55
+        "line": 74
       },
       {
-        "block_id": "b000043",
+        "block_id": "b000051",
         "label": "객체 제거 계약",
         "target": "cleanup.md",
         "kind": "relative",
-        "line": 63
+        "line": 82
       },
       {
-        "block_id": "b000049",
+        "block_id": "b000057",
         "label": "poll",
         "target": "https://man7.org/linux/man-pages/man2/poll.2.html",
         "kind": "external",
-        "line": 69
+        "line": 88
       },
       {
-        "block_id": "b000049",
+        "block_id": "b000057",
         "label": "pipe",
         "target": "https://man7.org/linux/man-pages/man2/pipe.2.html",
         "kind": "external",
-        "line": 69
+        "line": 88
       },
       {
-        "block_id": "b000049",
+        "block_id": "b000057",
         "label": "Windows ClearCommError",
         "target": "https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-clearcommerror",
         "kind": "external",
-        "line": 69
+        "line": 88
       },
       {
-        "block_id": "b000049",
+        "block_id": "b000057",
         "label": "Windows WaitForSingleObject",
         "target": "https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject",
         "kind": "external",
-        "line": 69
+        "line": 88
       },
       {
-        "block_id": "b000049",
+        "block_id": "b000057",
         "label": "validation.md",
         "target": "validation.md",
         "kind": "relative",
-        "line": 69
+        "line": 88
       },
       {
-        "block_id": "b000053",
+        "block_id": "b000061",
         "label": "호스트 연결 계약",
         "target": "host-loop.md",
         "kind": "relative",
-        "line": 73
+        "line": 92
       }
     ],
     "tables": [
       {
-        "block_id": "b000033",
+        "block_id": "b000041",
         "columns": [
           "플랫폼",
           "이 변경의 채널 경로"
@@ -621,7 +698,7 @@
           ],
           [
             "Windows",
-            "기존 파일·COM, 상태 재검사+wake event; open_device는 unsupported"
+            "파일은 즉시 준비; 기존 파이프·COM의 반복 확인은 명시적 주기가 필요; open_device는 unsupported"
           ],
           [
             "WASM",

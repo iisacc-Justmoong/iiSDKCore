@@ -85,8 +85,9 @@ int main() {
     bool rejected = false;
     try { blocked.run(); } catch (const std::logic_error&) { rejected = true; }
     if (!rejected) return 2;
+    { Runtime dormant; if (dormant.stats().workers || dormant.post([]{}).error!=SubmitError::overloaded) return 3; }
     bool runtime_rejected = false;
-    try { Runtime runtime; } catch (const std::runtime_error&) { runtime_rejected = true; }
+    try { Runtime runtime({.workers=1}); } catch (const std::runtime_error&) { runtime_rejected = true; }
     if (!runtime_rejected) return 3;
     std::cout << "browser host blocking correctly rejected\n";
     static BrowserContracts contracts;

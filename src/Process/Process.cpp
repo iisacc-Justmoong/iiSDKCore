@@ -1,5 +1,7 @@
 #include "Process.h"
 #include "../IO/NativePipe.h"
+#include "../IO/Poller.h"
+#include "../IO/ReadinessPolicy.h"
 #include "../Core/Text/Utf8.h"
 #include <algorithm>
 #include <array>
@@ -17,13 +19,17 @@
 #include <windows.h>
 #elif defined(IISDKCORE_PROCESS_POSIX)
 #include <fcntl.h>
+#include <poll.h>
 #include <signal.h>
 #include <spawn.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #if defined(__APPLE__)
 #include <libproc.h>
+#include <sys/event.h>
 #include <sys/proc.h>
+#elif defined(__linux__)
+#include <sys/syscall.h>
 #endif
 #endif
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
@@ -105,6 +111,7 @@ struct Descriptor final {
     Descriptor& operator=(Descriptor&& other) noexcept { if(this!=&other) { reset(); value=std::exchange(other.value,-1); } return *this; }
     void reset() { if(value>=0) ::close(value); value=-1; }
     int release() { return std::exchange(value,-1); }
+    bool valid() const { return value>=0; }
     ~Descriptor() { reset(); }
 };
 Result<Descriptor> reserve_descriptor(int fd) {
@@ -198,6 +205,34 @@ struct Process::State final {
 #elif defined(IISDKCORE_PROCESS_POSIX)
     pid_t pid=-1;
 #endif
+#if defined(_WIN32)
+    Handle completion_signal() {
+        std::lock_guard lock(control);
+        if(exit || !process.valid()) return {};
+        HANDLE duplicate=nullptr;
+        if (!DuplicateHandle(GetCurrentProcess(),process.value,GetCurrentProcess(),&duplicate,
+                             SYNCHRONIZE,FALSE,0)) return {};
+        return Handle(duplicate);
+    }
+#elif defined(IISDKCORE_PROCESS_POSIX)
+    Descriptor completion_signal() {
+        std::lock_guard lock(control);
+        if(exit || pid<=0) return {};
+#if defined(__APPLE__)
+        Descriptor queue(::kqueue());
+        if(!queue.valid()) return {};
+        if(fcntl(queue.value,F_SETFD,FD_CLOEXEC)<0) return {};
+        struct kevent change;
+        EV_SET(&change,static_cast<uintptr_t>(pid),EVFILT_PROC,EV_ADD|EV_ONESHOT,NOTE_EXIT,0,nullptr);
+        if(::kevent(queue.value,&change,1,nullptr,0,nullptr)<0) return {};
+        return queue;
+#elif defined(__linux__) && defined(SYS_pidfd_open)
+        return Descriptor(static_cast<int>(::syscall(SYS_pidfd_open,pid,0)));
+#else
+        return {};
+#endif
+    }
+#endif
     Result<std::optional<Exit>> observe(std::optional<ExitReason> terminate={}) {
         std::lock_guard lock(control);
         if (exit) return exit;
@@ -272,9 +307,33 @@ Result<std::optional<Exit>> Process::poll() {
 Result<std::optional<Exit>> Process::wait_for(std::chrono::milliseconds timeout) {
     if(timeout.count()<0) return failure(ErrorCode::invalid_argument,"Negative process wait");
     const auto deadline=core::Deadline::after(timeout);
+#if defined(_WIN32) || defined(IISDKCORE_PROCESS_POSIX)
+    if(!state_) return failure(ErrorCode::closed,"No owned process");
+    auto signal=state_->completion_signal();
+#endif
     for(;;) {
         auto result=poll(); if(!result || *result || deadline.expired()) return result;
-        std::this_thread::sleep_for(std::min(deadline.remaining(),std::chrono::duration_cast<core::Clock::duration>(std::chrono::milliseconds(5))));
+#if defined(_WIN32)
+        if(signal.valid()) {
+            const auto remaining=std::chrono::ceil<std::chrono::milliseconds>(deadline.remaining());
+            const auto millis=static_cast<DWORD>(std::min<std::chrono::milliseconds::rep>(remaining.count(),INFINITE-1));
+            const auto waited=WaitForSingleObject(signal.value,millis);
+            if(waited==WAIT_FAILED) return native_error("wait process signal",static_cast<int>(GetLastError()));
+            continue;
+        }
+#elif defined(IISDKCORE_PROCESS_POSIX)
+        if(signal.valid()) {
+            const auto remaining=std::chrono::ceil<std::chrono::milliseconds>(deadline.remaining());
+            const auto millis=static_cast<int>(std::min<std::chrono::milliseconds::rep>(remaining.count(),INT_MAX));
+            pollfd descriptor{signal.value,POLLIN,0};
+            const auto waited=::poll(&descriptor,1,millis);
+            if(waited<0 && errno!=EINTR) return native_error("wait process signal",errno);
+            if(waited>0 && (descriptor.revents&(POLLERR|POLLNVAL)))
+                return failure(ErrorCode::failed,"Process completion notification failed");
+            continue;
+        }
+#endif
+        return failure(ErrorCode::failed,"Process completion notification unavailable; automatic polling is disabled");
     }
 }
 Result<Exit> Process::cancel() {
@@ -497,10 +556,17 @@ Result<Communication> Process::communicate(core::ByteView bytes,CommunicationOpt
     if(!state_) return failure(ErrorCode::closed,"No owned process");
     std::unique_lock lock(state_->communication,std::try_to_lock);
     if(!lock) return failure(ErrorCode::busy,"Pipe communication already active");
+    if(!io::detail::valid_polling_interval(options.polling_interval))
+        return failure(ErrorCode::invalid_argument,"Polling interval must be positive");
     if(!bytes.empty() && !state_->input.capabilities().writable) return failure(ErrorCode::invalid_argument,"Input requires a piped standard input");
     Communication result;
     bool writing=state_->input.capabilities().writable;
     bool output=state_->output.capabilities().readable,error=state_->error.capabilities().readable;
+    if(!options.polling_interval &&
+       ((writing && io::detail::needs_explicit_polling(state_->input.capabilities())) ||
+        (output && io::detail::needs_explicit_polling(state_->output.capabilities())) ||
+        (error && io::detail::needs_explicit_polling(state_->error.capabilities()))))
+        return failure(ErrorCode::unsupported,"Non-overlapped process pipes require an explicit polling interval");
     bool completed=false;
     core::Deadline drain;
     auto abort=[&](core::Error error_value) -> Result<Communication> {
@@ -510,6 +576,21 @@ Result<Communication> Process::communicate(core::ByteView bytes,CommunicationOpt
     };
     try {
         std::array<std::byte,16384> buffer;
+#if defined(_WIN32) || defined(IISDKCORE_PROCESS_POSIX)
+        auto process_signal=state_->completion_signal();
+        if(!process_signal.valid()) {
+            std::optional<ExitReason> stop;
+            if(options.stop.stop_requested()) stop=ExitReason::cancelled;
+            else if(options.deadline.expired()) stop=ExitReason::timed_out;
+            auto status=state_->observe(stop);
+            if(!status) return abort(status.error());
+            if(!*status)
+                return abort(core::Error{ErrorCode::failed,"Process completion notification unavailable; automatic polling is disabled"});
+            result.exit=**status; completed=true; drain=core::Deadline::after(std::chrono::seconds(2));
+        }
+        io::detail::ReadinessPoller reactor(3);
+        std::stop_callback cancellation(options.stop,[&reactor] { reactor.wake_persistent(); });
+#endif
         while(true) {
             bool progress=false;
             if(!completed) {
@@ -557,7 +638,27 @@ Result<Communication> Process::communicate(core::ByteView bytes,CommunicationOpt
             if(!received) return abort(received.error());
             if(completed && !output && !error) return result;
             if(completed && drain.expired()) return abort(core::Error{ErrorCode::failed,"Process exited but an external pipe owner prevented EOF"});
-            if(!progress) std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            if(!progress) {
+#if defined(_WIN32) || defined(IISDKCORE_PROCESS_POSIX)
+                std::array<io::detail::WatchEntry,3> watches;
+                std::size_t count=0;
+                if(writing) watches[count++]={state_->input,io::Interest::writable,options.polling_interval};
+                if(output) watches[count++]={state_->output,io::Interest::readable,options.polling_interval};
+                if(error) watches[count++]={state_->error,io::Interest::readable,options.polling_interval};
+                auto remaining=completed ? drain.remaining() : options.deadline.remaining();
+                auto timeout=remaining==core::Clock::duration::max() ? std::chrono::milliseconds::max() :
+                    std::chrono::ceil<std::chrono::milliseconds>(remaining);
+#if defined(_WIN32)
+                const auto native=!completed && process_signal.valid() ? reinterpret_cast<std::intptr_t>(process_signal.value) : -1;
+#else
+                const auto native=!completed && process_signal.valid() ? static_cast<std::intptr_t>(process_signal.value) : -1;
+#endif
+                reactor.prepare(std::span(watches.data(),count),timeout,native);
+                reactor.wait();
+#else
+                return abort(core::Error{ErrorCode::unsupported,"Native process readiness unavailable"});
+#endif
+            }
         }
     } catch (...) { return abort(core::Error{ErrorCode::failed,"Process communication callback or allocation failed",std::current_exception()}); }
 }

@@ -1,6 +1,7 @@
 #include "FrameLoop.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <exception>
 #include <stdexcept>
@@ -44,11 +45,13 @@ struct FrameLoop::Impl final {
   std::vector<Entry> entries;
   std::vector<graph::NodeId> order;
   std::vector<Scheduled> schedule;
+  static constexpr std::size_t phase_count=static_cast<std::size_t>(FramePhase::end)+1;
+  std::array<std::size_t,phase_count+1> phase_offsets{};
   FrameStats statistics;
   std::optional<Clock::time_point> previous;
   Clock::duration elapsed{}, unscaled_elapsed{}, fixed_elapsed{}, accumulator{};
   std::uint64_t fixed_tick = 0;
-  bool paused = false, inside_frame = false, driving = false, dirty = true;
+  bool paused = false, inside_frame = false, driving = false, dirty = true, schedule_dirty = true;
   bool closing = false;
   std::size_t retiring_depth = 0;
   double time_scale = 1;
@@ -74,7 +77,7 @@ struct FrameLoop::Impl final {
       throw std::logic_error("FrameLoop cannot recursively advance or advance during removal");
   }
   bool valid(graph::NodeId id) const {
-    return graph.contains(id) && !entries[id.slot].retiring;
+    return id.generation!=0 && id.slot<entries.size() && entries[id.slot].id==id && !entries[id.slot].retiring;
   }
   void retire(graph::NodeId id, Tick &capture) {
     auto &entry = entries[id.slot];
@@ -90,25 +93,40 @@ struct FrameLoop::Impl final {
     --statistics.active_ticks;
     --retiring_depth;
     dirty = true;
+    schedule_dirty = true;
   }
   void snapshot() {
     if (dirty) {
       order = std::move(*graph.order());
       dirty = false;
+      schedule_dirty = true;
     }
-    schedule.clear();
-    for (auto id : order)
-      if (valid(id)) schedule.push_back({id, entries[id.slot].options});
+    if (!schedule_dirty) return;
+    phase_offsets.fill(0);
+    for (auto id : order) if (valid(id) && entries[id.slot].options.enabled)
+      ++phase_offsets[static_cast<std::size_t>(entries[id.slot].options.phase)+1];
+    for (std::size_t i=1;i<phase_offsets.size();++i) phase_offsets[i]+=phase_offsets[i-1];
+    auto positions=phase_offsets;
+    schedule.resize(phase_offsets.back());
+    for (auto id : order) if (valid(id) && entries[id.slot].options.enabled) {
+      const auto& options=entries[id.slot].options;
+      schedule[positions[static_cast<std::size_t>(options.phase)]++]={id,options};
+    }
+    schedule_dirty=false;
+    ++statistics.schedule_rebuilds;
   }
   void phase(FramePhase phase, FrameContext context, FrameReport &report) {
     context.phase = phase;
     context.fixed_tick = fixed_tick;
     context.fixed_elapsed = fixed_elapsed;
-    for (const auto &item : schedule) {
-      if (events.state() != LoopState::ready) break;
-      if (item.options.phase != phase || !item.options.enabled || !valid(item.id) ||
+    const auto index=static_cast<std::size_t>(phase);
+    for (auto position=phase_offsets[index];position<phase_offsets[index+1];++position) {
+      const auto& item=schedule[position];
+      ++statistics.schedule_candidates;
+      if (!valid(item.id) ||
           (context.paused && item.options.clock == TickClock::scaled))
         continue;
+      if (events.state() != LoopState::ready) break;
       auto &entry = entries[item.id.slot];
       const auto clock = fixed_phase(phase) ? fixed_elapsed :
           item.options.clock == TickClock::unscaled ? unscaled_elapsed : elapsed;
@@ -194,6 +212,7 @@ core::Result<TickToken> FrameLoop::add(Tick tick, TickOptions options) {
   entry.tick.swap(tick);
   ++impl_->statistics.active_ticks;
   impl_->dirty = true;
+  impl_->schedule_dirty = true;
   return TickToken(*node);
 }
 core::Result<void> FrameLoop::remove(TickToken token) {
@@ -217,7 +236,8 @@ core::Result<void> FrameLoop::set_enabled(TickToken token, bool enabled) {
   impl_->check_owner();
   if (!impl_->valid(token.id_))
     return core::fail(core::ErrorCode::not_found, "Invalid or retired frame tick");
-  impl_->entries[token.id_.slot].options.enabled = enabled;
+  auto& current=impl_->entries[token.id_.slot].options.enabled;
+  if (current!=enabled) { current=enabled; impl_->schedule_dirty=true; }
   return {};
 }
 core::Result<void> FrameLoop::add_dependency(TickToken dependent, TickToken prerequisite) {
@@ -228,7 +248,7 @@ core::Result<void> FrameLoop::add_dependency(TickToken dependent, TickToken prer
       impl_->entries[dependent.id_.slot].options.phase)
     return core::fail(core::ErrorCode::invalid_argument, "Frame dependency cannot reverse phase order");
   auto result = impl_->graph.connect(prerequisite.id_, dependent.id_);
-  if (result) impl_->dirty = true;
+  if (result) { impl_->dirty = true; impl_->schedule_dirty=true; }
   return result;
 }
 core::Result<void> FrameLoop::remove_dependency(TickToken dependent, TickToken prerequisite) {
@@ -236,7 +256,7 @@ core::Result<void> FrameLoop::remove_dependency(TickToken dependent, TickToken p
   if (!impl_->valid(dependent.id_) || !impl_->valid(prerequisite.id_))
     return core::fail(core::ErrorCode::not_found, "Invalid frame dependency endpoint");
   auto result = impl_->graph.disconnect(prerequisite.id_, dependent.id_);
-  if (result) impl_->dirty = true;
+  if (result) { impl_->dirty = true; impl_->schedule_dirty=true; }
   return result;
 }
 void FrameLoop::set_paused(bool paused) {

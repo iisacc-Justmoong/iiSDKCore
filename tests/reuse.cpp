@@ -11,10 +11,11 @@
 #include <iostream>
 #include <new>
 
-namespace { std::atomic<std::size_t> allocations{0}; }
+namespace { std::atomic<std::size_t> allocations{0},allocated_bytes{0}; }
 
 void* operator new(std::size_t size) {
     ++allocations;
+    allocated_bytes.fetch_add(size,std::memory_order_relaxed);
     if (void* memory = std::malloc(size ? size : 1)) return memory;
     throw std::bad_alloc();
 }
@@ -26,6 +27,14 @@ void operator delete[](void* memory, std::size_t) noexcept { std::free(memory); 
 
 int main() {
     using namespace ii::runtime;
+    const auto sparse_before=allocated_bytes.load();
+    {
+        EventLoop sparse(65536);
+        if (!sparse.post([] {}) || sparse.poll()!=1 || sparse.stats().capacity!=65536) return 30;
+        const auto sparse_bytes=allocated_bytes.load()-sparse_before;
+        std::cout << "sparse capacity: 65536 slots, allocated bytes=" << sparse_bytes << '\n';
+        if (sparse_bytes>2*1024*1024) return 31;
+    }
     EventLoop loop(8);
     Stream<int> stream(4);
     int received = 0;

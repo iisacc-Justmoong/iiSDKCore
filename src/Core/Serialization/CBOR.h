@@ -74,7 +74,7 @@ inline std::optional<std::uint16_t> half_exact(double value) {
     return std::uint16_t(sign | 0x7c00);
   if (value == 0)
     return sign;
-  if (std::abs(value) > std::numeric_limits<float>::max())
+  if (std::abs(value) > (std::numeric_limits<float>::max)())
     return {};
   const float narrow = static_cast<float>(value);
   if (static_cast<double>(narrow) != value)
@@ -151,7 +151,7 @@ public:
       return r;
     if (auto half = detail::half_exact(value))
       return raw(0xf9, *half, 2);
-    if (std::abs(value) <= std::numeric_limits<float>::max()) {
+    if (std::abs(value) <= (std::numeric_limits<float>::max)()) {
       const float narrow = static_cast<float>(value);
       if (double(narrow) == value)
         return raw(0xfa, std::bit_cast<std::uint32_t>(narrow), 4);
@@ -192,7 +192,7 @@ private:
       const auto grown = bytes_.capacity() > limits_.max_bytes / 2
                              ? limits_.max_bytes
                              : bytes_.capacity() * 2;
-      bytes_.reserve(std::max(required, grown));
+      bytes_.reserve((std::max)(required, grown));
     }
     bytes_.insert(bytes_.end(), bytes.begin(), bytes.end());
     return {};
@@ -276,7 +276,7 @@ public:
       return std::unexpected(h.error());
     if (h->major > 1)
       return reject<T>(ErrorCode::type_mismatch, "Expected integer");
-    const auto maximum = std::uint64_t(std::numeric_limits<T>::max());
+    const auto maximum = std::uint64_t((std::numeric_limits<T>::max)());
     if (h->argument > maximum || (h->major == 1 && !std::is_signed_v<T>))
       return reject<T>(ErrorCode::out_of_range, "Integer outside target range");
     if constexpr (std::is_signed_v<T>) {

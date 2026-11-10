@@ -1,6 +1,6 @@
 # 멀티스레드·병렬·비동기 기본 런타임
 
-iiSDKCore의 애플리케이션 기본 실행자는 `Runtime`이다. 생성 시 여러 `Thread` 워커를 시작하고 유지하며, `post()`로 받은 작업을 호출자와 다른 워커에서 비동기로 처리한다. 기본 워커 수는 hardware_concurrency 힌트를 2~4개로 제한한 값이며 옵션으로 지정할 수 있다. 개별 작업마다 OS 스레드를 만들지 않는다.
+iiSDKCore의 `Runtime`은 명시적으로 요청한 `Thread` 워커를 유지하며 `post()`로 받은 작업을 호출자와 다른 워커에서 비동기로 처리한다. 기본 생성은 워커를 시작하지 않는다. 개별 작업마다 OS 스레드를 만들지 않는다.
 
 기본 전제는 멀티스레드 실행, 독립 작업의 병렬 처리, 객체 간 비동기 쿼리이다. 공유 객체의 가변 상태는 객체별 `SerialQueue`에 귀속한다. 서로 다른 객체와 일반 작업은 병렬로 진행하고, 같은 객체의 쿼리는 한 번에 하나씩 처리한다. 큐별로 전용 OS 스레드를 만들거나 모든 객체를 하나의 전역 잠금으로 묶지 않는다.
 
@@ -10,7 +10,7 @@ iiSDKCore의 애플리케이션 기본 실행자는 `Runtime`이다. 생성 시 
 #include <iiSDKCore/Runtime/Query.h>
 using namespace ii::runtime;
 
-Runtime runtime;                 // 워커를 즉시 시작한다.
+Runtime runtime({.workers=2});    // 이 객체에 필요한 워커를 명시한다.
 SerialQueue object(runtime);     // 객체의 상태 변경 실행 영역이다.
 int value = 0;
 QueryPort<int, int> update(object, [&](const int& next) {
@@ -31,6 +31,14 @@ auto joined = runtime.join();         // 객체·캡처가 소멸하기 전에 �
 완성된 소비자 `examples/parallel.cpp`는 계산 객체의 쿼리 결과를 장치 객체의 동적 속성 변경 쿼리로 이어 전달한다. 작업 중 스레드 생성이나 future 대기가 없으며, 계산 큐와 장치 큐가 같은 워커 집합을 공유한다. `./build/iiSDKCoreParallelExample`로 실행한다.
 
 ## 객체 실행 영역과 쿼리
+
+준비된 작업이 생길 때 필요한 워커를 깨운다. 이미 실행 중인 SerialQueue의
+뒤에 작업을 추가한 것만으로는 다른 워커를 깨우지 않으며, 선행 작업이 끝나
+다음 작업이 준비되면 알린다. drain 완료와 명시적인 중지·워커 수 변경은 해당
+대기자를 깨운다. 작업 토큰과 큐 종료를 기다리는 호출은 각각 해당 슬롯과 큐의
+완료를 기다려 무관한 작업 완료에 반복해서 깨어나지 않는다.
+개별 슬롯의 대기 상태는 실제 `TaskToken::wait()` 호출이 있을 때만 만들고
+해당 대기자가 모두 돌아오면 해제한다.
 
 SerialQueue의 작업은 접수 순서대로 실행하고 서로 겹치지 않는다. 여러 생산자가 동시에 제출했을 때의 순서는 런타임에 접수된 순서이다. 앞선 작업의 상태 변경은 같은 큐의 다음 작업에 보인다. 작업마다 다른 워커에서 실행될 수 있으므로 OS thread id나 thread_local 값을 객체의 고정 소속으로 사용하지 않는다. `is_current()`로 현재 작업이 해당 객체 큐에 속하는지 확인한다.
 
@@ -56,9 +64,42 @@ Runtime은 작업 실행과 워커 수명, SerialQueue는 객체의 실행 순�
 
 ## 용량·취소·메모리
 
-RuntimeOptions는 workers와 capacity이다. workers=0은 기본 정책, 명시적인 1은 제한된 단일 워커 구성이다. capacity 기본값은 1024이고 0은 생성 실패이다. capacity는 대기와 실행 중인 작업을 모두 포함하며 Runtime의 모든 SerialQueue가 공유한다. 포화 시 post는 full을 반환한다. 객체 큐마다 별도의 무제한 대기열을 만들지 않는다.
+### 명시적 자원 할당 계약
 
-생성 시 작업 슬롯·free-list·Thread 인스턴스를 확보하고 반복 사용한다. SerialQueue 생성은 실행 영역 상태를 한 번 확보한다. 실제 선택은 고정 슬롯을 순회하는 O(capacity) 검색이고 현재 구현은 단순한 mutex 기반이다. 준비된 큐 사이에서 high:normal:background 가중치 4:2:1로 선택하며, 같은 객체 큐에서는 우선순위와 관계없이 FIFO를 보존한다. 실행 중 작업을 선점하지 않는다.
+기본 `Runtime`은 워커를 만들지 않고 작업 저장소도 할당하지 않는다. 기본 이벤트
+루프에 제출한 작업은 호스트가 구동할 수 있지만, 워커가 필요한 제출은 명시적으로
+워커를 할당하기 전까지 `overloaded`를 반환한다. 양수 `workers`, 명시적인 자동
+워커 정책 또는 `resize_workers()`로 자원을 요청한다. 워커를 0으로 줄이면 접수를
+막고 기존 작업과 캡처를 정리한 뒤 워커와 작업 저장소를 반환한다. 다시 할당해도
+이전 작업 토큰은 새 작업을 가리키지 않는다. `Runtime::objects()`나 `Session::objects()`로
+자신의 Runtime과 MemoryPool을 가진 객체를 소유하면 그 자원의 수명은 해당 객체와
+함께 끝난다. 별도 요청이 없는 프레임·I/O·워커는 생성하거나 실행하지 않는다.
+
+기존 코드가 `Runtime runtime;` 또는 기본 `Application`의 워커를 사용했다면 필요한
+워커 수를 명시해야 한다. 기본 옵션은 호출 측에서 구성되므로 동적 라이브러리만
+교체해서는 기존 실행 파일의 기본값이 바뀌지 않는다. 소비자를 새 헤더로 다시 빌드한다.
+자원 조회는 `Runtime::allocated_slots()`를 사용하며 기존 `RuntimeStats`의 필드 배치를
+바꾸지 않는다.
+
+RuntimeOptions는 workers, capacity와 실행 queues이다. 기본 workers=0과 `worker_policy=none`은 워커가 없는 상태이며, 명시적인 1은 단일 워커 구성이다. capacity 기본값은 1024이고 0은 생성 실패이다. queues=0은 워커 수와 capacity 중 작은 값, 워커가 없으면 하나의 논리 큐로 구성한다. 명시적인 큐 수는 capacity 이하여야 한다. capacity는 대기·실행·캡처 정리 중인 작업을 모두 포함하며 Runtime의 모든 실행 큐와 SerialQueue가 공유한다. 포화 시 post는 full을 반환한다. 객체 큐마다 별도의 무제한 대기열을 만들지 않는다.
+
+`workers=0`에서 `worker_policy=RuntimeWorkerPolicy::hardware`를 선택하면
+`std::thread::hardware_concurrency()`가 보고한 논리 실행 단위를 사용하되 전체 슬롯
+용량을 넘지 않는다. 힌트가 0이면 워커 하나를 사용한다. 명시적인 `bounded` 정책은
+2~4개를 요청하되 capacity를 넘지 않으며, 양수 `workers`는 자동 정책보다 우선한다. 하드웨어 힌트는
+물리 코어 수·CPU 할당량·실제 병렬 실행을 보증하지 않고 스레드 배치는 OS가 결정한다.
+
+워커 할당 시 작업 슬롯·free-list·우선순위별 실행 큐·Thread 인스턴스를 확보하고 반복 사용한다. 슬롯을 여러 실행 큐에 분산하고, 워커는 자기 큐 외의 준비된 작업도 선택할 수 있다. 각 우선순위에서 준비된 가장 오래된 작업을 선택하며, high:normal:background 가중치 4:2:1과 같은 객체 큐의 FIFO를 보존한다. 실행 큐의 준비 항목 색인은 등록·취소·객체 큐의 선행 작업 완료 시에만 갱신한다. 선택 시 모든 작업 슬롯을 훑지 않고 각 실행 큐의 우선순위별 선두를 비교한다. 큐와 슬롯의 접수·선택·반환은 하나의 내부 mutex로 보호하며 사용자 작업은 잠금 밖에서 병렬 실행한다. 워커나 큐는 OS 스레드 affinity를 보장하지 않으며 실행 중 작업을 선점하지 않는다.
+
+슬롯은 생성 시 정해진 실행 큐에 속하며 재사용해도 그 소속을 유지한다. 각 큐는
+high·normal·background별로 접수 순서가 가장 빠른 실행 가능 작업을 유지한다. 워커의
+홈 큐는 교차 처리 통계에 사용하며, 실제 선택은 홈 큐를 우선하지 않고 모든 큐의
+선두를 비교한다. 따라서 큐 수가 `Q`이면 우선순위 선택은 최대 7×Q개의 선두를 보고,
+큐의 삽입·제거는 해당 우선순위의 힙 크기에 대해 로그 시간이다. 최대 세 우선순위
+색인에 전체 슬롯 수의 세 배까지의 인덱스 저장소를 생성 시 확보한다. 큐 수가 많을수록
+선두 비교와 초기 할당이 늘어나므로 작업량에 맞게 조정한다.
+
+`Runtime::queue_stats()`는 각 실행 큐의 전체 슬롯 용량, 점유, 실행 가능·실행 중 작업과 접수·완료·취소, 다른 홈 큐의 워커가 처리한 횟수를 복사해 반환한다. `ready`는 객체 큐의 앞선 작업을 기다리는 항목을 포함하지 않는다. 통계는 호출 시점의 진단용 스냅샷이며 작업 완료 장벽이 아니다.
 
 post의 Submission은 접수 결과이며 작업 완료 결과가 아니다. 취소 토큰은 실행자와 슬롯 세대를 구분하므로 EventLoop/다른 Runtime/재사용 전 슬롯에 쓸 수 없다. `token.cancel()`은 실행자 수명을 약하게 확인하므로 실행자 제거 후에도 안전하게 false를 반환한다. `token.pending()`은 대기·실행·캡처 파괴 중 슬롯 점유를 조회한다. cancel은 대기 중인 작업만 제거하며 이미 실행 중인 작업에는 false이다. 취소한 쿼리의 처리기와 completion은 호출하지 않는다. 작업 캡처는 내부 잠금을 해제한 뒤 파괴하고, 파괴 완료 후 슬롯을 반환한다. 소멸 중 제출은 이미 비어 있는 다른 슬롯을 사용해야 하며 가득 찼으면 full이다.
 
@@ -86,7 +127,7 @@ QueryPort는 자신의 TaskScope를 통해 제거 시 대기 쿼리를 취소하
 
 네이티브에서는 같은 Runtime API가 표준 OS 스레드를 사용한다. WASM의 IISDKCORE_WASM_THREADS 기본값은 ON이다. 애플리케이션 main/스레드 관리는 pthread 워커에서 실행하고 브라우저 메인 스레드는 프레임·DOM 호스트로 남긴다. 테스트·예제는 PROXY_TO_PTHREAD와 16개 초기 호스트 워커를 사용한다. 이 풀 크기를 모든 SDK 소비자에게 강제하지는 않는다. COOP/COEP 등 호스트 조건은 [Thread 문서](thread.md)를 따른다.
 
-IISDKCORE_WASM_THREADS=OFF는 명시적인 제한 빌드이다. Thread와 Runtime을 호출자 인라인 실행으로 흉내 내지 않는다. Runtime 생성은 거절하며 기존 EventLoop::poll과 BrowserLoop로 호스트 단일 스레드 기능을 사용할 수 있다. 이전 CMake 캐시의 OFF 값은 새 기본값으로 자동 덮어쓰지 않으므로 기존 빌드는 ON으로 재설정해야 한다.
+IISDKCORE_WASM_THREADS=OFF는 명시적인 제한 빌드이다. Thread와 Runtime을 호출자 인라인 실행으로 흉내 내지 않는다. 워커 없는 Runtime은 생성할 수 있지만 워커 할당은 거절한다. EventLoop::poll과 BrowserLoop로 호스트 단일 스레드 기능을 사용할 수 있다. 이전 CMake 캐시의 OFF 값은 새 기본값으로 자동 덮어쓰지 않으므로 기존 빌드는 ON으로 재설정해야 한다.
 
 브라우저 검증은 tests/serve_wasm.py로 pthread 빌드 디렉터리를 제공한 뒤 `parallel-browser.html`과 `iiSDKCoreBrowserTests.html`을 연다. 전자는 실제 병렬·직렬 큐 계약, 후자는 브라우저 메인 스레드의 blocking 실행 거절과 프레임 루프 계약을 검사한다. Node CTest와 실제 브라우저 검증은 별도로 기록한다.
 
@@ -96,3 +137,9 @@ map/filter/reduce 및 명시적인 관찰 실행기를 추가한다. 두 API는 
 슬롯과 워커를 사용한다. 자세한 계약은 [비동기 계산](concurrent.md)을 따른다.
 `Runtime/Animation.h`의 시간축 실행과 기존 Operation의 마감·부작용 추적은
 독립된 책임을 유지한다.
+
+GPU 명령과 메모리는 독립 모듈 iiGPU가 소유한다. 애플리케이션은 두 모듈을 각각
+선택하여 Runtime의 CPU 작업과 iiGPU의 Metal·Vulkan 제출을 병행할 수 있다. iiGPU의
+CompletionService는 별도의 제한된 대기 워커에서 제출 완료를 관측하고, 결과를
+애플리케이션이 제공한 EventLoop 또는 다른 실행 영역으로 전달하도록 조합할 수 있다.
+Runtime의 임의 C++ 작업이 자동으로 GPU 셰이더로 변환되는 것은 아니다.

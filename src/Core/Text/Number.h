@@ -40,7 +40,7 @@ inline std::optional<double> parse_decimal(std::string_view text) {
     input >> std::noskipws >> number;
     // libc++ sets failbit for a representable subnormal when strtod reports
     // ERANGE. Keep that finite, nonzero value; reject overflow and loss to zero.
-    const bool subnormal = number != 0 && std::abs(number) < std::numeric_limits<double>::min();
+    const bool subnormal = number != 0 && std::abs(number) < (std::numeric_limits<double>::min)();
     if (input.bad() || (input.fail() && !subnormal) || !input.eof() || !std::isfinite(number) || (number == 0 && nonzero)) return {};
     return number;
 }
@@ -52,7 +52,7 @@ inline std::string format_decimal(double number) {
     auto result=render(low,std::ios_base::fmtflags{});
     auto scientific=render(low-1,std::ios_base::scientific);if(scientific.size()<result.size())result=std::move(scientific);
     const int exponent=number==0?0:int(std::floor(std::log10(std::abs(number))));
-    auto fixed=render(std::max(0,low-1-exponent),std::ios_base::fixed);
+    auto fixed=render((std::max)(0,low-1-exponent),std::ios_base::fixed);
     if(fixed.size()<result.size()){const auto read=parse_decimal(fixed);if(read&&*read==number)result=std::move(fixed);}
     return result;
 }

@@ -3,6 +3,7 @@
 #include <iiSDKCore/Runtime/EventLoop.h>
 #include <iiSDKCore/Runtime/Stream.h>
 #include <iiSDKCore/Runtime/Query.h>
+#include <iiSDKCore/Runtime/QueryPeer.h>
 #include <iiSDKCore/Runtime/ObjectProperties.h>
 #include <iiSDKCore/Runtime/Thread.h>
 #include <iiSDKCore/Runtime/Runtime.h>
@@ -21,6 +22,9 @@ int main()
     if (loop.poll() != 1 || !stream.try_pop(received) || received != 42) return 2;
     ii::runtime::QueryPort<int, int> receiver([](const int& value) { return value * 2; });
     if (receiver.send(21).value() != 42) return 3;
+    ii::runtime::QueryPeer<int,int> left([](int value){return value+1;});
+    ii::runtime::QueryPeer<int,int> right([](int value){return value*2;});
+    if (!left.connect(right) || left.send(21).value()!=42 || right.send(41).value()!=42) return 11;
     ii::runtime::ObjectProperties properties({{.name = "answer", .value = 42}});
     auto answer = properties.queries().send(ii::runtime::PropertyRead{{{.name = "answer"}}});
     if (!answer || !*answer || std::any_cast<int>((**answer).fields[0].value) != 42) return 4;
@@ -35,7 +39,7 @@ int main()
     int threaded_value = 0;
     if (!worker.start([&](ii::runtime::ThreadContext&) { threaded_value = 7; }) ||
         !worker.join() || threaded_value != 7) return 6;
-    ii::runtime::Runtime runtime;
+    ii::runtime::Runtime runtime({.workers=1});
     ii::runtime::SerialQueue queue(runtime);
     ii::runtime::QueryPort<int, int> async(queue, [](const int& value) { return value + 1; });
     int answer_async = 0;

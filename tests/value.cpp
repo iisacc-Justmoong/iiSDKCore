@@ -105,7 +105,7 @@ int run_tests() {
           bad_projection.error().cast_error->code == CastErrorCode::unsupported, "projection error path");
 
     if (Thread::supported()) {
-        Runtime runtime;
+        Runtime runtime({.workers=1});
         SerialQueue queue(runtime);
         QueryPort<DynamicValue, DynamicValue> cast_query(queue, [](const DynamicValue& input) {
             return cast_value(input, typeid(int)).value();

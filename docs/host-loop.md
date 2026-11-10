@@ -2,7 +2,7 @@
 
 HostLoop connects an existing EventLoop to an event host owned by another
 module. Actual consumers are iiGUI's AppKit/CFRunLoop, Win32 message loop and
-Linux X11/poll hosts. Core owns task admission, timing, cancellation, readiness
+Linux Wayland hosts. Core owns task admission, timing, cancellation, readiness
 and execution-context contracts; the consumer owns windowing, lifecycle,
 native wake handles, GPU work, input and fonts. No upper SDK or GUI framework
 is imported into Core. HostLoop also works for non-GUI external event hosts.
@@ -28,8 +28,10 @@ inspection/submission is safe. Recursive wake requests coalesce until a host
 poll acknowledges the outstanding notification. Initial attachment signals
 the host so pre-attachment submissions are included.
 
-Every accepted submission, direct TaskToken cancellation, suspension, resumption
-and stop notifies the same host. QueryPort, TaskScope, FrameLoop and direct
+Ready or timed submissions, direct TaskToken cancellation, actual suspension,
+resumption and stop notify the same host. An untriggered `on_signal` binding or
+on-demand realtime reservation stays parked until its explicit signal, and a
+repeated suspend/resume with no state change does not notify. QueryPort, TaskScope, FrameLoop and direct
 EventLoop producers do not need a separate GUI-specific wake wrapper. A budget
 that leaves ready work is followed by the host rearming an immediate deadline.
 There is no automatic frame timer.
@@ -49,24 +51,33 @@ C++/OS calls; use Runtime/AsyncIO and then_on for results.
 
 ## Native readiness
 
-By default one managed Thread waits for pending channel readiness and wakes
-the host. It never invokes an I/O completion, task, query or frame callback;
+The first explicitly registered I/O watch starts one managed Thread to wait
+for channel readiness and wake the host. A host without a watch allocates no
+readiness thread. Existing watches also start it when a host attaches. The
+waiter belongs to the connection and is joined when it closes; between watches
+it remains parked for reuse. It never invokes an I/O completion, task, query or frame callback;
 all dispatch still occurs in the owner's poll. It reuses Core's native
 ReadinessPoller and bounded watch storage. Prepared native leases protect
 handles from reuse. Cancellation synchronizes that wait before reclaiming
 the slot and callback storage.
 
 The waiter parks on a condition variable when no unready I/O remains or the
-loop is suspended. Pending I/O uses the existing poller's maximum 20 ms wait
-to observe cooperative cancellation, closure and transfer retries. On POSIX
-the native descriptor wait also returns promptly for readiness. Windows uses
-the existing bounded wake-event/readiness-probe path, not a new IOCP backend.
-There is no permanent UI polling timer. This adds one parked native waiter per
-default connection; it is not one thread per request.
+loop is suspended. On POSIX, pending I/O waits for descriptor readiness,
+cancellation, an explicit wake, or the actual deadline without recurring idle
+checks. If another operation temporarily owns a channel lock, the waiter is
+notified when the lock is released. Normal task posts and empty host polls do
+not restart an unchanged readiness wait. Windows uses the existing explicitly
+requested wake-event/readiness-probe path, not a new IOCP backend.
+There is no permanent UI polling timer. This adds at most one native waiter per
+connection that actually watches I/O; it is not one thread per request.
+`HostLoop::io_waiter_active()` reports whether that connection owns a waiter.
 
 HostLoopOptions::monitor_io=false disables that waiter for a host that explicitly
-polls I/O itself. Threadless WASM and the browser main thread cannot start the
-default native waiter; unsupported setup throws and cleans partial attachment.
+polls I/O itself. An I/O cancellation signal still wakes that host so it can
+dispatch the cancellation; ordinary readiness remains the host's responsibility.
+Threadless WASM and the browser main thread cannot start a native waiter; a
+watch that requires one, or attachment with an existing watch, throws if the
+waiter cannot be started. Partial host attachment is cleaned up.
 An explicit tasks/manual-I/O connection or the existing BrowserLoop remains
 available. Building Core for a platform does not verify its native GUI behavior.
 
@@ -91,7 +102,7 @@ its host owner. Self/concurrent owner destruction during active dispatch remains
 invalid. The connection never owns a window or native callback target.
 
 EventLoop::Sender is a copyable weak admission endpoint with post/at/after/every,
-realtime, watch/read/write and cancel. It does not retain the loop owner, expose
+realtime, on_signal/signal, watch/read/write and cancel. It does not retain the loop owner, expose
 native handles or allow dispatch. Removed/stopped executors reject; bounded
 admission and generation-safe tokens are unchanged. TaskScope::at and its
 Sender::at accept TimedTaskExecutor implementations, including Core Sender and

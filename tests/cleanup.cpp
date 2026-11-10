@@ -252,8 +252,9 @@ void scene_retirement_and_self_removal() {
 void async_io_cleanup() {
     Runtime runtime({.workers=1,.capacity=2}); Gate blocker;
     check(bool(runtime.post([&]{blocker.enter();})),"I/O blocker admitted"); blocker.wait();
-    const auto path=std::filesystem::current_path()/"cleanup-io.tmp";
-    auto opened=ii::testing::open_file(path,{ii::io::Access::read_write,ii::io::Creation::truncate});
+    const auto path=std::filesystem::current_path()/
+        ("cleanup-io-"+std::to_string(Clock::now().time_since_epoch().count())+".tmp");
+    auto opened=ii::testing::open_file(path,{ii::io::Access::read_write,ii::io::Creation::create_new});
     check(bool(opened),"cleanup I/O file opened");
     auto alias=*opened;
     auto resource=std::make_shared<int>(1); std::weak_ptr<int> weak=resource;

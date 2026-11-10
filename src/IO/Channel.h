@@ -7,7 +7,9 @@
 #include <expected>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <span>
+#include <stop_token>
 #include <system_error>
 
 namespace ii::io {
@@ -35,24 +37,24 @@ struct PlatformCapabilities final { Backend backend; bool files; bool serial; bo
 [[nodiscard]] PlatformCapabilities platform_capabilities() noexcept;
 struct Transfer final { std::size_t bytes = 0; bool eof = false; };
 
-// A minimal shared cancellation flag, including toolchains without stop_token.
-// No callbacks, thread ownership or allocation in token copies/checks.
+// A shared cancellation signal. Token copies/checks do not allocate.
 class CancellationSource;
 class CancellationToken final {
 public:
     CancellationToken() = default;
-    [[nodiscard]] bool cancelled() const noexcept { return state_ && state_->load(std::memory_order_acquire); }
+    [[nodiscard]] bool cancelled() const noexcept { return token_.stop_requested(); }
+    [[nodiscard]] std::stop_token native_token() const noexcept { return token_; }
 private:
     friend class CancellationSource;
-    explicit CancellationToken(std::shared_ptr<std::atomic<bool>> state) : state_(std::move(state)) {}
-    std::shared_ptr<std::atomic<bool>> state_;
+    explicit CancellationToken(std::stop_token token) : token_(std::move(token)) {}
+    std::stop_token token_;
 };
 class CancellationSource final {
 public:
-    [[nodiscard]] CancellationToken token() const noexcept { return CancellationToken(state_); }
-    bool cancel() const noexcept { return state_ && !state_->exchange(true, std::memory_order_acq_rel); }
+    [[nodiscard]] CancellationToken token() const noexcept { return CancellationToken(state_.get_token()); }
+    bool cancel() const noexcept { return state_.request_stop(); }
 private:
-    std::shared_ptr<std::atomic<bool>> state_ = std::make_shared<std::atomic<bool>>(false);
+    mutable std::stop_source state_;
 };
 
 namespace detail { class ReadinessPoller; }
@@ -73,11 +75,16 @@ public:
     // The stop token cancels readiness waiting, not an in-progress OS transfer.
     [[nodiscard]] Result<void> wait(Interest interest, std::chrono::milliseconds timeout,
                                     CancellationToken stop = {}) const;
+    // Explicitly permits repeated readiness probes at the given interval.
+    [[nodiscard]] Result<void> wait_polling(Interest interest, std::chrono::milliseconds timeout,
+                                            std::chrono::milliseconds interval, CancellationToken stop = {}) const;
     [[nodiscard]] Result<void> close() const;
 private:
     friend class detail::ReadinessPoller;
     friend class MappedRegion;
     struct State;
+    [[nodiscard]] Result<void> wait_impl(Interest, std::chrono::milliseconds, CancellationToken,
+                                        std::optional<std::chrono::milliseconds>) const;
     std::shared_ptr<State> state_;
     explicit Channel(std::shared_ptr<State> state) : state_(std::move(state)) {}
     friend class NativeFile;

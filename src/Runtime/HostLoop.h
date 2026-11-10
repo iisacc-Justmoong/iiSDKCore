@@ -5,8 +5,8 @@
 
 namespace ii::runtime {
 struct HostLoopOptions final {
-    // Native readiness waits run separately; callbacks still dispatch on the
-    // attaching thread. Disable only for hosts that explicitly drive I/O.
+    // A native waiter is allocated on the first explicit I/O watch; callbacks
+    // still dispatch on the attaching thread. Disable for manually driven I/O.
     bool monitor_io = true;
 };
 struct HostLoopStats final {
@@ -32,6 +32,7 @@ public:
     // It leaves EventLoop ownership/state with the caller; close is idempotent.
     [[nodiscard]] core::Result<void> close();
     [[nodiscard]] HostLoopStats stats() const;
+    [[nodiscard]] bool io_waiter_active() const;
     [[nodiscard]] static bool is_current_thread() noexcept;
 private:
     friend class EventLoop;

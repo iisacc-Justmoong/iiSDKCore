@@ -15,7 +15,7 @@ Operation when a caller must retain a result even if queued work is removed.
 The first production consumer is iiCSMIDI's owned-buffer asynchronous decoder.
 
 ```cpp
-ii::runtime::Runtime runtime;
+ii::runtime::Runtime runtime({.workers=1});
 ii::runtime::SerialQueue replies(runtime);
 ii::runtime::TaskScope receiver;
 ii::runtime::OperationOwner owner;

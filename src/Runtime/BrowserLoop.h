@@ -7,7 +7,7 @@ namespace ii::runtime {
 class FrameLoop;
 
 // Browser main-thread instance. EventLoop must outlive this driver.
-// requestAnimationFrame owns pacing; each callback returns control to the host.
+// FrameLoop uses requestAnimationFrame; EventLoop wakes for work/deadlines.
 class BrowserLoop final {
 public:
     explicit BrowserLoop(EventLoop& loop, PumpBudget budget = {});

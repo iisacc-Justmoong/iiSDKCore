@@ -87,10 +87,10 @@ public:
                 Sample sample, Easing easing = Easing::linear) {
     if (start < core::Clock::duration::zero() ||
         duration < core::Clock::duration::zero() || !sample ||
-        start > core::Clock::duration::max() - duration)
+        start > (core::Clock::duration::max)() - duration)
       throw std::invalid_argument("Invalid animation track");
     tracks_.push_back({start, duration, std::move(sample), easing});
-    duration_ = std::max(duration_, start + duration);
+    duration_ = (std::max)(duration_, start + duration);
   }
   void append(core::Clock::duration duration, Sample sample,
               Easing easing = Easing::linear) {
@@ -98,7 +98,7 @@ public:
   }
   void pause(core::Clock::duration duration) {
     if (duration < core::Clock::duration::zero() ||
-        duration_ > core::Clock::duration::max() - duration)
+        duration_ > (core::Clock::duration::max)() - duration)
       throw std::invalid_argument("Invalid timeline pause");
     duration_ += duration;
   }

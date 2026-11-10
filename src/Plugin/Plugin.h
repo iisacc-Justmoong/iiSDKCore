@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace ii::plugin {
@@ -37,6 +38,8 @@ public:
   // Static registration is the portable iOS/WASM path. Entry code must outlive
   // the instance; the host does not acquire/unload a library for this form.
   [[nodiscard]] static core::Result<Plugin> attach(Entry entry);
+  // Resolve an entry compiled into this application's static Core archive.
+  [[nodiscard]] static core::Result<Plugin> open_static(std::string_view identifier);
   ~Plugin();
   Plugin(Plugin &&) noexcept;
   Plugin &operator=(Plugin &&) noexcept;

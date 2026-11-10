@@ -1,0 +1,93 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:15d7ff81062efb110c0912a127a27c5412b4c34e95b21af51cf22d8e581727ed",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/mobile-shared-runtime.md",
+    "sha256": "d0e3186401c3cc5d8b7e6f3debccee70421c18225b8456148bf72f12da0c0432",
+    "bytes": 842,
+    "line_count": 11,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "모바일 및 웹 공유 런타임 계약",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# 모바일 및 웹 공유 런타임 계약\n",
+      "level": 1,
+      "title": "모바일 및 웹 공유 런타임 계약"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 7,
+      "raw": "앱이 명시적으로 `IISDKCORE_DYNAMIC_MOBILE=ON`을 선택하면 iOS의 Core와\nObservation은 각각 동적 프레임워크로 빌드되어 앱이 내장할 수 있어야 한다.\nWebAssembly에서는 Emscripten 사이드 모듈로 빌드할 수 있어야 한다. 이 선택은\n기존 앱별 정적 플러그인 카탈로그와 별개이며 두 옵션을 동시에 사용할 수 없다.\n기본 독립 Core 빌드는 기존의 iOS·웹 정적 구성을 유지한다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 9,
+      "end_line": 11,
+      "raw": "이 계약은 파일 형식·링커 구성에 대한 것이다. iOS 기기 배포에는 앱의 서명과\n프로비저닝이 별도로 필요하며 웹 사이드 모듈의 로드 시점과 호스트 실행 조건은\n소비자가 관리한다. 테스트는 대상 형식과 연결을 검사하며 앱을 실행하지 않는다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "모바일 및 웹 공유 런타임 계약",
+      "anchor": "모바일-및-웹-공유-런타임-계약",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000005",
+        "line": 11,
+        "text": "소비자가 관리한다. 테스트는 대상 형식과 연결을 검사하며 앱을 실행하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

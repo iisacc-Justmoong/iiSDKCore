@@ -62,6 +62,7 @@ template <class T> class LiveStream final {
     std::mutex control;
     std::condition_variable changed;
     TaskToken token;
+    EventLoop::Sender sender;
     bool started = false, closing = false, cleaned = false;
     std::thread::id closer;
   };
@@ -84,6 +85,9 @@ public:
   LiveStream &operator=(const LiveStream &) = delete;
   [[nodiscard]] bool push(Clock::time_point presentation, T value) {
     std::optional<TimedFrame<T>> retired;
+    EventLoop::Sender sender;
+    TaskToken token;
+    bool wake = false;
     {
       std::lock_guard lock(state_->mutex);
       if (state_->closed || (state_->last && presentation < *state_->last)) {
@@ -102,8 +106,15 @@ public:
       state_->last = presentation;
       state_->statistics.pending = state_->count;
       state_->statistics.high_watermark =
-          std::max(state_->statistics.high_watermark, state_->count);
+          (std::max)(state_->statistics.high_watermark, state_->count);
+      if (state_->started) {
+        sender = state_->sender;
+        token = state_->token;
+        presentation = state_->slots[state_->head]->presentation;
+        wake = true;
+      }
     }
+    if (wake) (void)sender.wake_realtime(token, presentation);
     return true;
   }
   [[nodiscard]] std::optional<TimedFrame<T>>
@@ -112,7 +123,7 @@ public:
   }
   [[nodiscard]] Submission start(EventLoop &loop, RealtimeSchedule schedule,
                                  Handler handler) {
-    std::lock_guard control(state_->control);
+    std::unique_lock control(state_->control);
     {
       std::lock_guard lock(state_->mutex);
       if (state_->closed)
@@ -122,6 +133,7 @@ public:
       state_->handler.swap(handler);
     }
     const std::weak_ptr<State> weak = state_;
+    schedule.on_demand = true;
     auto submitted =
         loop.realtime(schedule, [weak](const core::TimeSlice &slice) {
           auto state = weak.lock();
@@ -147,16 +159,37 @@ public:
           } delivery(*state);
           while (!slice.should_yield()) {
             auto frame = state->take(Clock::now(), slice.ends);
-            if (!frame)
+            if (!frame) {
+              EventLoop::Sender sender;
+              TaskToken token;
+              std::optional<Clock::time_point> next;
+              {
+                std::lock_guard lock(state->mutex);
+                if (!state->closed && state->count) {
+                  next = state->slots[state->head]->presentation;
+                  sender = state->sender;
+                  token = state->token;
+                }
+              }
+              if (next) (void)sender.wake_realtime(token, *next);
               return slice.should_yield() ? SliceResult::yield
                                           : SliceResult::complete;
+            }
             state->handler(std::move(*frame));
           }
           return SliceResult::yield;
         });
     if (submitted) {
-      state_->token = submitted.token;
-      state_->started = true;
+      std::optional<Clock::time_point> next;
+      {
+        std::lock_guard lock(state_->mutex);
+        state_->token = submitted.token;
+        state_->sender = loop.sender();
+        state_->started = true;
+        if (state_->count) next = state_->slots[state_->head]->presentation;
+      }
+      control.unlock();
+      if (next) (void)loop.sender().wake_realtime(submitted.token, *next);
     } else {
       std::lock_guard lock(state_->mutex);
       state_->handler.swap(handler);
@@ -186,8 +219,13 @@ public:
       token = state_->token;
     }
     (void)token.cancel();
-    while (token.pending())
-      std::this_thread::yield();
+    if (!token.wait()) {
+      std::lock_guard control(state_->control);
+      state_->closing = false;
+      state_->closer = {};
+      state_->changed.notify_all();
+      return std::unexpected(ThreadError{ThreadErrorCode::busy, {}});
+    }
     std::vector<std::optional<TimedFrame<T>>> retired;
     Handler handler;
     {

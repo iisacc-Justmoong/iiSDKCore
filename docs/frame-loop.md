@@ -153,11 +153,17 @@ allocate; stable warmed-up frames do not. `tests/reuse.cpp` measures ordinary
 operator-new calls over 10,000 frames, not whole-application allocation freedom.
 Tokens identify graph owner/slot/generation; foreign/stale tokens are rejected.
 
-Each frame snapshots order/options. Additions, dependency/enable changes and clock
+Order and options are fixed for each frame. Additions, dependency/enable changes and clock
 controls apply next frame. Removal immediately suppresses deliveries not started;
 self removal retires after return. Captures are destroyed before returning slot
 capacity. Capture destructors may adjust other registrations but cannot advance
 or destroy the loop. Throwing ticks retire before their exception propagates.
+
+프레임 실행 계획은 등록·삭제·의존성·활성 상태가 바뀐 경우에만 다음 프레임 경계에서
+갱신한다. 의존 관계가 그대로인 활성 상태 변경은 위상 순서를 다시 계산하지 않는다.
+각 단계는 그 단계의 활성 항목만 방문하며, 시뮬레이션과 표시를 위한 실제 프레임
+콜백은 기존 주기대로 실행한다. 통계의 계획 갱신 횟수와 단계별 후보 방문 횟수는
+실제로 수행한 관리 작업을 나타낸다.
 Referenced consumer state must outlive its callbacks; remove those registrations
 on the host thread before destroying that state.
 Remaining fixed backlog is discarded; other registrations survive, without

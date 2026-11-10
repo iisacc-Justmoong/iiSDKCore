@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/application.md",
-    "sha256": "4ffa097279cf624c8ac8651a60ce4fc426e64264762e737b5d4f4a519a53fabd",
-    "bytes": 5118,
-    "line_count": 88,
+    "sha256": "c0d2cacf78883050ebc769a86cd63a7e35cfce4a3d9367aa1c50b21a59e79d4b",
+    "bytes": 11314,
+    "line_count": 182,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -56,22 +56,22 @@
       "id": "b000005",
       "kind": "paragraph",
       "start_line": 8,
-      "end_line": 15,
-      "raw": "`Application::frame_loop()` owns the same native frame phases for apps and games,\non the application's EventLoop. `ApplicationOptions::frames` configures fixed-step,\ndelta clamp, callback capacity and catch-up budget. Registration alone starts no\ntimer or display polling. A native display host can call `step(timestamp)` once\nper display callback; a headless driver can use `poll` or the explicit timer-based\n`FrameLoop::run`. A duration timer is not a display synchronization source.\nDuring shutdown Core retires frame callback captures after workers finish and\nbefore attachments deactivate, so they cannot retain a view/backend past detach.\n"
+      "end_line": 12,
+      "raw": "The default application allocates no worker threads or worker task slots.\n`Application::post` rejects worker work with `overloaded` until the owner\nexplicitly sets `ApplicationOptions::workers` or calls `workers().resize_workers()`.\nThe EventLoop remains available for explicitly submitted base work. Allocate\nworkers before attaching a host context that cannot wait for worker changes.\n"
     },
     {
       "id": "b000006",
       "kind": "blank",
-      "start_line": 16,
-      "end_line": 16,
+      "start_line": 13,
+      "end_line": 13,
       "raw": "\n"
     },
     {
       "id": "b000007",
       "kind": "paragraph",
-      "start_line": 17,
+      "start_line": 14,
       "end_line": 23,
-      "raw": "An upper module supplies an `ApplicationDriver` through ordinary C++ callbacks.\nIts `run(start)` invokes `start` exactly once when native attachment is safe and\nreturns after the native host has closed. It must not retain start. Core activates\nattachments in declaration order; shutdown retires owned work and deactivates\nattempted attachments in reverse order, including partially failed activation.\nThe first error is preserved while later cleanup continues. A missing driver,\nduplicate attachment, duplicate start, wrong owner or a second exec is rejected.\n"
+      "raw": "`Application::frame_loop()` creates the frame state on first access on the\napplication owner thread; `has_frame_loop()` reports whether it exists.\nIt owns the same native frame phases for apps and games,\non the application's EventLoop. `ApplicationOptions::frames` configures fixed-step,\ndelta clamp, callback capacity and catch-up budget. Registration alone starts no\ntimer or display polling. A native display host can call `step(timestamp)` once\nper display callback; a headless driver can use `poll` or the explicit timer-based\n`FrameLoop::run`. A duration timer is not a display synchronization source.\nDuring shutdown Core retires frame callback captures after workers finish and\nbefore attachments deactivate, so they cannot retain a view/backend past detach.\n"
     },
     {
       "id": "b000008",
@@ -84,144 +84,318 @@
       "id": "b000009",
       "kind": "paragraph",
       "start_line": 25,
-      "end_line": 35,
-      "raw": "`Application::post` submits to the shared worker pool through its owned TaskScope.\nOn exit Core requests cooperative stop, stops event admission, cancels pending\nowned work, waits for active work and joins workers before attachment deactivation.\nActive work must cooperate with stop or finish; no C++ thread is forcibly killed.\n`Application::workers()` borrows that same Runtime for existing SDK APIs such as\nSerialQueue and Concurrent; it does not construct another pool. Direct submissions\nto it remain subject to Core's runtime shutdown/join barrier.\nExternal runtimes and unowned work remain the caller's responsibility. Lifecycle\nmethods and destruction require the construction thread. `stop_token`, `post`\nand the EventLoop's weak Sender provide worker communication. The application\nowner must outlive callers; a borrowed Application reference is not a weak handle.\n"
+      "end_line": 31,
+      "raw": "An upper module supplies an `ApplicationDriver` through ordinary C++ callbacks.\nIts `run(start)` invokes `start` exactly once when native attachment is safe and\nreturns after the native host has closed. It must not retain start. Core activates\nattachments in declaration order; shutdown retires owned work and deactivates\nattempted attachments in reverse order, including partially failed activation.\nThe first error is preserved while later cleanup continues. A missing driver,\nduplicate attachment, duplicate start, wrong owner or a second exec is rejected.\n"
     },
     {
       "id": "b000010",
       "kind": "blank",
-      "start_line": 36,
-      "end_line": 36,
+      "start_line": 32,
+      "end_line": 32,
       "raw": "\n"
     },
     {
       "id": "b000011",
       "kind": "heading",
-      "start_line": 37,
-      "end_line": 37,
+      "start_line": 33,
+      "end_line": 33,
+      "raw": "## Native driver completion before loop return\n",
+      "level": 2,
+      "title": "Native driver completion before loop return"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 34,
+      "end_line": 34,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 35,
+      "end_line": 41,
+      "raw": "Some operating systems keep their process event loop alive after a native host\nhas closed. After the host has stopped delivering callbacks, its owner-thread\nadapter may call `Application::driver_stopped()` while `run(start)` is still on\nthe stack. Core stops admitting work, joins owned workers, retires frame callbacks\nand deactivates attempted attachments in the same order as ordinary `exec()`\nshutdown. The operation is idempotent, preserves the first failure and does not\nitself terminate the operating-system process or return from its event loop.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 42,
+      "end_line": 42,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 43,
+      "end_line": 48,
+      "raw": "If completion is signaled inside an attachment's activation, Core finishes that\nactivation, does not activate later attachments, and then retires the attempted\nowners. Completion from another thread or before the driver has entered is\nrejected. A stopped application cannot be started again. Drivers must arrange\ndelivery after native callbacks and in-flight uses that require the owners have\nretired; this function does not provide a native callback drain.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 49,
+      "end_line": 49,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 50,
+      "end_line": 53,
+      "raw": "The owner-thread, reentrant and first-error cases are covered by the application\nlifecycle tests. The same cases also passed an AddressSanitizer and\nUndefinedBehaviorSanitizer build. The iPhoneOS arm64 library and a consumer of\nthis API have been compiled and linked; that does not establish device behavior.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 54,
+      "end_line": 54,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "heading",
+      "start_line": 55,
+      "end_line": 55,
+      "raw": "## Atomic configuration contract\n",
+      "level": 2,
+      "title": "Atomic configuration contract"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 56,
+      "end_line": 56,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 57,
+      "end_line": 66,
+      "raw": "`Application::configure_atomically` groups driver and attachment registration on\nthe application owner thread. On success it publishes all registrations. On a\nreturned error or thrown exception, it removes registrations made within that\ncall, preserves registrations that preceded it, and returns the original error or\nan error containing the exception. Nested transactions and `exec()` during a\ntransaction are rejected. Destruction of rolled-back captures cannot reenter\nconfiguration. The transaction covers application registration only: it does\nnot undo caller-owned I/O, worker submissions, or other external side effects.\nNo attachment is activated during configuration; its phase determines whether it\nstarts before the driver or when the driver signals readiness.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 67,
+      "end_line": 67,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "heading",
+      "start_line": 68,
+      "end_line": 68,
+      "raw": "## Owners before the native driver\n",
+      "level": 2,
+      "title": "Owners before the native driver"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 69,
+      "end_line": 69,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 70,
+      "end_line": 79,
+      "raw": "`attach_before_driver` registers an owner whose activation runs on the\napplication thread before the native driver starts. Existing `attach` records\ncontinue to activate only when the driver invokes `start`. Both kinds share a\nsingle name namespace and the same atomic configuration rollback. Activation\norder is registration order within each phase; shutdown first retires work and\nframes, then deactivates attempted driver-ready records and finally attempted\nbefore-driver records, each in reverse activation order. A failed activation is\nalso deactivated, later records and the driver are not entered, and the first\nerror is retained. A missing driver leaves the application ready without activating\neither phase. No native window or GUI concept is introduced into Core.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 80,
+      "end_line": 80,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 81,
+      "end_line": 91,
+      "raw": "`Application::post` submits to the shared worker pool through its owned TaskScope.\nOn exit Core requests cooperative stop, stops event admission, cancels pending\nowned work, waits for active work and joins workers before attachment deactivation.\nActive work must cooperate with stop or finish; no C++ thread is forcibly killed.\n`Application::workers()` borrows that same Runtime for existing SDK APIs such as\nSerialQueue and Concurrent; it does not construct another pool. Direct submissions\nto it remain subject to Core's runtime shutdown/join barrier.\nExternal runtimes and unowned work remain the caller's responsibility. Lifecycle\nmethods and destruction require the construction thread. `stop_token`, `post`\nand the EventLoop's weak Sender provide worker communication. The application\nowner must outlive callers; a borrowed Application reference is not a weak handle.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 92,
+      "end_line": 92,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "heading",
+      "start_line": 93,
+      "end_line": 93,
       "raw": "## The final executable\n",
       "level": 2,
       "title": "The final executable"
     },
     {
-      "id": "b000012",
+      "id": "b000030",
       "kind": "blank",
-      "start_line": 38,
-      "end_line": 38,
+      "start_line": 94,
+      "end_line": 94,
       "raw": "\n"
     },
     {
-      "id": "b000013",
+      "id": "b000031",
       "kind": "fenced_code",
-      "start_line": 39,
-      "end_line": 42,
+      "start_line": 95,
+      "end_line": 98,
       "raw": "```cmake\nfind_package(iiSDKCore 0.18 CONFIG REQUIRED COMPONENTS Runtime)\niisdkcore_add_application(MyApp SOURCES application.cpp)\n```\n",
       "language": "cmake",
       "code": "find_package(iiSDKCore 0.18 CONFIG REQUIRED COMPONENTS Runtime)\niisdkcore_add_application(MyApp SOURCES application.cpp)\n",
       "closed": true
     },
     {
-      "id": "b000014",
+      "id": "b000032",
       "kind": "blank",
-      "start_line": 43,
-      "end_line": 43,
+      "start_line": 99,
+      "end_line": 99,
       "raw": "\n"
     },
     {
-      "id": "b000015",
+      "id": "b000033",
       "kind": "paragraph",
-      "start_line": 44,
-      "end_line": 49,
+      "start_line": 100,
+      "end_line": 105,
       "raw": "Core's installed `ApplicationEntry.cpp` supplies `main`. The application supplies\n`ii::runtime::configure_application(Application&)`, returning Result<void> after\nconfiguring a driver and attachments. Core then calls exec, propagates errors\nand returns the application exit status. Configuration failure also retires owned\nwork. Standard native C++ compilation/linking produces the executable; there is\nno language VM, interpreter or runtime code compilation.\n"
     },
     {
-      "id": "b000016",
+      "id": "b000034",
       "kind": "blank",
-      "start_line": 50,
-      "end_line": 50,
+      "start_line": 106,
+      "end_line": 106,
       "raw": "\n"
     },
     {
-      "id": "b000017",
+      "id": "b000035",
       "kind": "paragraph",
-      "start_line": 51,
-      "end_line": 56,
-      "raw": "`iisdkcore_add_application` accepts `GUI`, `SOURCES`, `LIBRARIES` and `RESOURCES`.\nIt enforces C++23 without compiler extensions and links Core Runtime. GUI targets\nuse a macOS app bundle or Windows GUI subsystem as appropriate. Resources are\nattached to the macOS bundle; other targets receive a resources directory beside\nthe executable. CRT arguments are preserved as strings; target-specific argument\nencoding and a production distribution/signing policy remain application concerns.\n"
+      "start_line": 107,
+      "end_line": 121,
+      "raw": "`iisdkcore_add_application` accepts `GUI`, `SOURCES`, `LIBRARIES` and `RESOURCES`.\nIt enforces C++23 without compiler extensions and links Core Runtime. GUI targets\nuse a macOS app bundle or Windows GUI subsystem as appropriate. Resources are\nattached to the macOS bundle; other targets receive a resources directory beside\nthe executable. The argument vector includes the executable name at index zero\nwhen the platform provides it. On Windows the entry reads the native UTF-16 command\nline, parses it with `CommandLineToArgvW` and converts every argument strictly to\nUTF-8; malformed UTF-16 fails startup. The Windows entry links the Shell32 system\nlibrary. On other platforms it preserves the argument bytes supplied to `main`,\nincluding empty arguments, without assuming an encoding. Parsing flags, deciding\nwhich values represent files or URLs, registering file associations and production\ndistribution/signing are application responsibilities. The Windows entry follows\nthe documented [native command-line](https://learn.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-getcommandlinew)\nand [argument parsing](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-commandlinetoargvw)\ncontracts; this does not establish the behavior of other entry mechanisms.\n"
     },
     {
-      "id": "b000018",
+      "id": "b000036",
       "kind": "blank",
-      "start_line": 57,
-      "end_line": 57,
+      "start_line": 122,
+      "end_line": 122,
       "raw": "\n"
     },
     {
-      "id": "b000019",
+      "id": "b000037",
       "kind": "heading",
-      "start_line": 58,
-      "end_line": 58,
+      "start_line": 123,
+      "end_line": 123,
       "raw": "## SDK GUI programming\n",
       "level": 2,
       "title": "SDK GUI programming"
     },
     {
-      "id": "b000020",
+      "id": "b000038",
       "kind": "blank",
-      "start_line": 59,
-      "end_line": 59,
+      "start_line": 124,
+      "end_line": 124,
       "raw": "\n"
     },
     {
-      "id": "b000021",
+      "id": "b000039",
       "kind": "paragraph",
-      "start_line": 60,
-      "end_line": 64,
+      "start_line": 125,
+      "end_line": 129,
       "raw": "iiGUI's `attach_application` installs a native OS driver borrowing the exact Core\nEventLoop. `view_attachment` adapts a native C++ object's attach/detach methods to\nCore's generic attachment record. LVUI AOT emits an instantiable C++ widget class\nwith that interface. The same interface accepts an ordinary hand-written C++\nwidget; Core knows neither widget names nor declarative syntax.\n"
     },
     {
-      "id": "b000022",
+      "id": "b000040",
       "kind": "blank",
-      "start_line": 65,
-      "end_line": 65,
+      "start_line": 130,
+      "end_line": 130,
       "raw": "\n"
     },
     {
-      "id": "b000023",
+      "id": "b000041",
       "kind": "fenced_code",
-      "start_line": 66,
-      "end_line": 77,
-      "raw": "```cpp\n#include \"MainView.generated.h\"\n#include <iiGUI/Application.h>\n\nii::core::Result<void> ii::runtime::configure_application(Application& app) {\n    using View = lvui_generated::MainView;\n    auto host = ii::gui::attach_application(app, View::options());\n    if (!host) return std::unexpected(host.error());\n    return app.attach(ii::gui::view_attachment(\n        \"main\", *host, std::make_shared<View>()));\n}\n```\n",
+      "start_line": 131,
+      "end_line": 144,
+      "raw": "```cpp\n#include \"MainView.generated.h\"\n#include <iiGUI/Application.h>\n\nii::core::Result<void> ii::runtime::configure_application(Application& app) {\n    using View = lvui_generated::MainView;\n    return app.configure_atomically([](Application& target) -> ii::core::Result<void> {\n        auto host = ii::gui::attach_application(target, View::options());\n        if (!host) return std::unexpected(host.error());\n        return target.attach(ii::gui::view_attachment(\n            \"main\", *host, std::make_shared<View>()));\n    });\n}\n```\n",
       "language": "cpp",
-      "code": "#include \"MainView.generated.h\"\n#include <iiGUI/Application.h>\n\nii::core::Result<void> ii::runtime::configure_application(Application& app) {\n    using View = lvui_generated::MainView;\n    auto host = ii::gui::attach_application(app, View::options());\n    if (!host) return std::unexpected(host.error());\n    return app.attach(ii::gui::view_attachment(\n        \"main\", *host, std::make_shared<View>()));\n}\n",
+      "code": "#include \"MainView.generated.h\"\n#include <iiGUI/Application.h>\n\nii::core::Result<void> ii::runtime::configure_application(Application& app) {\n    using View = lvui_generated::MainView;\n    return app.configure_atomically([](Application& target) -> ii::core::Result<void> {\n        auto host = ii::gui::attach_application(target, View::options());\n        if (!host) return std::unexpected(host.error());\n        return target.attach(ii::gui::view_attachment(\n            \"main\", *host, std::make_shared<View>()));\n    });\n}\n",
       "closed": true
     },
     {
-      "id": "b000024",
+      "id": "b000042",
       "kind": "blank",
-      "start_line": 78,
-      "end_line": 78,
+      "start_line": 145,
+      "end_line": 145,
       "raw": "\n"
     },
     {
-      "id": "b000025",
+      "id": "b000043",
       "kind": "paragraph",
-      "start_line": 79,
-      "end_line": 82,
-      "raw": "The GUI adapter owns platform window behavior and native controls. A closing\nwindow revokes native handles immediately. The generated C++ widget retains its\nimported C++ backend until Core finishes owned work and detaches that widget.\nLVRS supplies appearance data/fonts, without adding a Qt/QML runtime dependency.\n"
+      "start_line": 146,
+      "end_line": 150,
+      "raw": "The GUI adapter owns platform window behavior and native controls. A closing\nwindow revokes native handles immediately. The generated C++ widget retains its\nimported C++ backend until Core finishes owned work and detaches that widget.\nLVUI owns its native component behavior and appearance; Core has no dependency\non LVUI, LVRS, Qt or QML.\n"
     },
     {
-      "id": "b000026",
+      "id": "b000044",
       "kind": "blank",
-      "start_line": 83,
-      "end_line": 83,
+      "start_line": 151,
+      "end_line": 151,
       "raw": "\n"
     },
     {
-      "id": "b000027",
+      "id": "b000045",
       "kind": "paragraph",
-      "start_line": 84,
-      "end_line": 88,
-      "raw": "Tests in `tests/application.cpp` cover ordered lifetime, partial rollback, wrong\nthread, single-use/driver contracts and worker retirement. `application_entry.cpp`\nis compiled with the actual Core entry source. Core's full dependency and sealed\nrecord checks also include these additions. Interactive GUI/runtime verification\nbelongs to iiGUI and does not establish Windows/Linux/mobile execution on a Mac.\n"
+      "start_line": 152,
+      "end_line": 156,
+      "raw": "Tests in `tests/application.cpp` cover ordered lifetime, partial rollback, wrong\nthread, atomic registration, reentrancy, single-use/driver contracts and worker retirement. `application_entry.cpp`\nis compiled with the actual Core entry source. Core's full dependency and sealed\nrecord checks also include these additions. Interactive GUI/runtime verification\nbelongs to iiGUI and does not establish Windows/Linux/mobile execution on a Mac.\n"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 157,
+      "end_line": 157,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "paragraph",
+      "start_line": 158,
+      "end_line": 164,
+      "raw": "On 2026-11-04 the macOS arm64 Core build and 69 selected headless tests passed,\nincluding atomic commit, returned-error and exception rollback, pre-existing\nregistrations, nested execution rejection and capture-destruction reentrancy.\nTwo existing installation tests and three separate build/policy tests were not\nrun in that batch; the full build enforced Core's boundary and inheritance\nchecks, and an isolated staged Core was consumed by LVUI's relocated package\ntests. The pre-existing Core install manifest was preserved.\n"
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 165,
+      "end_line": 165,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "paragraph",
+      "start_line": 166,
+      "end_line": 175,
+      "raw": "Later on 2026-11-04 the macOS arm64 full build and 15 selected application,\ntext, foundation, consumer and boundary tests passed. The actual Core entry\npreserved an empty argument and Unicode on macOS; a portable UTF-16 test covered\nempty values, repeated arguments, surrogate pairs, invalid surrogates and null\ninputs. The decoder test also passed with AddressSanitizer and\nUndefinedBehaviorSanitizer. The Windows-specific entry branch received a syntax\ncheck against simulated API declarations on macOS; this is not a Windows\ncompiler, link or execution result. The staged installed entry sources match\nthe source tree, and LVUI's relocated consumer compiled against that stage.\nNo Windows or Linux host execution or native file association was tested.\n"
+    },
+    {
+      "id": "b000050",
+      "kind": "blank",
+      "start_line": 176,
+      "end_line": 176,
+      "raw": "\n"
+    },
+    {
+      "id": "b000051",
+      "kind": "paragraph",
+      "start_line": 177,
+      "end_line": 182,
+      "raw": "After adding before-driver owners, the Core build and 70 selected headless tests\npassed, including nine application tests. The new phase test covers mixed\nregistration order, activation failure and reverse cleanup, absent drivers,\nduplicate names, transaction rollback and wrong-thread registration. The same\ntwo installation tests and three build/policy tests remained excluded; the\nexisting install manifest was preserved.\n"
     }
   ],
   "outline": [
@@ -237,45 +411,91 @@
       "block_id": "b000011",
       "parent_id": "b000001",
       "level": 2,
-      "title": "The final executable",
-      "anchor": "the-final-executable",
-      "start_line": 37
+      "title": "Native driver completion before loop return",
+      "anchor": "native-driver-completion-before-loop-return",
+      "start_line": 33
     },
     {
       "block_id": "b000019",
       "parent_id": "b000001",
       "level": 2,
+      "title": "Atomic configuration contract",
+      "anchor": "atomic-configuration-contract",
+      "start_line": 55
+    },
+    {
+      "block_id": "b000023",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Owners before the native driver",
+      "anchor": "owners-before-the-native-driver",
+      "start_line": 68
+    },
+    {
+      "block_id": "b000029",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "The final executable",
+      "anchor": "the-final-executable",
+      "start_line": 93
+    },
+    {
+      "block_id": "b000037",
+      "parent_id": "b000001",
+      "level": 2,
       "title": "SDK GUI programming",
       "anchor": "sdk-gui-programming",
-      "start_line": 58
+      "start_line": 123
     }
   ],
   "indexes": {
     "directive_candidates": [
       {
-        "block_id": "b000007",
-        "line": 19,
+        "block_id": "b000009",
+        "line": 27,
         "text": "returns after the native host has closed. It must not retain start. Core activates",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000009",
-        "line": 28,
+        "block_id": "b000015",
+        "line": 46,
+        "text": "rejected. A stopped application cannot be started again. Drivers must arrange",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000027",
+        "line": 84,
         "text": "Active work must cooperate with stop or finish; no C++ thread is forcibly killed.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000009",
-        "line": 35,
+        "block_id": "b000027",
+        "line": 91,
         "text": "owner must outlive callers; a borrowed Application reference is not a weak handle.",
         "basis": "lexical_match",
         "context": "paragraph"
       }
     ],
     "commands": [],
-    "links": [],
+    "links": [
+      {
+        "block_id": "b000035",
+        "label": "native command-line",
+        "target": "https://learn.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-getcommandlinew",
+        "kind": "external",
+        "line": 119
+      },
+      {
+        "block_id": "b000035",
+        "label": "argument parsing",
+        "target": "https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-commandlinetoargvw",
+        "kind": "external",
+        "line": 120
+      }
+    ],
     "tables": []
   },
   "provenance": {

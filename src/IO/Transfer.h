@@ -1,11 +1,12 @@
 #pragma once
 #include "Requests.h"
+#include "ReadinessPolicy.h"
 #include <type_traits>
 
 namespace ii::io::detail {
 template<class Request> bool valid_transfer(const Request& request) {
     const auto size=request.buffer.bytes().size();
-    return request.timeout.count()>=0 && request.offset<=size &&
+    return detail::valid_polling_interval(request.polling_interval) && request.timeout.count()>=0 && request.offset<=size &&
         (request.length==std::dynamic_extent || request.length<=size-request.offset);
 }
 template<class Request> IOResult transfer_now(const Channel& channel, const Request& request) {

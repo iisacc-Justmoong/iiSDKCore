@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.23)
+project(iiSDKCoreQueryValueConsumer LANGUAGES CXX)
+find_package(iiSDKCore CONFIG REQUIRED)
+enable_testing()
+add_executable(query_value_consumer ../query_value.cpp)
+target_link_libraries(query_value_consumer PRIVATE iiSDKCore::Runtime)
+target_compile_features(query_value_consumer PRIVATE cxx_std_23)
+add_test(NAME query_value_consumer COMMAND query_value_consumer)

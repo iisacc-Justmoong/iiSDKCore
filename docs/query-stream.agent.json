@@ -10,11 +10,11 @@
   },
   "source": {
     "path": "docs/query-stream.md",
-    "sha256": "c1e07029a012730d6da8b07da57c1e15d90f92addf6e31ca6b02b6d63c805348",
-    "bytes": 9383,
-    "line_count": 167,
+    "sha256": "a06518d416b199fc597e5cd3f3c74c7c06bb6960dd57fb45a0e8c2e23f9b4ba5",
+    "bytes": 12397,
+    "line_count": 211,
     "encoding": "utf-8",
-    "language": "en"
+    "language": "ko"
   },
   "document": {
     "title": "Selective live data streams",
@@ -143,26 +143,24 @@
     },
     {
       "id": "b000017",
-      "kind": "heading",
+      "kind": "paragraph",
       "start_line": 65,
-      "end_line": 65,
-      "raw": "## Query replacement\n",
-      "level": 2,
-      "title": "Query replacement"
+      "end_line": 70,
+      "raw": "`publish_changed(source, affected)`는 소스의 변경 사건과 각 구독 쿼리를 비교하여 영향을\n받는 구독에만 projector를 실행한다. `affected(query, source)`는 동기식이며 false는\n기존 필터 결과와 구분되는 `unaffected`로 집계한다. 호출자는 변경 필드나 자원 식별자를\n판정 함수에 제공한다. 값 자체도 변경 필드만 출력하려면 변경 정보를 Source에 담아\nprojector에서 명시적으로 사용한다. 빈 변경을 임의로 전체 변경으로 해석하지 않는다.\n기존 `publish`는 명시적인 전체 소스 게시 계약을 유지한다.\n"
     },
     {
       "id": "b000018",
       "kind": "blank",
-      "start_line": 66,
-      "end_line": 66,
+      "start_line": 71,
+      "end_line": 71,
       "raw": "\n"
     },
     {
       "id": "b000019",
       "kind": "paragraph",
-      "start_line": 67,
+      "start_line": 72,
       "end_line": 74,
-      "raw": "Each move-only Subscription owns a\n`QueryPort<Query, QueryStreamReply<std::uint64_t>>`, exposed by queries().\nUse `queries().send(next)` for synchronous replacement or\n`queries().post(executor, next, completion)` for asynchronous control that owns\nthe request. This control port is intentionally unbound and synchronizes its own\nstate. The delivery executor does not implicitly order independent control\nrequests. Posting control and delivery to one SerialQueue gives FIFO ordering\nwhen needed. Keep the handle alive until control finishes, or close it to cancel.\n"
+      "raw": "예를 들어 위의 `feed`에서 원본 값 중 `level`만 변경된 사건은 다음과 같이 전달한다.\n판정 함수는 게시 호출 안에서 동기적으로 실행되므로 변경 식별자를 값 또는 안전한 참조로\n전달할 수 있다.\n"
     },
     {
       "id": "b000020",
@@ -173,67 +171,142 @@
     },
     {
       "id": "b000021",
-      "kind": "paragraph",
+      "kind": "fenced_code",
       "start_line": 76,
-      "end_line": 82,
-      "raw": "The initial revision is 1. Replacement increments it, removes queued old output\nand counts that output as discarded. An in-flight projection checks its revision\nagain before enqueueing; an old result becomes stale. A delivery already claimed\nby an executing pump, including one about to enter its callback, cannot be\npreempted; its event retains the old revision. For a stronger boundary,\nroute control and delivery through one serial domain or check revisions in\nreceiver state.\n"
+      "end_line": 84,
+      "raw": "```cpp\nconst bool level_changed = true;\nconst bool name_changed = false;\nauto update = feed.publish_changed(Sample{7, 42, \"unchanged\"},\n    [&](const Select& query, const Sample& source) {\n        return query.device == source.device &&\n               ((level_changed && query.level) || (name_changed && query.name));\n    });\n```\n",
+      "language": "cpp",
+      "code": "const bool level_changed = true;\nconst bool name_changed = false;\nauto update = feed.publish_changed(Sample{7, 42, \"unchanged\"},\n    [&](const Select& query, const Sample& source) {\n        return query.device == source.device &&\n               ((level_changed && query.level) || (name_changed && query.name));\n    });\n",
+      "closed": true
     },
     {
       "id": "b000022",
       "kind": "blank",
-      "start_line": 83,
-      "end_line": 83,
+      "start_line": 85,
+      "end_line": 85,
       "raw": "\n"
     },
     {
       "id": "b000023",
       "kind": "paragraph",
-      "start_line": 84,
-      "end_line": 87,
-      "raw": "Replies have two explicit layers: QueryReply reports port/handler failure and\nits QueryStreamReply value reports control success/rejection. queries() on a\nmoved handle throws logic_error; close/resume/stats on it safely describe closed\nadmission. A closed handle keeps its identity across registry slot reuse.\n"
+      "start_line": 86,
+      "end_line": 92,
+      "raw": "변경 사실과 쿼리의 관계는 도메인 소유자가 정확히 제공해야 한다. 영향을 받은 쿼리를\nfalse로 판정하면 해당 수신자는 갱신을 받지 못한다. 변경이 없는 경우에는 생산자 자체가\n게시하지 않는 것이 가장 적다. 판정 함수 예외는 해당 구독의 `projection_failed`와\n`first_failure`에 기록되고 다른 구독은 계속 처리한다. 위 projector는 영향을 받은 쿼리의\n모든 선택 필드를 구성하므로, 필드별 부분 값이 필요하면 Source에 변경 마스크를 포함하여\n그 마스크와 쿼리가 모두 선택한 필드만 구성해야 한다. `publish_changed`는 등록된 쿼리의\n영향 여부를 각각 판정하며, 임의의 사용자 쿼리에 대한 자동 색인은 제공하지 않는다.\n"
     },
     {
       "id": "b000024",
       "kind": "blank",
-      "start_line": 88,
-      "end_line": 88,
+      "start_line": 93,
+      "end_line": 93,
       "raw": "\n"
     },
     {
       "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 94,
+      "end_line": 97,
+      "raw": "구독 등록·제거가 없으면 게시마다 구독 목록 전체를 복사하지 않는다. 구독자 구성이\n변했을 때만 게시 경계에서 유효한 구성 스냅샷을 다시 만들며, 동시에 제거된 구독은\n기존 수명 장벽과 revision 검사를 따른다. `stats()`의 membership_rebuilds는 이 구성\n갱신 횟수를 나타낸다.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 98,
+      "end_line": 98,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
       "kind": "heading",
-      "start_line": 89,
-      "end_line": 89,
+      "start_line": 99,
+      "end_line": 99,
+      "raw": "## Query replacement\n",
+      "level": 2,
+      "title": "Query replacement"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 100,
+      "end_line": 100,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 101,
+      "end_line": 108,
+      "raw": "Each move-only Subscription owns a\n`QueryPort<Query, QueryStreamReply<std::uint64_t>>`, exposed by queries().\nUse `queries().send(next)` for synchronous replacement or\n`queries().post(executor, next, completion)` for asynchronous control that owns\nthe request. This control port is intentionally unbound and synchronizes its own\nstate. The delivery executor does not implicitly order independent control\nrequests. Posting control and delivery to one SerialQueue gives FIFO ordering\nwhen needed. Keep the handle alive until control finishes, or close it to cancel.\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 109,
+      "end_line": 109,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "paragraph",
+      "start_line": 110,
+      "end_line": 116,
+      "raw": "The initial revision is 1. Replacement increments it, removes queued old output\nand counts that output as discarded. An in-flight projection checks its revision\nagain before enqueueing; an old result becomes stale. A delivery already claimed\nby an executing pump, including one about to enter its callback, cannot be\npreempted; its event retains the old revision. For a stronger boundary,\nroute control and delivery through one serial domain or check revisions in\nreceiver state.\n"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 117,
+      "end_line": 117,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 118,
+      "end_line": 121,
+      "raw": "Replies have two explicit layers: QueryReply reports port/handler failure and\nits QueryStreamReply value reports control success/rejection. queries() on a\nmoved handle throws logic_error; close/resume/stats on it safely describe closed\nadmission. A closed handle keeps its identity across registry slot reuse.\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 122,
+      "end_line": 122,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "heading",
+      "start_line": 123,
+      "end_line": 123,
       "raw": "## Bounds and dispatch\n",
       "level": 2,
       "title": "Bounds and dispatch"
     },
     {
-      "id": "b000026",
+      "id": "b000036",
       "kind": "blank",
-      "start_line": 90,
-      "end_line": 90,
+      "start_line": 124,
+      "end_line": 124,
       "raw": "\n"
     },
     {
-      "id": "b000027",
+      "id": "b000037",
       "kind": "paragraph",
-      "start_line": 91,
-      "end_line": 94,
+      "start_line": 125,
+      "end_line": 128,
       "raw": "QueryStreamOptions limits subscription slots (default 16, valid 1..4096).\nQuerySubscriptionOptions sets fixed ring capacity (default 64, valid 1..65536),\noverflow policy, callback priority and events per dispatch batch (default 64,\nvalid 1..65536).\n"
     },
     {
-      "id": "b000028",
+      "id": "b000038",
       "kind": "blank",
-      "start_line": 95,
-      "end_line": 95,
+      "start_line": 129,
+      "end_line": 129,
       "raw": "\n"
     },
     {
-      "id": "b000029",
+      "id": "b000039",
       "kind": "list",
-      "start_line": 96,
-      "end_line": 98,
+      "start_line": 130,
+      "end_line": 132,
       "raw": "- reject preserves admitted output and counts rejected new matches.\n- drop_oldest removes the oldest queued output before admitting the new match.\n- Query replacement/close accounts discarded output separately from overflow.\n",
       "items": [
         {
@@ -254,132 +327,62 @@
       ]
     },
     {
-      "id": "b000030",
-      "kind": "blank",
-      "start_line": 99,
-      "end_line": 99,
-      "raw": "\n"
-    },
-    {
-      "id": "b000031",
-      "kind": "paragraph",
-      "start_line": 100,
-      "end_line": 104,
-      "raw": "One scheduling ticket per subscription coalesces bursts. Callbacks never overlap\nfor that subscription, even with a parallel executor; independent subscriptions\nmay run concurrently. A dispatch processes at most delivery_batch outputs, then\nyields through another executor submission. User code is cooperative and must\nreturn promptly.\n"
-    },
-    {
-      "id": "b000032",
-      "kind": "blank",
-      "start_line": 105,
-      "end_line": 105,
-      "raw": "\n"
-    },
-    {
-      "id": "b000033",
-      "kind": "paragraph",
-      "start_line": 106,
-      "end_line": 113,
-      "raw": "Output admission and executor admission are separate. Full/stopped executors\nleave admitted output in the bounded ring and record dispatch_failed and\nlast_dispatch. A later accepted publication or resume() retries it. Cancellation\nreleases the scheduling ticket too, so retry cannot become stuck. There is no\nbusy retry loop, hidden worker or unbounded queue. If a batch resubmission finds\nthe executor full (including a one-slot executor still occupied by that batch),\nstats expose the failure; resume after capacity returns. Arrange a host retry or\npoll stats when publication has stopped. Admission is not exactly-once delivery.\n"
-    },
-    {
-      "id": "b000034",
-      "kind": "blank",
-      "start_line": 114,
-      "end_line": 114,
-      "raw": "\n"
-    },
-    {
-      "id": "b000035",
-      "kind": "paragraph",
-      "start_line": 115,
-      "end_line": 125,
-      "raw": "publish returns QueryStreamPublish with visited/filtered/enqueued/rejected/stale,\nprojection_failed/dispatch_failed and the first projector exception. Subscriber\nstats add high-water mark, revision, successful deliveries, discard and callback\nfailure. Queue admission does not wait for consumers; selection is synchronous\nand may block/allocate if domain code does. Ring slots are reused, while tasks,\nprojections, query replacement and subscription creation may allocate. Each\nmatched output owns an allocated event node. Only owning pointers move under\nthe ring lock, so payload moves/destructors and endpoint copies cannot reenter\na held state lock. Capacity\nbounds item count; domain code must bound arbitrary payload byte size. This is\nnot a hard real-time or allocation-free primitive.\n"
-    },
-    {
-      "id": "b000036",
-      "kind": "blank",
-      "start_line": 126,
-      "end_line": 126,
-      "raw": "\n"
-    },
-    {
-      "id": "b000037",
-      "kind": "heading",
-      "start_line": 127,
-      "end_line": 127,
-      "raw": "## Lifetime, executors and failures\n",
-      "level": 2,
-      "title": "Lifetime, executors and failures"
-    },
-    {
-      "id": "b000038",
-      "kind": "blank",
-      "start_line": 128,
-      "end_line": 128,
-      "raw": "\n"
-    },
-    {
-      "id": "b000039",
-      "kind": "paragraph",
-      "start_line": 129,
-      "end_line": 135,
-      "raw": "subscribe_on(copyable_endpoint, ...) stores a copy. EventLoop::Sender is weak\nand stays safe after loop removal; subscribe(EventLoop&, ...) also uses it.\nsubscribe(Runtime&, ...) and subscribe(SerialQueue&, ...) borrow those executors,\nwhich must outlive subscription/stream close. Custom endpoints must satisfy\nTaskExecutor and defer execution, following Core's asynchronous contract.\nReceiver captures must own/protect their referenced objects. Declare and close\nsubscriptions before destroying receiver state.\n"
-    },
-    {
       "id": "b000040",
       "kind": "blank",
-      "start_line": 136,
-      "end_line": 136,
+      "start_line": 133,
+      "end_line": 133,
       "raw": "\n"
     },
     {
       "id": "b000041",
       "kind": "paragraph",
-      "start_line": 137,
-      "end_line": 142,
-      "raw": "A projector exception is recorded per subscriber and in the publication report;\nother subscribers continue. A delivery exception is recorded and rethrown into\nthe executor's existing failure handling. That event is consumed; remaining\nevents may be resumed. failure() retains the latest cause until close. Admission\nerrors are stopped/invalid/exhausted/reentrant. Recursive publication into the\nsame feed, including cross-feed projection cycles, is rejected.\n"
+      "start_line": 134,
+      "end_line": 138,
+      "raw": "One scheduling ticket per subscription coalesces bursts. Callbacks never overlap\nfor that subscription, even with a parallel executor; independent subscriptions\nmay run concurrently. A dispatch processes at most delivery_batch outputs, then\nyields through another executor submission. User code is cooperative and must\nreturn promptly.\n"
     },
     {
       "id": "b000042",
       "kind": "blank",
-      "start_line": 143,
-      "end_line": 143,
+      "start_line": 139,
+      "end_line": 139,
       "raw": "\n"
     },
     {
       "id": "b000043",
       "kind": "paragraph",
-      "start_line": 144,
-      "end_line": 150,
-      "raw": "Subscription close stops data/control, closes the query port, cancels queued\npumps, waits for active projections/callbacks and capture destruction, then\nclears selected query/output/receiver captures before its registry slot is\nreused. Stream close first stops producer/subscriber admission and waits for\nselection, then closes all subscriptions. Handles may outlive the stream and\nremain safely closed. Independently scheduled downstream user work has its own\nlifetime boundary.\n"
+      "start_line": 140,
+      "end_line": 147,
+      "raw": "Output admission and executor admission are separate. Full/stopped executors\nleave admitted output in the bounded ring and record dispatch_failed and\nlast_dispatch. A later accepted publication or resume() retries it. Cancellation\nreleases the scheduling ticket too, so retry cannot become stuck. There is no\nbusy retry loop, hidden worker or unbounded queue. If a batch resubmission finds\nthe executor full (including a one-slot executor still occupied by that batch),\nstats expose the failure; resume after capacity returns. Arrange a host retry or\npoll stats when publication has stopped. Admission is not exactly-once delivery.\n"
     },
     {
       "id": "b000044",
       "kind": "blank",
-      "start_line": 151,
-      "end_line": 151,
+      "start_line": 148,
+      "end_line": 148,
       "raw": "\n"
     },
     {
       "id": "b000045",
       "kind": "paragraph",
-      "start_line": 152,
-      "end_line": 156,
-      "raw": "Self-close from the same selector/callback/capture destructor returns self_join.\nA Runtime worker or browser host that would need to wait receives would_block;\nretry the incomplete removal barrier from a safe external context. Destruction\nwhere removal cannot finish terminates, consistent with TaskScope. Cancellation\ndoes not preempt arbitrary active C++ code.\n"
+      "start_line": 149,
+      "end_line": 159,
+      "raw": "publish returns QueryStreamPublish with visited/filtered/enqueued/rejected/stale,\nprojection_failed/dispatch_failed and the first projector exception. Subscriber\nstats add high-water mark, revision, successful deliveries, discard and callback\nfailure. Queue admission does not wait for consumers; selection is synchronous\nand may block/allocate if domain code does. Ring slots are reused, while tasks,\nprojections, query replacement and subscription creation may allocate. Each\nmatched output owns an allocated event node. Only owning pointers move under\nthe ring lock, so payload moves/destructors and endpoint copies cannot reenter\na held state lock. Capacity\nbounds item count; domain code must bound arbitrary payload byte size. This is\nnot a hard real-time or allocation-free primitive.\n"
     },
     {
       "id": "b000046",
       "kind": "blank",
-      "start_line": 157,
-      "end_line": 157,
+      "start_line": 160,
+      "end_line": 160,
       "raw": "\n"
     },
     {
       "id": "b000047",
-      "kind": "paragraph",
-      "start_line": 158,
+      "kind": "heading",
+      "start_line": 161,
       "end_line": 161,
-      "raw": "The portable C++23 implementation imports no Qt/device/storage/transport SDK.\nNetwork/media transport, encoders, file creation and replay storage belong to\nfeature modules. WASM uses compiled C++ and the existing pthread/host contract;\nblocking the browser main thread remains prohibited.\n"
+      "raw": "## Lifetime, executors and failures\n",
+      "level": 2,
+      "title": "Lifetime, executors and failures"
     },
     {
       "id": "b000048",
@@ -392,8 +395,92 @@
       "id": "b000049",
       "kind": "paragraph",
       "start_line": 163,
-      "end_line": 167,
-      "raw": "Executable timer/worker/receiver example: examples/query_stream.cpp. A producer\nSerialQueue preserves tick order across the persistent worker pool; the receiver\nuses EventLoop timers and changes its typed query while the feed is live.\nContract tests: tests/query_stream.cpp, also consumed from the installed package.\nCurrent verification evidence: [validation.md](validation.md).\n"
+      "end_line": 169,
+      "raw": "subscribe_on(copyable_endpoint, ...) stores a copy. EventLoop::Sender is weak\nand stays safe after loop removal; subscribe(EventLoop&, ...) also uses it.\nsubscribe(Runtime&, ...) and subscribe(SerialQueue&, ...) borrow those executors,\nwhich must outlive subscription/stream close. Custom endpoints must satisfy\nTaskExecutor and defer execution, following Core's asynchronous contract.\nReceiver captures must own/protect their referenced objects. Declare and close\nsubscriptions before destroying receiver state.\n"
+    },
+    {
+      "id": "b000050",
+      "kind": "blank",
+      "start_line": 170,
+      "end_line": 170,
+      "raw": "\n"
+    },
+    {
+      "id": "b000051",
+      "kind": "paragraph",
+      "start_line": 171,
+      "end_line": 176,
+      "raw": "A projector exception is recorded per subscriber and in the publication report;\nother subscribers continue. A delivery exception is recorded and rethrown into\nthe executor's existing failure handling. That event is consumed; remaining\nevents may be resumed. failure() retains the latest cause until close. Admission\nerrors are stopped/invalid/exhausted/reentrant. Recursive publication into the\nsame feed, including cross-feed projection cycles, is rejected.\n"
+    },
+    {
+      "id": "b000052",
+      "kind": "blank",
+      "start_line": 177,
+      "end_line": 177,
+      "raw": "\n"
+    },
+    {
+      "id": "b000053",
+      "kind": "paragraph",
+      "start_line": 178,
+      "end_line": 184,
+      "raw": "Subscription close stops data/control, closes the query port, cancels queued\npumps, waits for active projections/callbacks and capture destruction, then\nclears selected query/output/receiver captures before its registry slot is\nreused. Stream close first stops producer/subscriber admission and waits for\nselection, then closes all subscriptions. Handles may outlive the stream and\nremain safely closed. Independently scheduled downstream user work has its own\nlifetime boundary.\n"
+    },
+    {
+      "id": "b000054",
+      "kind": "blank",
+      "start_line": 185,
+      "end_line": 185,
+      "raw": "\n"
+    },
+    {
+      "id": "b000055",
+      "kind": "paragraph",
+      "start_line": 186,
+      "end_line": 191,
+      "raw": "`Subscription::try_close()` closes admission and cancels pending delivery\nwithout waiting for an active projection, control query, or callback. It returns\n`would_block` while those owners are still retiring; retain the subscription and\nretry from a safe owner context until it succeeds. It does not relax the\n`self_join` rule or the destructor's completed-removal requirement. The control\nport's `QueryPort::try_close()` supplies the same nonblocking removal barrier.\n"
+    },
+    {
+      "id": "b000056",
+      "kind": "blank",
+      "start_line": 192,
+      "end_line": 192,
+      "raw": "\n"
+    },
+    {
+      "id": "b000057",
+      "kind": "paragraph",
+      "start_line": 193,
+      "end_line": 197,
+      "raw": "Self-close from the same selector/callback/capture destructor returns self_join.\nA Runtime worker or browser host that would need to wait receives would_block;\nretry the incomplete removal barrier from a safe external context. Destruction\nwhere removal cannot finish terminates, consistent with TaskScope. Cancellation\ndoes not preempt arbitrary active C++ code.\n"
+    },
+    {
+      "id": "b000058",
+      "kind": "blank",
+      "start_line": 198,
+      "end_line": 198,
+      "raw": "\n"
+    },
+    {
+      "id": "b000059",
+      "kind": "paragraph",
+      "start_line": 199,
+      "end_line": 202,
+      "raw": "The portable C++23 implementation imports no Qt/device/storage/transport SDK.\nNetwork/media transport, encoders, file creation and replay storage belong to\nfeature modules. WASM uses compiled C++ and the existing pthread/host contract;\nblocking the browser main thread remains prohibited.\n"
+    },
+    {
+      "id": "b000060",
+      "kind": "blank",
+      "start_line": 203,
+      "end_line": 203,
+      "raw": "\n"
+    },
+    {
+      "id": "b000061",
+      "kind": "paragraph",
+      "start_line": 204,
+      "end_line": 211,
+      "raw": "Executable timer/worker/receiver example: examples/query_stream.cpp. A producer\nSerialQueue preserves tick order across the persistent worker pool; the receiver\nuses EventLoop timers and changes its typed query while the feed is live. The\nproducer publishes field changes and the projector constructs only fields that\nare both selected and changed.\nContract tests: tests/query_stream.cpp and the relocated installed-package\nconsumer in tests/incremental-consumer.\nCurrent verification evidence: [validation.md](validation.md).\n"
     }
   ],
   "outline": [
@@ -414,28 +501,28 @@
       "start_line": 15
     },
     {
-      "block_id": "b000017",
+      "block_id": "b000027",
       "parent_id": "b000001",
       "level": 2,
       "title": "Query replacement",
       "anchor": "query-replacement",
-      "start_line": 65
+      "start_line": 99
     },
     {
-      "block_id": "b000025",
+      "block_id": "b000035",
       "parent_id": "b000001",
       "level": 2,
       "title": "Bounds and dispatch",
       "anchor": "bounds-and-dispatch",
-      "start_line": 89
+      "start_line": 123
     },
     {
-      "block_id": "b000037",
+      "block_id": "b000047",
       "parent_id": "b000001",
       "level": 2,
       "title": "Lifetime, executors and failures",
       "anchor": "lifetime-executors-and-failures",
-      "start_line": 127
+      "start_line": 161
     }
   ],
   "indexes": {
@@ -476,36 +563,71 @@
         "context": "paragraph"
       },
       {
-        "block_id": "b000031",
-        "line": 100,
+        "block_id": "b000017",
+        "line": 69,
+        "text": "projector에서 명시적으로 사용한다. 빈 변경을 임의로 전체 변경으로 해석하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000023",
+        "line": 86,
+        "text": "변경 사실과 쿼리의 관계는 도메인 소유자가 정확히 제공해야 한다. 영향을 받은 쿼리를",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000023",
+        "line": 91,
+        "text": "그 마스크와 쿼리가 모두 선택한 필드만 구성해야 한다. `publish_changed`는 등록된 쿼리의",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000023",
+        "line": 92,
+        "text": "영향 여부를 각각 판정하며, 임의의 사용자 쿼리에 대한 자동 색인은 제공하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000025",
+        "line": 94,
+        "text": "구독 등록·제거가 없으면 게시마다 구독 목록 전체를 복사하지 않는다. 구독자 구성이",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000041",
+        "line": 134,
         "text": "One scheduling ticket per subscription coalesces bursts. Callbacks never overlap",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000031",
-        "line": 103,
+        "block_id": "b000041",
+        "line": 137,
         "text": "yields through another executor submission. User code is cooperative and must",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000035",
-        "line": 124,
+        "block_id": "b000045",
+        "line": 158,
         "text": "bounds item count; domain code must bound arbitrary payload byte size. This is",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000039",
-        "line": 132,
+        "block_id": "b000049",
+        "line": 166,
         "text": "which must outlive subscription/stream close. Custom endpoints must satisfy",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000039",
-        "line": 134,
+        "block_id": "b000049",
+        "line": 168,
         "text": "Receiver captures must own/protect their referenced objects. Declare and close",
         "basis": "lexical_match",
         "context": "paragraph"
@@ -514,11 +636,11 @@
     "commands": [],
     "links": [
       {
-        "block_id": "b000049",
+        "block_id": "b000061",
         "label": "validation.md",
         "target": "validation.md",
         "kind": "relative",
-        "line": 167
+        "line": 211
       }
     ],
     "tables": []

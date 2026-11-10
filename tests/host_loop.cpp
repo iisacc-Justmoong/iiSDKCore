@@ -25,6 +25,24 @@ struct Signal final {
 };
 void contracts() {
     static_assert(TaskExecutor<EventLoop::Sender> && TimedTaskExecutor<EventLoop::Sender>);
+    {
+        EventLoop events(4);
+        HostLoop host(events,[]() noexcept {});
+        check(!host.io_waiter_active(),"a base host does not allocate an idle I/O waiter");
+        check(bool(events.post([]{})) && events.poll()==1 && !host.io_waiter_active(),
+              "ordinary event work does not start an I/O waiter");
+        auto watched=events.watch(ii::io::Channel{},ii::io::Interest::readable,[](auto){});
+        check(watched && host.io_waiter_active(),"an explicit I/O watch acquires its waiter");
+        check(watched.token.cancel() && bool(host.close()) && !host.io_waiter_active(),
+              "host close returns its acquired waiter");
+    }
+    {
+        EventLoop events(4);
+        auto watched=events.watch(ii::io::Channel{},ii::io::Interest::readable,[](auto){});
+        HostLoop host(events,[]() noexcept {});
+        check(watched && host.io_waiter_active(),"attaching a host honors an existing explicit I/O watch");
+        check(watched.token.cancel() && bool(host.close()),"existing watch and waiter retire");
+    }
     EventLoop::Sender retired;
     {
         EventLoop loop(4); retired=loop.sender();
@@ -42,6 +60,33 @@ void contracts() {
         check(bool(timer),"weak endpoint timer");
         loop.poll(); const auto signals=host.stats().wake_signals;
         check(timer.token.cancel() && host.stats().wake_signals==signals+1,"direct TaskToken cancellation wakes the host");
+        loop.poll();
+        const auto before_binding=host.stats().wake_requests;
+        auto event=retired.on_signal([]{});
+        check(bool(event),"host signal binding admitted");
+        check(host.stats().wake_requests==before_binding,
+              "binding a dormant signal does not wake the host");
+        loop.poll();
+        const auto wake_requests=host.stats().wake_requests;
+        for(int i=0;i<100;++i) check(retired.signal(event.token,Clock::now()),"signal accepted");
+        check(host.stats().wake_requests==wake_requests+1,"duplicate signals do not repeatedly wake the host");
+        check(loop.poll()==1 && event.token.cancel(),"coalesced event runs once and retires");
+        loop.poll();
+        const auto before_noop_resume=host.stats().wake_requests;
+        loop.resume();
+        check(host.stats().wake_requests==before_noop_resume,"resuming an active loop does not wake it");
+        loop.suspend(); loop.poll();
+        const auto before_noop_suspend=host.stats().wake_requests;
+        loop.suspend();
+        check(host.stats().wake_requests==before_noop_suspend,"suspending an already suspended loop does not wake it");
+        loop.resume(); loop.poll();
+        const auto before_reservation=host.stats().wake_requests;
+        RealtimeSchedule reservation; reservation.on_demand=true;
+        const auto demand=retired.realtime(reservation,[](const auto&){return SliceResult::stop;});
+        check(demand && host.stats().wake_requests==before_reservation,
+              "binding a parked realtime reservation does not wake the host");
+        check(retired.wake_realtime(demand.token,Clock::now()) && loop.poll()==1,
+              "an explicit realtime wake dispatches the reservation");
         bool foreign=false,blocking=false;
         std::thread worker([&] { try { loop.poll(); } catch(const std::logic_error&) { foreign=true; } });
         worker.join();
@@ -122,18 +167,51 @@ void readiness(const char* fixture) {
     auto child=ii::process::Process::start({.arguments={fixture,"delayed-output"}});
     check(bool(child),"launch delayed native pipe fixture");
     std::array<std::byte,1> ready{};
+#if defined(_WIN32)
+    check(bool(child->output().wait_polling(ii::io::Interest::readable,10s,20ms)),"fixture startup readiness");
+#else
     check(bool(child->output().wait(ii::io::Interest::readable,10s)),"fixture startup readiness");
+#endif
     auto startup=child->output().read(ready);
     check(startup && startup->bytes==1 && ready[0]==std::byte{'R'},"fixture startup handshake");
     EventLoop loop; Signal signal;
     HostLoop host(loop,[&]() noexcept { signal.notify(); });
     auto endpoint=loop.sender(); ii::io::Buffer buffer(2); bool delivered=false;
     const auto owner=std::this_thread::get_id(); const auto started=Clock::now();
-    check(bool(endpoint.read(child->output(),{buffer,0,2,3s},[&](auto reply) {
+    ii::io::Read read_request{buffer,0,2,3s};
+#if defined(_WIN32)
+    read_request.polling_interval=20ms;
+#endif
+    check(bool(endpoint.read(child->output(),read_request,[&](auto reply) {
         check(std::this_thread::get_id()==owner,"readiness callback stays on host owner");
         check(reply && reply->transfer.bytes==2 && buffer.bytes()[0]==std::byte{'4'},"native pipe data delivered");
         delivered=true;
     })),"admit host I/O");
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+    const auto waiting_deadline=Clock::now()+1s;
+    while (host.stats().io_waits==0 && Clock::now()<waiting_deadline)
+        std::this_thread::yield();
+    check(host.stats().io_waits>0,"host entered idle readiness wait");
+    const auto idle_waits=host.stats().io_waits;
+    std::this_thread::sleep_for(120ms);
+    check(host.stats().io_waits<=idle_waits+1,
+          "idle pending I/O does not periodically wake its native waiter");
+    const auto before_empty_poll=host.stats().io_waits;
+    const auto before_empty_candidates=loop.stats().io_candidates;
+    loop.poll();
+    std::this_thread::sleep_for(50ms);
+    check(host.stats().io_waits==before_empty_poll,
+          "an empty host poll does not restart an unchanged I/O wait");
+    check(loop.stats().io_candidates==before_empty_candidates,
+          "an empty hosted poll does not recheck an unchanged I/O watch");
+    check(bool(loop.post([]{})),"post work unrelated to pending I/O");
+    check(loop.poll()==1,"dispatch unrelated host work");
+    std::this_thread::sleep_for(50ms);
+    check(host.stats().io_waits==before_empty_poll,
+          "unrelated host work does not restart an unchanged I/O wait");
+    check(loop.stats().io_candidates==before_empty_candidates,
+          "unrelated host work does not recheck an unchanged I/O watch");
+#endif
     const std::array release{std::byte{'g'}};
     const auto sent=child->input().write(release);
     check(sent && *sent==1,"release ready fixture after I/O admission");
@@ -147,11 +225,57 @@ void readiness(const char* fixture) {
     check(bool(host.close()),"close readiness host");
     std::cout<<"HOST_IO_OK waits="<<waits<<" latency_ms="<<std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now()-started).count()<<'\n';
 }
+void cancelled_readiness(const char* fixture,bool monitor_io=true) {
+    if (!ii::process::capabilities().launch) return;
+    auto child=ii::process::Process::start({.arguments={fixture,"delayed-output"}});
+    check(bool(child),"launch cancellation fixture");
+    std::array<std::byte,1> ready{};
+#if defined(_WIN32)
+    check(bool(child->output().wait_polling(ii::io::Interest::readable,10s,20ms)),"fixture startup readiness");
+#else
+    check(bool(child->output().wait(ii::io::Interest::readable,10s)),"fixture startup readiness");
+#endif
+    check(bool(child->output().read(ready)),"consume fixture startup");
+    EventLoop loop; Signal signal; ii::io::CancellationSource stop;
+    HostLoop host(loop,[&]() noexcept { signal.notify(); },{monitor_io});
+    loop.poll();
+    bool cancelled=false;
+    IOWatchOptions watch_options{.stop=stop.token()};
+#if defined(_WIN32)
+    watch_options.polling_interval=20ms;
+#endif
+    check(bool(loop.watch(child->output(),ii::io::Interest::readable,[&](auto result) {
+        cancelled=!result && result.error().code==ii::io::ErrorCode::cancelled;
+    },watch_options)),"admit cancellable idle watch");
+    const auto deadline=Clock::now()+2s;
+    if(monitor_io) {
+        while (host.stats().io_waits==0 && Clock::now()<deadline) std::this_thread::yield();
+        check(host.stats().io_waits>0,"cancellable watch is waiting");
+    } else {
+        loop.poll();
+        (void)signal.wait(1ms);
+    }
+    stop.cancel();
+    if(!monitor_io) check(signal.wait(1s),"cancellation wakes a manually driven I/O host");
+    while (!cancelled && Clock::now()<deadline) {
+        (void)signal.wait(100ms);
+        loop.poll();
+    }
+    check(cancelled,"cancellation wakes an idle readiness watcher");
+    ii::io::CancellationSource prior;
+    prior.cancel();
+    bool pre_cancelled=false;
+    check(bool(loop.watch(child->output(),ii::io::Interest::readable,[&](auto result) {
+        pre_cancelled=!result && result.error().code==ii::io::ErrorCode::cancelled;
+    },{.stop=prior.token()})),"admit an already-cancelled watch");
+    check(loop.poll()==1 && pre_cancelled,"synchronous cancellation registration does not deadlock");
+    check(bool(host.close()),"detach cancelled readiness host");
+}
 }
 int main(int argc,char** argv) {
     if (!Thread::supported()) { std::cout<<"HostLoop threaded-host tests unsupported on this single-thread target\n";return 77; }
     try {
-        contracts(); completion_and_frames(); if (argc>1) readiness(argv[1]);
+        contracts(); completion_and_frames(); if (argc>1) { readiness(argv[1]); cancelled_readiness(argv[1]); cancelled_readiness(argv[1],false); }
         std::cout<<"HostLoop: "<<checks<<" checks passed\n"; return 0;
     } catch(const std::exception& error) { std::cerr<<error.what()<<'\n';return 1; }
 }

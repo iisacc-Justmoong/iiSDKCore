@@ -21,7 +21,7 @@ public:
   [[nodiscard]] Clock::duration
   remaining(Clock::time_point now = Clock::now()) const {
     if (!point_)
-      return Clock::duration::max();
+      return (Clock::duration::max)();
     if (now >= *point_)
       return Clock::duration::zero();
     return Time::elapsed(now, *point_);

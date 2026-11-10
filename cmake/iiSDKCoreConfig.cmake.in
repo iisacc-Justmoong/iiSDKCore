@@ -1,4 +1,9 @@
 @PACKAGE_INIT@
+if(EMSCRIPTEN)
+    # Emscripten supports side modules although its CMake toolchain defaults
+    # the shared-library capability to false.
+    set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS TRUE)
+endif()
 include(CMakeFindDependencyMacro)
 include("${CMAKE_CURRENT_LIST_DIR}/iiSDKCoreEmbeddedTargets.cmake")
 set(iiSDKCore_Embedded_FOUND TRUE)
@@ -33,6 +38,12 @@ endif()
 if(_iisdkcore_runtime)
     find_dependency(Threads)
     include("${CMAKE_CURRENT_LIST_DIR}/iiSDKCoreTargets.cmake")
+    if(EMSCRIPTEN AND TARGET iiSDKCore::Observation)
+        # emcc resolves a side module's dylink dependencies through -L, even
+        # when the dependency is also present later as an absolute link input.
+        set_property(TARGET iiSDKCore::iiSDKCore APPEND PROPERTY INTERFACE_LINK_DIRECTORIES
+            "$<TARGET_FILE_DIR:iiSDKCore::Observation>")
+    endif()
     if(NOT TARGET iiSDKCore::Runtime)
         add_library(iiSDKCore::Runtime INTERFACE IMPORTED)
         set_property(TARGET iiSDKCore::Runtime PROPERTY INTERFACE_LINK_LIBRARIES iiSDKCore::iiSDKCore)

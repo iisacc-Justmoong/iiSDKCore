@@ -27,6 +27,12 @@ public:
     const auto owner = executor_.lock();
     return owner && pending_ && pending_(owner.get(), *this);
   }
+  // Wait for callback captures and the executor slot to retire. Returns false
+  // when called from an execution context that cannot safely block.
+  [[nodiscard]] bool wait() const {
+    const auto owner = executor_.lock();
+    return !owner || !wait_ || wait_(owner.get(), *this);
+  }
   friend bool operator==(const TaskToken &a, const TaskToken &b) {
     return a.owner_ == b.owner_ && a.generation_ == b.generation_ &&
            a.slot_ == b.slot_;
@@ -43,6 +49,7 @@ private:
   std::weak_ptr<void> executor_;
   bool (*cancel_)(void *, const TaskToken &) = nullptr;
   bool (*pending_)(void *, const TaskToken &) = nullptr;
+  bool (*wait_)(void *, const TaskToken &) = nullptr;
 };
 
 struct Submission final {

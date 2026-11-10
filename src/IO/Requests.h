@@ -22,12 +22,14 @@ struct Read final {
     std::size_t offset = 0, length = std::dynamic_extent;
     std::chrono::milliseconds timeout{0};
     CancellationToken stop{};
+    std::optional<std::chrono::milliseconds> polling_interval;
 };
 struct Write final {
     Buffer buffer;
     std::size_t offset = 0, length = std::dynamic_extent;
     std::chrono::milliseconds timeout{0};
     CancellationToken stop{};
+    std::optional<std::chrono::milliseconds> polling_interval;
 };
 struct Seek final { std::int64_t offset; SeekOrigin origin = SeekOrigin::begin; };
 struct Flush final {};

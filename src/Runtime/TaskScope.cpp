@@ -1,9 +1,11 @@
 #include "TaskScope.h"
 #include "Runtime.h"
+#include "HostLoop.h"
 #include <algorithm>
 #include <condition_variable>
 #include <list>
 #include <mutex>
+#include <vector>
 #if defined(__EMSCRIPTEN__)
 #include <emscripten/threading.h>
 #endif
@@ -37,11 +39,17 @@ struct TaskScope::Impl {
     std::mutex mutex;
     std::condition_variable changed;
     std::list<Entry> jobs;
+    std::list<Entry> retired;
     std::size_t active=0;
     bool closed=false, cleaning=false, cleaned=false;
     Task cleanup;
     std::exception_ptr failure;
     explicit Impl(Task finalizer) : cleanup(std::move(finalizer)) {}
+    void prune_retired() {
+        // Entries enter this list once, in retirement order. Active jobs are
+        // never revisited when unrelated work is admitted.
+        while (!retired.empty() && !retired.front().token.pending()) retired.pop_front();
+    }
     ThreadResult result() const {
         if (failure) return std::unexpected(ThreadError{ThreadErrorCode::work_failed,failure});
         return {};
@@ -60,7 +68,8 @@ struct TaskScope::Job {
             std::lock_guard lock(owner->mutex);
             entry->job=nullptr;
             if (!entry->token.pending()) owner->jobs.erase(entry);
-            owner->changed.notify_all();
+            else owner->retired.splice(owner->retired.end(),owner->jobs,entry);
+            if (owner->closed) owner->changed.notify_all();
         }
     }
     void execute() {
@@ -71,7 +80,7 @@ struct TaskScope::Job {
         }
         struct Finish {
             Impl& state;
-            ~Finish() { std::lock_guard lock(state.mutex); --state.active; state.changed.notify_all(); }
+            ~Finish() { std::lock_guard lock(state.mutex); --state.active; if (state.closed) state.changed.notify_all(); }
         } finish{*owner};
         Activity executing(owner.get());
         task();
@@ -89,10 +98,7 @@ std::shared_ptr<TaskScope::Job> TaskScope::prepare(const std::shared_ptr<Impl>& 
     auto job=std::make_shared<Job>(owner,std::move(task));
     std::lock_guard lock(owner->mutex);
     if (owner->closed) return {};
-    for(auto i=owner->jobs.begin();i!=owner->jobs.end();) {
-        if (!i->job && !i->token.pending()) i=owner->jobs.erase(i);
-        else ++i;
-    }
+    owner->prune_retired();
     owner->jobs.push_back({job.get(),{},false,false});
     job->entry=std::prev(owner->jobs.end()); job->listed=true;
     return job;
@@ -105,7 +111,7 @@ void TaskScope::registered(const std::shared_ptr<Job>& job,TaskToken token) {
         job->entry->token=token; job->entry->registered=true;
         cancel=job->owner->closed && !job->entry->cancelling;
         if(cancel) job->entry->cancelling=true;
-        job->owner->changed.notify_all();
+        if (job->owner->closed) job->owner->changed.notify_all();
     }
     // request_close may have raced the executor's admission. Complete that
     // cancellation here, outside the scope lock, once the token becomes known.
@@ -120,7 +126,7 @@ SubmitError TaskScope::run(Task task) const {
     }
     struct Finish {
         Impl& state;
-        ~Finish() { std::lock_guard lock(state.mutex); --state.active; state.changed.notify_all(); }
+        ~Finish() { std::lock_guard lock(state.mutex); --state.active; if (state.closed) state.changed.notify_all(); }
     } finish{*impl_};
     Activity executing(impl_.get());
     try { task(); } catch (...) { task=nullptr; throw; }
@@ -128,16 +134,19 @@ SubmitError TaskScope::run(Task task) const {
     return SubmitError::none;
 }
 void TaskScope::request_close() const {
-    std::unique_lock lock(impl_->mutex);
-    impl_->closed=true;
-    for(;;) {
-        Impl::Entry* selected=nullptr;
-        for(auto& entry:impl_->jobs) if(entry.registered && !entry.cancelling) { selected=&entry; break; }
-        if(!selected) return;
-        selected->cancelling=true;
-        const auto token=selected->token;
-        lock.unlock(); (void)token.cancel(); lock.lock();
+    std::vector<TaskToken> tokens;
+    {
+        std::lock_guard lock(impl_->mutex);
+        if (impl_->closed) return;
+        tokens.reserve(impl_->jobs.size());
+        impl_->closed=true;
+        for(auto& entry:impl_->jobs) if(entry.registered && !entry.cancelling) {
+            tokens.push_back(entry.token);
+            entry.cancelling=true;
+        }
     }
+    // Cancellation can destroy captures and reenter this scope.
+    for(const auto& token:tokens) (void)token.cancel();
 }
 ThreadResult TaskScope::close() const { return finish(true); }
 ThreadResult TaskScope::try_close() const { return finish(false); }
@@ -147,26 +156,17 @@ ThreadResult TaskScope::finish(bool wait) const {
     std::unique_lock lock(impl_->mutex);
     for (;;) {
         if (impl_->cleaned) return impl_->result();
-        for(auto i=impl_->jobs.begin();i!=impl_->jobs.end();) {
-            if (!i->job && !i->token.pending()) i=impl_->jobs.erase(i);
-            else ++i;
-        }
-        Impl::Entry* selected=nullptr;
-        for (auto& entry:impl_->jobs) if (entry.registered && !entry.cancelling) { selected=&entry; break; }
-        if (selected) {
-            selected->cancelling=true;
-            const auto token=selected->token;
-            lock.unlock(); (void)token.cancel(); lock.lock();
-            continue;
-        }
-        if (impl_->jobs.empty() && !impl_->active && !impl_->cleaning) break;
-        if (!wait || browser_host() || Runtime::is_worker_thread()) return error(ThreadErrorCode::would_block);
-        // The executor returns quota just after destroying its task wrapper.
-        // Poll only these final retirement records, which hold no user resources.
-        const bool retiring_only=!impl_->active && !impl_->cleaning &&
-            std::all_of(impl_->jobs.begin(),impl_->jobs.end(),[](const auto& entry){return !entry.job;});
-        if (retiring_only) impl_->changed.wait_for(lock,std::chrono::milliseconds(1));
-        else impl_->changed.wait(lock);
+        impl_->prune_retired();
+        if (impl_->jobs.empty() && impl_->retired.empty() && !impl_->active && !impl_->cleaning) break;
+        if (!wait || browser_host() || Runtime::is_worker_thread() || HostLoop::is_current_thread()) return error(ThreadErrorCode::would_block);
+        const bool retiring_only=impl_->jobs.empty() && !impl_->retired.empty() && !impl_->active && !impl_->cleaning;
+        if (retiring_only) {
+            const auto token=impl_->retired.front().token;
+            lock.unlock();
+            const auto waited=token.wait();
+            lock.lock();
+            if (!waited) return error(ThreadErrorCode::would_block);
+        } else impl_->changed.wait(lock);
     }
     impl_->cleaning=true;
     Task cleanup;

@@ -18,10 +18,10 @@ public:
                                Clock::duration delta) noexcept {
     using Rep = Clock::duration::rep;
     const auto value = point.time_since_epoch().count(), change = delta.count();
-    if (change > 0 && value > std::numeric_limits<Rep>::max() - change)
-      return Clock::time_point::max();
-    if (change < 0 && value < std::numeric_limits<Rep>::min() - change)
-      return Clock::time_point::min();
+    if (change > 0 && value > (std::numeric_limits<Rep>::max)() - change)
+      return (Clock::time_point::max)();
+    if (change < 0 && value < (std::numeric_limits<Rep>::min)() - change)
+      return (Clock::time_point::min)();
     return Clock::time_point(Clock::duration(value + change));
   }
   static Clock::duration elapsed(Clock::time_point from,
@@ -32,8 +32,8 @@ public:
     using Unsigned = std::make_unsigned_t<Rep>;
     const auto count = static_cast<Unsigned>(to.time_since_epoch().count()) -
                        static_cast<Unsigned>(from.time_since_epoch().count());
-    if (count > static_cast<Unsigned>(std::numeric_limits<Rep>::max()))
-      return Clock::duration::max();
+    if (count > static_cast<Unsigned>((std::numeric_limits<Rep>::max)()))
+      return (Clock::duration::max)();
     return Clock::duration(static_cast<Rep>(count));
   }
   static PeriodPosition period(Clock::time_point origin,

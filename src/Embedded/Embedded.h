@@ -1,5 +1,14 @@
 #pragma once
 #include <stdint.h>
+#if defined(_WIN32) && !defined(IISDKCORE_EMBEDDED_STATIC)
+#  if defined(IISDKCORE_EMBEDDED_BUILD)
+#    define IISDKCORE_EMBEDDED_EXPORT __declspec(dllexport)
+#  else
+#    define IISDKCORE_EMBEDDED_EXPORT __declspec(dllimport)
+#  endif
+#else
+#  define IISDKCORE_EMBEDDED_EXPORT
+#endif
 #if (defined(_MSVC_LANG) && _MSVC_LANG < 202100L) || (!defined(_MSVC_LANG) && __cplusplus < 202100L)
 #error "iiSDKCore Embedded requires C++23"
 #endif
@@ -14,7 +23,7 @@ struct Ticket final {
     uint16_t index = 0;
     explicit constexpr operator bool() const noexcept { return owner != nullptr; }
 };
-uint32_t contract_version() noexcept;
+IISDKCORE_EMBEDDED_EXPORT uint32_t contract_version() noexcept;
 // One caller owns dispatch and time. Contexts outlive their pending tickets.
 // No allocation, OS service, exceptions or interrupt synchronization is
 // required.

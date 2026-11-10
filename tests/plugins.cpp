@@ -53,6 +53,9 @@ const plugin::Descriptor *bad_entry() noexcept {
 } // namespace
 int main(int argc, char **argv) {
   try {
+    auto empty = plugin::Plugin::open_static("");
+    check(!empty && empty.error().code == core::ErrorCode::invalid_argument,
+          "empty static plugin identifier rejected");
     check(!plugin::Plugin::attach(bad_entry) &&
               !plugin::Plugin::attach(nullptr),
           "ABI mismatch and null entry rejected");

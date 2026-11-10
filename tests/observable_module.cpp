@@ -1,6 +1,8 @@
 #include "fixtures/observable_module/Model.h"
 #include <iiSDKCore/Core/Property/Observable.h>
 #include <iostream>
+#include <string>
+#include <utility>
 #include <vector>
 #include <thread>
 #include <stdexcept>

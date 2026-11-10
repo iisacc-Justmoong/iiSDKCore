@@ -52,5 +52,29 @@ int main(){
     try{throws.set(1);}catch(const std::runtime_error&){failed=true;}CHECK(failed&&calls==2&&throws.get()==1);bad.reset();CHECK(throws.set(2));
     Observable<int> cycle{0};auto loop=cycle.observe([&](const int& n,auto){cycle.set(n+1);});
     bool bounded=false;try{cycle.set(1);}catch(const std::length_error&){bounded=true;}CHECK(bounded&&cycle.get()==Observable<int>::maximum_notifications);
+    {
+        Observable<int> initial{1};int before=0,after=0;std::vector<int> order;
+        auto lease=initial.observe([&](const int& snapshot,std::uint64_t revision){
+            order.push_back(snapshot);
+            if(revision==0){before=snapshot;initial.set(2);after=snapshot;}
+        },true);
+        std::cout<<"INITIAL_OBSERVATION before="<<before<<" after="<<after<<" next="<<initial.get()<<"\n";
+        CHECK(before==1&&after==1&&initial.get()==2&&(order==std::vector<int>{1,2}));
+    }
+    {
+        auto closing=std::make_unique<Observable<int>>(42);int observed=0;
+        auto lease=closing->observe([&](const int& snapshot,std::uint64_t){closing.reset();observed=snapshot;},true);
+        CHECK(!closing&&observed==42&&!lease.active());
+    }
+    {
+        Observable<int> measured{0};
+        ObservableStats during;
+        auto lease=measured.observe([&](int n,std::uint64_t){if(n==1){measured.set(2);during=measured.stats();}});
+        CHECK(!measured.set(0)&&measured.set(1));
+        const auto stats=measured.stats();
+        CHECK(during.revision==2&&during.pending==1&&during.delivered_in_cycle==1&&during.dispatching&&
+              stats.revision==2&&stats.pending==0&&stats.delivered_in_cycle==2&&
+              stats.observers==1&&!stats.dispatching);
+    }
     std::cout<<"observable contracts passed\n";
 }

@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/embedded.md",
-    "sha256": "f9c7f7be36ac61fcedf10ba58ac593ee39f27c74599bfa0ce4ca3aa49a29c734",
-    "bytes": 3574,
-    "line_count": 23,
+    "sha256": "b2e3d5f3cde58fd0d23d2608aa4b9f476b8f28c83e4843a5973235f10c64e81c",
+    "bytes": 3794,
+    "line_count": 27,
     "encoding": "utf-8",
     "language": "ko"
   },
@@ -115,35 +115,49 @@
       "id": "b000013",
       "kind": "paragraph",
       "start_line": 19,
-      "end_line": 19,
-      "raw": "두 구성 모두 원본과 선택한 실제 번역 단위의 전처리 결과를 검사하는 필수 `iiSDKCoreArchitectureCheck`를 실행한다. Arduino CLI는 같은 매크로 독립적인 Embedded 소스를 보드 컴파일러로 다시 컴파일한다. 호스트의 Core 정책 검사를 먼저 수행하며, 보드 CLI의 컴파일 DB argv로 실제 BSP 컴파일러·매크로·옵션의 필수 전처리 검사도 수행한다. 실제 보드 컴파일은 헤더의 C++23 검사와 ELF CPU 검증을 통과해야 한다. 구형 BSP 컴파일러가 C++23을 지원하지 않으면 해당 빌드는 실패하며 표준을 낮추지 않는다.\n"
+      "end_line": 21,
+      "raw": "일반 OS 빌드에서는 `BUILD_SHARED_LIBS` 설정에 따라 Embedded 대상도 공유\n라이브러리로 제공한다. 베어메탈 전용 구성은 동적 로더가 없으므로 정적\n아카이브로 유지한다.\n"
     },
     {
       "id": "b000014",
-      "kind": "blank",
-      "start_line": 20,
-      "end_line": 20,
-      "raw": "\n"
-    },
-    {
-      "id": "b000015",
-      "kind": "paragraph",
-      "start_line": 21,
-      "end_line": 21,
-      "raw": "이 구성은 차량 안전 등급이나 RTOS·MCU 드라이버를 인증하지 않는다. 시작 코드, 링커 스크립트, 인터럽트, 주기 시각과 장치 드라이버는 실제 BSP가 소유한다. `tests/embedded.cpp`는 예산, 취소, 슬롯 한도, 반복 타이머 자기 취소와 시각 순환을 검증한다.\n"
-    },
-    {
-      "id": "b000016",
       "kind": "blank",
       "start_line": 22,
       "end_line": 22,
       "raw": "\n"
     },
     {
-      "id": "b000017",
+      "id": "b000015",
       "kind": "paragraph",
       "start_line": 23,
       "end_line": 23,
+      "raw": "두 구성 모두 원본과 선택한 실제 번역 단위의 전처리 결과를 검사하는 필수 `iiSDKCoreArchitectureCheck`를 실행한다. Arduino CLI는 같은 매크로 독립적인 Embedded 소스를 보드 컴파일러로 다시 컴파일한다. 호스트의 Core 정책 검사를 먼저 수행하며, 보드 CLI의 컴파일 DB argv로 실제 BSP 컴파일러·매크로·옵션의 필수 전처리 검사도 수행한다. 실제 보드 컴파일은 헤더의 C++23 검사와 ELF CPU 검증을 통과해야 한다. 구형 BSP 컴파일러가 C++23을 지원하지 않으면 해당 빌드는 실패하며 표준을 낮추지 않는다.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 24,
+      "end_line": 24,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 25,
+      "end_line": 25,
+      "raw": "이 구성은 차량 안전 등급이나 RTOS·MCU 드라이버를 인증하지 않는다. 시작 코드, 링커 스크립트, 인터럽트, 주기 시각과 장치 드라이버는 실제 BSP가 소유한다. `tests/embedded.cpp`는 예산, 취소, 슬롯 한도, 반복 타이머 자기 취소와 시각 순환을 검증한다.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 26,
+      "end_line": 26,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 27,
+      "end_line": 27,
       "raw": "MSVC에서는 `/Zc:__cplusplus`가 없어도 C++23을 정확히 인식하도록 `_MSVC_LANG`를 우선 사용한다. 다른 컴파일러에서는 `__cplusplus`를 사용한다. `tests/embedded_language_macro.cpp`는 레거시 `__cplusplus=199711L`과 C++23 `_MSVC_LANG` 조합을 검사한다. [Microsoft 언어 버전 매크로 계약](https://learn.microsoft.com/en-us/cpp/build/reference/zc-cplusplus)을 따른다.\n"
     }
   ],
@@ -181,15 +195,15 @@
         "context": "paragraph"
       },
       {
-        "block_id": "b000013",
-        "line": 19,
+        "block_id": "b000015",
+        "line": 23,
         "text": "두 구성 모두 원본과 선택한 실제 번역 단위의 전처리 결과를 검사하는 필수 `iiSDKCoreArchitectureCheck`를 실행한다. Arduino CLI는 같은 매크로 독립적인 Embedded 소스를 보드 컴파일러로 다시 컴파일한다. 호스트의 Core 정책 검사를 먼저 수행하며, 보드 CLI의 컴파일 DB argv로 실제 BSP 컴파일러·매크로·옵션의 필수 전처리 검사도 수행한다. 실제 보드 컴파일은 헤더의 C++23 검사와 ELF CPU 검증을 통과해야 한다. 구형 BSP 컴파일러가 C++23을 지원하지 않으면 해당 빌드는 실패하며 표준을 낮추지 않는다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000015",
-        "line": 21,
+        "block_id": "b000017",
+        "line": 25,
         "text": "이 구성은 차량 안전 등급이나 RTOS·MCU 드라이버를 인증하지 않는다. 시작 코드, 링커 스크립트, 인터럽트, 주기 시각과 장치 드라이버는 실제 BSP가 소유한다. `tests/embedded.cpp`는 예산, 취소, 슬롯 한도, 반복 타이머 자기 취소와 시각 순환을 검증한다.",
         "basis": "lexical_match",
         "context": "paragraph"
@@ -198,11 +212,11 @@
     "commands": [],
     "links": [
       {
-        "block_id": "b000017",
+        "block_id": "b000019",
         "label": "Microsoft 언어 버전 매크로 계약",
         "target": "https://learn.microsoft.com/en-us/cpp/build/reference/zc-cplusplus",
         "kind": "external",
-        "line": 23
+        "line": 27
       }
     ],
     "tables": []

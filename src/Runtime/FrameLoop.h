@@ -66,6 +66,7 @@ struct FrameStats final {
   std::uint64_t frames = 0, callbacks = 0, fixed_steps = 0;
   std::uint64_t dropped_fixed_steps = 0, clamped_frames = 0, overruns = 0;
   std::uint64_t failed_ticks = 0, failed_frames = 0;
+  std::uint64_t schedule_rebuilds = 0, schedule_candidates = 0;
   Clock::duration max_work_time{};
 };
 

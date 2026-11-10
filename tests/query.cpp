@@ -115,6 +115,12 @@ int main() {
         loop.poll({8, 1s});
         check(!expired && loop.stats().pending==0, "removed receiver releases queued queries without late completions");
 
+        bool late=false;QueryPort<ReadValue,int> nonblocking([](const ReadValue&){return 8;});
+        (void)nonblocking.post(loop,{},[&](auto){late=true;});
+        check(bool(nonblocking.try_close())&&loop.stats().pending==0&&!nonblocking.send({}),
+              "nonblocking query close cancels pending work and closes admission");
+        loop.poll({8,1s});check(!late,"closed query delivered a late completion");
+
         QueryPort<ReadValue, int> failing([](const ReadValue&) -> int {
             throw std::runtime_error("receiver error");
         });

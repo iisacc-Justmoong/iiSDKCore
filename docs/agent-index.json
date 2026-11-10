@@ -14,15 +14,22 @@
       "document_id": "urn:iisacc:document:f6be27107a2b986b25b99162a857a062824a078f264daafc5fee293733c24c2f",
       "source": "AGENT.md",
       "agent_json": "docs/entrypoints/AGENT.agent.json",
-      "source_sha256": "79ec379793f5db3e228854adacc7e450071cd0c94082ad388d6c7ed131e1b2e8",
+      "source_sha256": "159cd453f536de672cb4c7375fc37f7c85a04a637e66efe5c9c921da2b496bfe",
       "role": "instructions"
     },
     {
       "document_id": "urn:iisacc:document:c4cc3f62c42314fe707ad91646a9947e21d7d651facd95057761306badbfc84a",
       "source": "README.md",
       "agent_json": "docs/entrypoints/README.agent.json",
-      "source_sha256": "a0396fd5e807cbfd6127fcf062d3a32a2316bff0da8439a3411efe3fe890f272",
+      "source_sha256": "0e4eeb5bd7b5bd49568e0c8b5c87b9af19538d4a004d1f32983c6ab1efbc0aa0",
       "role": "overview"
+    },
+    {
+      "document_id": "urn:iisacc:document:a2ecd6f824b420d9a1bc94a3af7ab84dbb5c1af5bbaa6a5b059d48329b75de5a",
+      "source": "docs/DynamicLinking.md",
+      "agent_json": "docs/DynamicLinking.agent.json",
+      "source_sha256": "bc2fdc0c7675d7a17327c884659e063fae9c3f4eea0afe5739cf1d166b242b71",
+      "role": "guide"
     },
     {
       "document_id": "urn:iisacc:document:ffe2b59bba57a8e7594973a9c6fc1e789d76fc971291d2af7ecf270e69a71eaa",
@@ -35,7 +42,7 @@
       "document_id": "urn:iisacc:document:12a4031ce7c5aab849c57d9b5c84e2cb278a22ed6799a3f6632c7e0f5b9ece0c",
       "source": "docs/README.md",
       "agent_json": "docs/README.agent.json",
-      "source_sha256": "e01dca5c9c85787ffff9ebda217f3887e30be39087455d26059a6874c9dc385e",
+      "source_sha256": "bb210a05ec8edc08cb1ec8745e746ebad65625cae16c97e0c9099368eb7726ea",
       "role": "overview"
     },
     {
@@ -56,28 +63,35 @@
       "document_id": "urn:iisacc:document:ea3b93ff74ef4f02253a1b7f951ff13d15877ee6b77f8a2e70b40da6587cd5ca",
       "source": "docs/application.md",
       "agent_json": "docs/application.agent.json",
-      "source_sha256": "4ffa097279cf624c8ac8651a60ce4fc426e64264762e737b5d4f4a519a53fabd",
+      "source_sha256": "c0d2cacf78883050ebc769a86cd63a7e35cfce4a3d9367aa1c50b21a59e79d4b",
       "role": "guide"
     },
     {
       "document_id": "urn:iisacc:document:7d8d4c4a77541b03e91e44dc494e54af96ff8b1fb1bcb3ae3c587ae290ea7e01",
       "source": "docs/cleanup.md",
       "agent_json": "docs/cleanup.agent.json",
-      "source_sha256": "fc003856eda5c4ef1895d59adab1e8666c3742679564d73ea824866f78ef95d8",
+      "source_sha256": "eaad1a51a7b8addc4d0dd0ed413d42d22eee38fd64d3196b33092c7f2628a992",
       "role": "guide"
     },
     {
       "document_id": "urn:iisacc:document:17afbe057089940b93ca5059671448844a3957f229747c8f4a7df5848320a753",
       "source": "docs/compute-router.md",
       "agent_json": "docs/compute-router.agent.json",
-      "source_sha256": "4532dcc42a941a26df55ac8336a0821f9a6ab725adb53a2bea1b547b96bda9fb",
+      "source_sha256": "8d7d93e751e82b397ac81737ff755ec3d5a0729a2707ad8883540acf094baccc",
       "role": "guide"
     },
     {
       "document_id": "urn:iisacc:document:1747609c7ca0ebf91aedecb8d5d1ad169cd0cd357972deb22955f21f7645b901",
       "source": "docs/concurrent.md",
       "agent_json": "docs/concurrent.agent.json",
-      "source_sha256": "acab7fe80477c23ffe7a55fbe4ca7670eaab34af90c6d0827a57e42a3639cad2",
+      "source_sha256": "15e9863525866c27ee3d4890498370cd56efdc0571caab56abf0e0c29e48b837",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:64ee801a032ab112daea2815e76cb02335e8adacc3524d438895e4f232cc18d3",
+      "source": "docs/cpython-aot.md",
+      "agent_json": "docs/cpython-aot.agent.json",
+      "source_sha256": "f0fa69b73e0f7de2ccfa5fc2488378092ec5a44edbf6a70e1773df374737cf2c",
       "role": "guide"
     },
     {
@@ -116,17 +130,24 @@
       "role": "guide"
     },
     {
+      "document_id": "urn:iisacc:document:9e5023d5adc5bc022e96fc9e6a13d265b342d28943336fe83c4c0f40827c9c4a",
+      "source": "docs/elastic-compute.md",
+      "agent_json": "docs/elastic-compute.agent.json",
+      "source_sha256": "f88d52ba06695743d2bec820ab6f098bbc771ef173749d4ebe671bbcce791936",
+      "role": "guide"
+    },
+    {
       "document_id": "urn:iisacc:document:be2d82c139149c4671614b7370bbcf264167ae16d99c88cd7f859cbecc15c0bb",
       "source": "docs/embedded.md",
       "agent_json": "docs/embedded.agent.json",
-      "source_sha256": "f9c7f7be36ac61fcedf10ba58ac593ee39f27c74599bfa0ce4ca3aa49a29c734",
+      "source_sha256": "b2e3d5f3cde58fd0d23d2608aa4b9f476b8f28c83e4843a5973235f10c64e81c",
       "role": "guide"
     },
     {
       "document_id": "urn:iisacc:document:de2c9cdadc4fd775e67d1114bdb70fd4a1212724817f9a67a26a69b74c8416e3",
       "source": "docs/foundation-architecture.md",
       "agent_json": "docs/foundation-architecture.agent.json",
-      "source_sha256": "0be228de28465186e62fd9820543c510e69a2d121d8f7d83bb2c04fa5db5eeda",
+      "source_sha256": "d0c3de3478fd79d2d9d383ebe6efb73624c0a8028eb1b1b3589800a9d806b69b",
       "role": "reference"
     },
     {
@@ -140,7 +161,7 @@
       "document_id": "urn:iisacc:document:4708c846b390d37acb592cd6e46fb71d372566e0b325d152b7074be202ed2abc",
       "source": "docs/frame-loop.md",
       "agent_json": "docs/frame-loop.agent.json",
-      "source_sha256": "186f138207f34d5cb261bd9dc7b257fb474868de480ddcce0a37d0b1bffc5a06",
+      "source_sha256": "a09ebbe3533880d57b1d9cf13ab93511fb6116126ccc92a9ad7dfc2fe23e2fae",
       "role": "guide"
     },
     {
@@ -154,7 +175,7 @@
       "document_id": "urn:iisacc:document:ec00b9cff076a97a5d6db30da1b26de83d00e25a15a6d604f945c94ff7d2977a",
       "source": "docs/host-loop.md",
       "agent_json": "docs/host-loop.agent.json",
-      "source_sha256": "231b036ccd6cdd71d7fdcbba304aba6b8a3313dfc61850a4cf9e06b68a6347c9",
+      "source_sha256": "f3f9796fac0f29c7102ba24873b8f4c2c1395576b2b5f2bad9df9159210ce907",
       "role": "guide"
     },
     {
@@ -175,14 +196,14 @@
       "document_id": "urn:iisacc:document:8446b23987f8047e145805ab6be0517051e7f7cbae1f58612642bd983efa1ab0",
       "source": "docs/io.md",
       "agent_json": "docs/io.agent.json",
-      "source_sha256": "c2a0cd47ba0e4b1ade734f15662d3716cdd0ab76b23c350ea6f8a6f5fb74397f",
+      "source_sha256": "888b3894896add65ce6761154ce82fe9df88aa437f54ac66774d4347412286f9",
       "role": "guide"
     },
     {
       "document_id": "urn:iisacc:document:f092676246d42c84a369796ecf3d6068afcaa1d9055a1bb453303822ad570523",
       "source": "docs/load-balancer.md",
       "agent_json": "docs/load-balancer.agent.json",
-      "source_sha256": "e57de89f7f4ea63b18ee4142690441421b3c6f07f7b7212dd1230fe460f886f7",
+      "source_sha256": "15f4ae5443979b132af06444139f0c71350cdc74e594dbdf5d769fde83ee19be",
       "role": "guide"
     },
     {
@@ -196,7 +217,7 @@
       "document_id": "urn:iisacc:document:2c22b3068b5dfaefff176c7d1c3b87474469e15dc6f47ec67228c6afaa868bcd",
       "source": "docs/loop-io.md",
       "agent_json": "docs/loop-io.agent.json",
-      "source_sha256": "a9bee87e5417b625f1d164b2c265745395cbe9ec746059d15bedaa024544d74f",
+      "source_sha256": "3526f84e99a6afe0fee5170a84f2e9ddad1f47e46a5f8dc4817e175135f57dd5",
       "role": "guide"
     },
     {
@@ -204,6 +225,13 @@
       "source": "docs/member-tree.md",
       "agent_json": "docs/member-tree.agent.json",
       "source_sha256": "12a85029e7e04155ca6bc475c00a71b004ac47bc3240f82f507454f99e2e1037",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:15d7ff81062efb110c0912a127a27c5412b4c34e95b21af51cf22d8e581727ed",
+      "source": "docs/mobile-shared-runtime.md",
+      "agent_json": "docs/mobile-shared-runtime.agent.json",
+      "source_sha256": "d0e3186401c3cc5d8b7e6f3debccee70421c18225b8456148bf72f12da0c0432",
       "role": "guide"
     },
     {
@@ -224,21 +252,21 @@
       "document_id": "urn:iisacc:document:38efb25df60a12db8c002be9a8e22f5f39cdead5c377b10f096db01cc1031add",
       "source": "docs/observable.md",
       "agent_json": "docs/observable.agent.json",
-      "source_sha256": "feff5baa5a6a2505513ef955c14e603a8a163345db0de356fccdfd661dbc7a32",
+      "source_sha256": "1682265b5b8dddd252cdc532dec743af60ca90c2934f67887a6ea1d23436156d",
       "role": "guide"
     },
     {
       "document_id": "urn:iisacc:document:7e2cc63759d5074538d56a729a852908fb91f5229ab7c39bc518c44303d3ab18",
       "source": "docs/operation.md",
       "agent_json": "docs/operation.agent.json",
-      "source_sha256": "a71f064406233eaeb46f4e7c78fa43801fce6d2b651b1bfbec24b45eaf05637d",
+      "source_sha256": "6ae8e0d2c3d3e138ce695493d70d593c5ac8486cf3a5f215ad0e19d8727d1f47",
       "role": "guide"
     },
     {
       "document_id": "urn:iisacc:document:84067eb03af713f437aa444dc48a3ac2b1192b166586ac68235d6b56643ccc60",
       "source": "docs/parallel-runtime.md",
       "agent_json": "docs/parallel-runtime.agent.json",
-      "source_sha256": "c1bd955a303bf7c6c03fc73cd1bf53f64b5e62bae65a419786106de363fb9877",
+      "source_sha256": "be2f065c796f41fd64bd7db3ab0ae3844b2f478d093876b9a69cc741d2c6f602",
       "role": "guide"
     },
     {
@@ -252,7 +280,7 @@
       "document_id": "urn:iisacc:document:17056c6bc11af547f0814368229417124d2ccb9b76fac5f100fe286c14dd8c08",
       "source": "docs/process.md",
       "agent_json": "docs/process.agent.json",
-      "source_sha256": "848aeb4cc9c4b7d43c5f07a644c4736a3d1ba5a81fe087ae6376c30269eb5854",
+      "source_sha256": "1bd20f948cb1fcb6c1fb2a8743541ef69d8834b450a45c3790c335171623470f",
       "role": "guide"
     },
     {
@@ -273,21 +301,28 @@
       "document_id": "urn:iisacc:document:21bdc484b3a750a34b2d11042be24cb4c7e1d981fb15d14789c2b7a2e427ec29",
       "source": "docs/query-stream.md",
       "agent_json": "docs/query-stream.agent.json",
-      "source_sha256": "c1e07029a012730d6da8b07da57c1e15d90f92addf6e31ca6b02b6d63c805348",
+      "source_sha256": "a06518d416b199fc597e5cd3f3c74c7c06bb6960dd57fb45a0e8c2e23f9b4ba5",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:1c11875b40a7e35493786c53b7047ac6e05d8670f6036619675e3b264d115531",
+      "source": "docs/query-values.md",
+      "agent_json": "docs/query-values.agent.json",
+      "source_sha256": "a9696f42ddc497819c5bd6626b2d9097347cf9f62b33725e5f0cc88c42eeb0bb",
       "role": "guide"
     },
     {
       "document_id": "urn:iisacc:document:038bb39208a58bb6d1c0247e255e03eeccdcf3015e0be904aeb47b73f18543dc",
       "source": "docs/query.md",
       "agent_json": "docs/query.agent.json",
-      "source_sha256": "2040653e0cebfd670c1d099bee83cc73a4329136d915a0b0f77908a1086478f7",
+      "source_sha256": "f6befdf6f700f121869281f8844fad1807440941ea9195d19623de9d25915d3a",
       "role": "guide"
     },
     {
       "document_id": "urn:iisacc:document:c162d12e7d5473708980e2d388e858c57162a034ee5b25f0144161126f465d19",
       "source": "docs/realtime.md",
       "agent_json": "docs/realtime.agent.json",
-      "source_sha256": "8e8b3b85a9105fca98344ab13bf75e8aeb597adcd1e1eb39b13f9152c960d369",
+      "source_sha256": "5accff97630abf235664872079c347bc2c9feada1b48d9a8654cb6a4dced191d",
       "role": "guide"
     },
     {
@@ -301,7 +336,7 @@
       "document_id": "urn:iisacc:document:7e3459ae41da93c6666a43b4a813aea64a97c1c77b8cf1840738daf6feeab383",
       "source": "docs/runtime.md",
       "agent_json": "docs/runtime.agent.json",
-      "source_sha256": "dfb58aad29b40527c9514f005898c8ff9c3a9401b8d6c3daaf1b3b576684b23a",
+      "source_sha256": "6c94325013d99f8af9791f2e2b4522d069ab12b68baeaefc33264d448e86123f",
       "role": "guide"
     },
     {
@@ -309,6 +344,20 @@
       "source": "docs/serialization.md",
       "agent_json": "docs/serialization.agent.json",
       "source_sha256": "5f521a87219799063fb18f026f0378396a03d6e8a2ca7b8d8aa91e165579cd3a",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:6411ec464f4a97c5091870ba83c27d209ad9bbb4a49215942c977e2f18fd9757",
+      "source": "docs/session-lifetime.md",
+      "agent_json": "docs/session-lifetime.agent.json",
+      "source_sha256": "362dd2a7f015b282469a0f93275ffd7feef9ba46335fa517e1f2887e93ee76f3",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:c0e7026934cd65907c36b94b33a984b9461fc1ea02e1bde02ee4b904f0b75c4c",
+      "source": "docs/static-plugins.md",
+      "agent_json": "docs/static-plugins.agent.json",
+      "source_sha256": "f082d348fd03e1532678d4b9a3c840f6abfc8dd856b8bc85210f02c922f4068d",
       "role": "guide"
     },
     {
@@ -329,7 +378,7 @@
       "document_id": "urn:iisacc:document:9a4441f8cba07c43510725cc92a9a50ca6c84177bab8c8e29ce3c04058f48385",
       "source": "docs/validation.md",
       "agent_json": "docs/validation.agent.json",
-      "source_sha256": "01521a43a3e99e925a01280634b0b1c98b1f3a6a419c7fd56ffc8a26af74483d",
+      "source_sha256": "a3b259a5121f403e6dcebeddf61f8e9e1b5be570b5c0bb647cb7939fc959fbe0",
       "role": "guide"
     },
     {

@@ -10,8 +10,8 @@
   },
   "source": {
     "path": "docs/operation.md",
-    "sha256": "a71f064406233eaeb46f4e7c78fa43801fce6d2b651b1bfbec24b45eaf05637d",
-    "bytes": 7019,
+    "sha256": "6ae8e0d2c3d3e138ce695493d70d593c5ac8486cf3a5f215ad0e19d8727d1f47",
+    "bytes": 7033,
     "line_count": 105,
     "encoding": "utf-8",
     "language": "ko"
@@ -87,9 +87,9 @@
       "kind": "fenced_code",
       "start_line": 17,
       "end_line": 33,
-      "raw": "```cpp\nii::runtime::Runtime runtime;\nii::runtime::SerialQueue replies(runtime);\nii::runtime::TaskScope receiver;\nii::runtime::OperationOwner owner;\nauto task = owner.submit<int>(runtime,\n    [](ii::runtime::WorkContext& context) -> ii::core::Result<int> {\n        if (auto ready = context.checkpoint(); !ready)\n            return std::unexpected(ready.error());\n        return 42;\n    });\ntask.then(replies, receiver.sender(), [](auto result) {\n    // Runs in replies' serial domain, and only while receiver remains open.\n    if (result->value) { /* use the immutable owned result */ }\n});\n// owner closes before receiver/replies/runtime are destroyed (reverse order).\n```\n",
+      "raw": "```cpp\nii::runtime::Runtime runtime({.workers=1});\nii::runtime::SerialQueue replies(runtime);\nii::runtime::TaskScope receiver;\nii::runtime::OperationOwner owner;\nauto task = owner.submit<int>(runtime,\n    [](ii::runtime::WorkContext& context) -> ii::core::Result<int> {\n        if (auto ready = context.checkpoint(); !ready)\n            return std::unexpected(ready.error());\n        return 42;\n    });\ntask.then(replies, receiver.sender(), [](auto result) {\n    // Runs in replies' serial domain, and only while receiver remains open.\n    if (result->value) { /* use the immutable owned result */ }\n});\n// owner closes before receiver/replies/runtime are destroyed (reverse order).\n```\n",
       "language": "cpp",
-      "code": "ii::runtime::Runtime runtime;\nii::runtime::SerialQueue replies(runtime);\nii::runtime::TaskScope receiver;\nii::runtime::OperationOwner owner;\nauto task = owner.submit<int>(runtime,\n    [](ii::runtime::WorkContext& context) -> ii::core::Result<int> {\n        if (auto ready = context.checkpoint(); !ready)\n            return std::unexpected(ready.error());\n        return 42;\n    });\ntask.then(replies, receiver.sender(), [](auto result) {\n    // Runs in replies' serial domain, and only while receiver remains open.\n    if (result->value) { /* use the immutable owned result */ }\n});\n// owner closes before receiver/replies/runtime are destroyed (reverse order).\n",
+      "code": "ii::runtime::Runtime runtime({.workers=1});\nii::runtime::SerialQueue replies(runtime);\nii::runtime::TaskScope receiver;\nii::runtime::OperationOwner owner;\nauto task = owner.submit<int>(runtime,\n    [](ii::runtime::WorkContext& context) -> ii::core::Result<int> {\n        if (auto ready = context.checkpoint(); !ready)\n            return std::unexpected(ready.error());\n        return 42;\n    });\ntask.then(replies, receiver.sender(), [](auto result) {\n    // Runs in replies' serial domain, and only while receiver remains open.\n    if (result->value) { /* use the immutable owned result */ }\n});\n// owner closes before receiver/replies/runtime are destroyed (reverse order).\n",
       "closed": true
     },
     {

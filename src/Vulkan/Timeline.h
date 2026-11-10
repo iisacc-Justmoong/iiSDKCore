@@ -18,7 +18,7 @@ public:
     }
     [[nodiscard]] core::Result<std::uint64_t> issue() {
         std::lock_guard lock(mutex_);
-        if (issued_==std::numeric_limits<std::uint64_t>::max()) return core::fail(core::ErrorCode::out_of_range,"Timeline exhausted");
+        if (issued_==(std::numeric_limits<std::uint64_t>::max)()) return core::fail(core::ErrorCode::out_of_range,"Timeline exhausted");
         return ++issued_;
     }
     [[nodiscard]] core::Result<std::uint64_t> poll() {

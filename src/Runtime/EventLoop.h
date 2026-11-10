@@ -22,6 +22,8 @@ struct RealtimeSchedule final {
   Clock::duration runtime = std::chrono::milliseconds(2);
   Clock::duration quantum = std::chrono::microseconds(250);
   std::optional<Clock::time_point> start;
+  // Reserve bandwidth but run only after an explicit wakeup.
+  bool on_demand = false;
 };
 
 struct LoopStats final {
@@ -34,6 +36,7 @@ struct LoopStats final {
   std::uint64_t rejected = 0;
   std::uint64_t missed_ticks = 0;
   std::uint64_t io_waits = 0;
+  std::uint64_t io_candidates = 0;
   std::uint64_t slices = 0, slice_yields = 0, slice_overruns = 0;
   std::uint64_t deadline_misses = 0, skipped_releases = 0,
                 budget_exhaustions = 0;
@@ -48,6 +51,7 @@ struct IOWatchOptions final {
       timeout; // none waits until readiness/cancellation
   io::CancellationToken stop;
   Priority priority = Priority::normal;
+  std::optional<std::chrono::milliseconds> polling_interval;
 };
 
 // One dispatch thread, multiple producers. Compose instances and callbacks;
@@ -65,6 +69,9 @@ public:
     [[nodiscard]] Submission after(Clock::duration, Task, Priority = Priority::normal) const;
     [[nodiscard]] Submission every(Clock::duration, Task, Priority = Priority::normal) const;
     [[nodiscard]] Submission realtime(RealtimeSchedule, SliceTask) const;
+    bool wake_realtime(TaskToken, Clock::time_point) const;
+    [[nodiscard]] Submission on_signal(Task, Priority = Priority::normal) const;
+    bool signal(TaskToken, Clock::time_point) const;
     [[nodiscard]] Submission watch(io::Channel, io::Interest, IOReady, IOWatchOptions = {}) const;
     [[nodiscard]] Submission read(io::Channel, io::Read, IOCompletion, Priority = Priority::normal) const;
     [[nodiscard]] Submission write(io::Channel, io::Write, IOCompletion, Priority = Priority::normal) const;
@@ -92,6 +99,8 @@ public:
   // EDF reservations; yielding continues this period, complete waits for the
   // next release, stop retires. No kernel preemption or CPU-time guarantee.
   [[nodiscard]] Submission realtime(RealtimeSchedule schedule, SliceTask task);
+  // Retains one bounded callback slot but dispatches only after a signal.
+  [[nodiscard]] Submission on_signal(Task task, Priority priority = Priority::normal);
   // One-shot readiness/transfer completion on the loop's dispatch thread.
   // Read/Write timeout starts at admission; zero is a readiness probe.
   [[nodiscard]] Submission watch(io::Channel channel, io::Interest interest,
@@ -121,7 +130,10 @@ private:
   std::shared_ptr<Impl> impl_;
   static bool cancel_impl(void *, const TaskToken &);
   static bool pending_impl(void *, const TaskToken &);
-  static Submission submit(const std::shared_ptr<Impl>&, Clock::time_point, Clock::duration, Task, Priority);
+  static bool wait_impl(void *, const TaskToken &);
+  static bool wake_realtime_impl(const std::shared_ptr<Impl>&, TaskToken, Clock::time_point);
+  static bool signal_impl(const std::shared_ptr<Impl>&, TaskToken, Clock::time_point);
+  static Submission submit(const std::shared_ptr<Impl>&, Clock::time_point, Clock::duration, Task, Priority, bool = false);
   static Submission submit_realtime(const std::shared_ptr<Impl>&, RealtimeSchedule, SliceTask);
   static Submission submit_every(const std::shared_ptr<Impl>&, Clock::duration, Task, Priority);
   static Submission submit_io(const std::shared_ptr<Impl>&, io::Channel, io::Interest, IOReady, IOCompletion,

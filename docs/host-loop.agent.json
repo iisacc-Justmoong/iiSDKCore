@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/host-loop.md",
-    "sha256": "231b036ccd6cdd71d7fdcbba304aba6b8a3313dfc61850a4cf9e06b68a6347c9",
-    "bytes": 7076,
-    "line_count": 122,
+    "sha256": "f3f9796fac0f29c7102ba24873b8f4c2c1395576b2b5f2bad9df9159210ce907",
+    "bytes": 7983,
+    "line_count": 133,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -43,7 +43,7 @@
       "kind": "paragraph",
       "start_line": 3,
       "end_line": 8,
-      "raw": "HostLoop connects an existing EventLoop to an event host owned by another\nmodule. Actual consumers are iiGUI's AppKit/CFRunLoop, Win32 message loop and\nLinux X11/poll hosts. Core owns task admission, timing, cancellation, readiness\nand execution-context contracts; the consumer owns windowing, lifecycle,\nnative wake handles, GPU work, input and fonts. No upper SDK or GUI framework\nis imported into Core. HostLoop also works for non-GUI external event hosts.\n"
+      "raw": "HostLoop connects an existing EventLoop to an event host owned by another\nmodule. Actual consumers are iiGUI's AppKit/CFRunLoop, Win32 message loop and\nLinux Wayland hosts. Core owns task admission, timing, cancellation, readiness\nand execution-context contracts; the consumer owns windowing, lifecycle,\nnative wake handles, GPU work, input and fonts. No upper SDK or GUI framework\nis imported into Core. HostLoop also works for non-GUI external event hosts.\n"
     },
     {
       "id": "b000004",
@@ -103,49 +103,49 @@
       "id": "b000011",
       "kind": "paragraph",
       "start_line": 31,
-      "end_line": 35,
-      "raw": "Every accepted submission, direct TaskToken cancellation, suspension, resumption\nand stop notifies the same host. QueryPort, TaskScope, FrameLoop and direct\nEventLoop producers do not need a separate GUI-specific wake wrapper. A budget\nthat leaves ready work is followed by the host rearming an immediate deadline.\nThere is no automatic frame timer.\n"
+      "end_line": 37,
+      "raw": "Ready or timed submissions, direct TaskToken cancellation, actual suspension,\nresumption and stop notify the same host. An untriggered `on_signal` binding or\non-demand realtime reservation stays parked until its explicit signal, and a\nrepeated suspend/resume with no state change does not notify. QueryPort, TaskScope, FrameLoop and direct\nEventLoop producers do not need a separate GUI-specific wake wrapper. A budget\nthat leaves ready work is followed by the host rearming an immediate deadline.\nThere is no automatic frame timer.\n"
     },
     {
       "id": "b000012",
       "kind": "blank",
-      "start_line": 36,
-      "end_line": 36,
+      "start_line": 38,
+      "end_line": 38,
       "raw": "\n"
     },
     {
       "id": "b000013",
       "kind": "paragraph",
-      "start_line": 37,
-      "end_line": 42,
+      "start_line": 39,
+      "end_line": 44,
       "raw": "One live connection is allowed per loop. Attach only when no dispatch is\nactive. Poll is pinned to the attaching thread for the connection's lifetime;\nforeign/recursive dispatch throws logic_error. Blocking EventLoop::run is\nunavailable while connected, including from FrameLoop::run or Thread's loop\ndriver. Use FrameLoop::step inside a scheduled callback, or poll from an\nexternal native frame callback outside existing dispatch.\n"
     },
     {
       "id": "b000014",
       "kind": "blank",
-      "start_line": 43,
-      "end_line": 43,
+      "start_line": 45,
+      "end_line": 45,
       "raw": "\n"
     },
     {
       "id": "b000015",
       "kind": "paragraph",
-      "start_line": 44,
-      "end_line": 48,
+      "start_line": 46,
+      "end_line": 50,
       "raw": "HostLoop::is_current_thread reports connected external-host context, using a\nthread-local count rather than a global host registry. Operation::wait_for\nreturns would_block on that thread while the result is pending. A result\nalready available returns ready. This does not intercept arbitrary blocking\nC++/OS calls; use Runtime/AsyncIO and then_on for results.\n"
     },
     {
       "id": "b000016",
       "kind": "blank",
-      "start_line": 49,
-      "end_line": 49,
+      "start_line": 51,
+      "end_line": 51,
       "raw": "\n"
     },
     {
       "id": "b000017",
       "kind": "heading",
-      "start_line": 50,
-      "end_line": 50,
+      "start_line": 52,
+      "end_line": 52,
       "raw": "## Native readiness\n",
       "level": 2,
       "title": "Native readiness"
@@ -153,71 +153,71 @@
     {
       "id": "b000018",
       "kind": "blank",
-      "start_line": 51,
-      "end_line": 51,
+      "start_line": 53,
+      "end_line": 53,
       "raw": "\n"
     },
     {
       "id": "b000019",
       "kind": "paragraph",
-      "start_line": 52,
-      "end_line": 57,
-      "raw": "By default one managed Thread waits for pending channel readiness and wakes\nthe host. It never invokes an I/O completion, task, query or frame callback;\nall dispatch still occurs in the owner's poll. It reuses Core's native\nReadinessPoller and bounded watch storage. Prepared native leases protect\nhandles from reuse. Cancellation synchronizes that wait before reclaiming\nthe slot and callback storage.\n"
+      "start_line": 54,
+      "end_line": 62,
+      "raw": "The first explicitly registered I/O watch starts one managed Thread to wait\nfor channel readiness and wake the host. A host without a watch allocates no\nreadiness thread. Existing watches also start it when a host attaches. The\nwaiter belongs to the connection and is joined when it closes; between watches\nit remains parked for reuse. It never invokes an I/O completion, task, query or frame callback;\nall dispatch still occurs in the owner's poll. It reuses Core's native\nReadinessPoller and bounded watch storage. Prepared native leases protect\nhandles from reuse. Cancellation synchronizes that wait before reclaiming\nthe slot and callback storage.\n"
     },
     {
       "id": "b000020",
       "kind": "blank",
-      "start_line": 58,
-      "end_line": 58,
+      "start_line": 63,
+      "end_line": 63,
       "raw": "\n"
     },
     {
       "id": "b000021",
       "kind": "paragraph",
-      "start_line": 59,
-      "end_line": 65,
-      "raw": "The waiter parks on a condition variable when no unready I/O remains or the\nloop is suspended. Pending I/O uses the existing poller's maximum 20 ms wait\nto observe cooperative cancellation, closure and transfer retries. On POSIX\nthe native descriptor wait also returns promptly for readiness. Windows uses\nthe existing bounded wake-event/readiness-probe path, not a new IOCP backend.\nThere is no permanent UI polling timer. This adds one parked native waiter per\ndefault connection; it is not one thread per request.\n"
+      "start_line": 64,
+      "end_line": 73,
+      "raw": "The waiter parks on a condition variable when no unready I/O remains or the\nloop is suspended. On POSIX, pending I/O waits for descriptor readiness,\ncancellation, an explicit wake, or the actual deadline without recurring idle\nchecks. If another operation temporarily owns a channel lock, the waiter is\nnotified when the lock is released. Normal task posts and empty host polls do\nnot restart an unchanged readiness wait. Windows uses the existing explicitly\nrequested wake-event/readiness-probe path, not a new IOCP backend.\nThere is no permanent UI polling timer. This adds at most one native waiter per\nconnection that actually watches I/O; it is not one thread per request.\n`HostLoop::io_waiter_active()` reports whether that connection owns a waiter.\n"
     },
     {
       "id": "b000022",
       "kind": "blank",
-      "start_line": 66,
-      "end_line": 66,
+      "start_line": 74,
+      "end_line": 74,
       "raw": "\n"
     },
     {
       "id": "b000023",
       "kind": "paragraph",
-      "start_line": 67,
-      "end_line": 71,
-      "raw": "HostLoopOptions::monitor_io=false disables that waiter for a host that explicitly\npolls I/O itself. Threadless WASM and the browser main thread cannot start the\ndefault native waiter; unsupported setup throws and cleans partial attachment.\nAn explicit tasks/manual-I/O connection or the existing BrowserLoop remains\navailable. Building Core for a platform does not verify its native GUI behavior.\n"
+      "start_line": 75,
+      "end_line": 82,
+      "raw": "HostLoopOptions::monitor_io=false disables that waiter for a host that explicitly\npolls I/O itself. An I/O cancellation signal still wakes that host so it can\ndispatch the cancellation; ordinary readiness remains the host's responsibility.\nThreadless WASM and the browser main thread cannot start a native waiter; a\nwatch that requires one, or attachment with an existing watch, throws if the\nwaiter cannot be started. Partial host attachment is cleaned up.\nAn explicit tasks/manual-I/O connection or the existing BrowserLoop remains\navailable. Building Core for a platform does not verify its native GUI behavior.\n"
     },
     {
       "id": "b000024",
       "kind": "blank",
-      "start_line": 72,
-      "end_line": 72,
+      "start_line": 83,
+      "end_line": 83,
       "raw": "\n"
     },
     {
       "id": "b000025",
       "kind": "paragraph",
-      "start_line": 73,
-      "end_line": 76,
+      "start_line": 84,
+      "end_line": 87,
       "raw": "Slow synchronous device/regular-file transfers may still block when performed;\nreadiness alone does not make disk I/O asynchronous. Use AsyncIO/Runtime for\nsuch work. Waiter failures are rethrown from owner poll, or returned from close\nwith a preserved exception cause. No failure is converted into a success.\n"
     },
     {
       "id": "b000026",
       "kind": "blank",
-      "start_line": 77,
-      "end_line": 77,
+      "start_line": 88,
+      "end_line": 88,
       "raw": "\n"
     },
     {
       "id": "b000027",
       "kind": "heading",
-      "start_line": 78,
-      "end_line": 78,
+      "start_line": 89,
+      "end_line": 89,
       "raw": "## Lifetime and cancellation\n",
       "level": 2,
       "title": "Lifetime and cancellation"
@@ -225,85 +225,85 @@
     {
       "id": "b000028",
       "kind": "blank",
-      "start_line": 79,
-      "end_line": 79,
+      "start_line": 90,
+      "end_line": 90,
       "raw": "\n"
     },
     {
       "id": "b000029",
       "kind": "paragraph",
-      "start_line": 80,
-      "end_line": 85,
+      "start_line": 91,
+      "end_line": 96,
       "raw": "Create, close and destroy the connection on its attaching thread. close is\nidempotent and is a barrier for in-flight wake calls, the waiter and its native\nleases. It rejects inline/active-dispatch close with busy, and foreign close\nwith wrong_executor. Destruction on those invalid paths terminates instead of\nabandoning native callbacks. Close after dispatch returns, before releasing\nthe native gate. Wake-capture destruction occurs outside Core locks.\n"
     },
     {
       "id": "b000030",
       "kind": "blank",
-      "start_line": 86,
-      "end_line": 86,
+      "start_line": 97,
+      "end_line": 97,
       "raw": "\n"
     },
     {
       "id": "b000031",
       "kind": "paragraph",
-      "start_line": 87,
-      "end_line": 91,
+      "start_line": 98,
+      "end_line": 102,
       "raw": "Detach leaves caller-owned queued tasks and loop state intact. The caller can\nattach another host or use a native loop driver afterward. EventLoop destruction\nstops submissions/cancels work and detaches a surviving connection safely on\nits host owner. Self/concurrent owner destruction during active dispatch remains\ninvalid. The connection never owns a window or native callback target.\n"
     },
     {
       "id": "b000032",
       "kind": "blank",
-      "start_line": 92,
-      "end_line": 92,
+      "start_line": 103,
+      "end_line": 103,
       "raw": "\n"
     },
     {
       "id": "b000033",
       "kind": "paragraph",
-      "start_line": 93,
-      "end_line": 98,
-      "raw": "EventLoop::Sender is a copyable weak admission endpoint with post/at/after/every,\nrealtime, watch/read/write and cancel. It does not retain the loop owner, expose\nnative handles or allow dispatch. Removed/stopped executors reject; bounded\nadmission and generation-safe tokens are unchanged. TaskScope::at and its\nSender::at accept TimedTaskExecutor implementations, including Core Sender and\niiGUI UiExecutor. Scope removal cancels timers through the same wake path.\n"
+      "start_line": 104,
+      "end_line": 109,
+      "raw": "EventLoop::Sender is a copyable weak admission endpoint with post/at/after/every,\nrealtime, on_signal/signal, watch/read/write and cancel. It does not retain the loop owner, expose\nnative handles or allow dispatch. Removed/stopped executors reject; bounded\nadmission and generation-safe tokens are unchanged. TaskScope::at and its\nSender::at accept TimedTaskExecutor implementations, including Core Sender and\niiGUI UiExecutor. Scope removal cancels timers through the same wake path.\n"
     },
     {
       "id": "b000034",
       "kind": "blank",
-      "start_line": 99,
-      "end_line": 99,
+      "start_line": 110,
+      "end_line": 110,
       "raw": "\n"
     },
     {
       "id": "b000035",
       "kind": "paragraph",
-      "start_line": 100,
-      "end_line": 104,
+      "start_line": 111,
+      "end_line": 115,
       "raw": "Operation::then_on owns a copyable endpoint value. Use a weak Sender/UiExecutor\nwhen the local endpoint may disappear before completion. Receiver TaskScope\nstill controls delivery; endpoint expiry reports stopped in\ncompletion_submission. Existing then(Executor&) retains its borrowed-executor\nlifetime requirement. Exactly one completion observer is allowed across both.\n"
     },
     {
       "id": "b000036",
       "kind": "blank",
-      "start_line": 105,
-      "end_line": 105,
+      "start_line": 116,
+      "end_line": 116,
       "raw": "\n"
     },
     {
       "id": "b000037",
       "kind": "paragraph",
-      "start_line": 106,
-      "end_line": 108,
+      "start_line": 117,
+      "end_line": 119,
       "raw": "HostLoopStats counts wake requests, coalesced wake signals and actual pending-I/O\nwaits. These are Core notifications, not total OS events, presentation counts,\nCPU utilization or hard real-time guarantees.\n"
     },
     {
       "id": "b000038",
       "kind": "blank",
-      "start_line": 109,
-      "end_line": 109,
+      "start_line": 120,
+      "end_line": 120,
       "raw": "\n"
     },
     {
       "id": "b000039",
       "kind": "heading",
-      "start_line": 110,
-      "end_line": 110,
+      "start_line": 121,
+      "end_line": 121,
       "raw": "## Tests and package boundary\n",
       "level": 2,
       "title": "Tests and package boundary"
@@ -311,15 +311,15 @@
     {
       "id": "b000040",
       "kind": "blank",
-      "start_line": 111,
-      "end_line": 111,
+      "start_line": 122,
+      "end_line": 122,
       "raw": "\n"
     },
     {
       "id": "b000041",
       "kind": "paragraph",
-      "start_line": 112,
-      "end_line": 122,
+      "start_line": 123,
+      "end_line": 133,
       "raw": "tests/host_loop.cpp checks queue bounds, reentrant inspection, wake coalescing,\ndirect-token cancellation, owner affinity, detach races/barriers, surviving\nconnections, structural timed scopes, endpoint-owned Operation delivery,\nnonblocking host observation, FrameLoop phases and delayed native pipe input.\nThe pipe fixture acknowledges process startup, then waits for an explicit\nrelease after I/O admission. The one-second readiness limit is measured after\nthat handshake, against a three-second request timeout, without including cold\nloader/sanitizer startup. It requires an otherwise idle host to wake for input.\nThe relocated Runtime consumer runs that same contract. Independent Contracts\nand Values consumers still import no GUI, thread runtime or graphics package.\niiGUI tests separately prove actual window/GPU integration on the verified host.\n"
     }
   ],
@@ -346,7 +346,7 @@
       "level": 2,
       "title": "Native readiness",
       "anchor": "native-readiness",
-      "start_line": 50
+      "start_line": 52
     },
     {
       "block_id": "b000027",
@@ -354,7 +354,7 @@
       "level": 2,
       "title": "Lifetime and cancellation",
       "anchor": "lifetime-and-cancellation",
-      "start_line": 78
+      "start_line": 89
     },
     {
       "block_id": "b000039",
@@ -362,7 +362,7 @@
       "level": 2,
       "title": "Tests and package boundary",
       "anchor": "tests-and-package-boundary",
-      "start_line": 110
+      "start_line": 121
     }
   ],
   "indexes": {
@@ -383,21 +383,21 @@
       },
       {
         "block_id": "b000011",
-        "line": 33,
+        "line": 35,
         "text": "EventLoop producers do not need a separate GUI-specific wake wrapper. A budget",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000019",
-        "line": 53,
-        "text": "the host. It never invokes an I/O completion, task, query or frame callback;",
+        "line": 58,
+        "text": "it remains parked for reuse. It never invokes an I/O completion, task, query or frame callback;",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000031",
-        "line": 91,
+        "line": 102,
         "text": "invalid. The connection never owns a window or native callback target.",
         "basis": "lexical_match",
         "context": "paragraph"

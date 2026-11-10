@@ -16,6 +16,7 @@
 #include <cerrno>
 #include <fcntl.h>
 #include <signal.h>
+#include <sys/resource.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #if defined(__APPLE__) && !TARGET_OS_IPHONE
@@ -38,9 +39,15 @@ std::string utf8(const std::filesystem::path& path) { const auto s=path.u8string
 Launch launch(const std::string& fixture,std::initializer_list<std::string> args) {
     Launch value; value.arguments={fixture}; value.arguments.insert(value.arguments.end(),args); return value;
 }
+CommunicationOptions explicit_polling(CommunicationOptions options={}) {
+#if defined(_WIN32)
+    options.polling_interval=20ms;
+#endif
+    return options;
+}
 Communication run(Launch value,ii::core::ByteView input={},CommunicationOptions options={}) {
     if(options.deadline.remaining()==ii::core::Clock::duration::max()) options.deadline=ii::core::Deadline::after(10s);
-    auto child=take(Process::start(value)); return take(child.communicate(input,std::move(options)));
+    auto child=take(Process::start(value)); return take(child.communicate(input,explicit_polling(std::move(options))));
 }
 bool retired(std::uint64_t id) {
 #if defined(_WIN32)
@@ -71,11 +78,62 @@ void wait_retired(std::uint64_t id) {
 std::uint64_t descendant(Process& child) {
     std::array<std::byte,64> bytes{};
     auto channel=child.output();
+#if defined(_WIN32)
+    check(bool(channel.wait_polling(ii::io::Interest::readable,2s,20ms)),"tree announced descendant");
+#else
     check(bool(channel.wait(ii::io::Interest::readable,2s)),"tree announced descendant");
+#endif
     auto read=channel.read(bytes); check(bool(read) && read->bytes>0,"descendant PID read");
     return std::stoull(std::string(reinterpret_cast<const char*>(bytes.data()),read->bytes));
 }
 void contracts(const std::string& fixture) {
+#if defined(_WIN32)
+    {
+        auto child=take(Process::start(launch(fixture,{"sleep"})));
+        auto channel=child.output();
+        auto unavailable=channel.wait(ii::io::Interest::readable,1s);
+        check(!unavailable && unavailable.error().code==ii::io::ErrorCode::unsupported,
+              "Windows pipe does not poll without an explicit request");
+        auto probe=channel.wait(ii::io::Interest::readable,0ms);
+        check(!probe && probe.error().code==ii::io::ErrorCode::would_block,"one-shot pipe probe remains available");
+        auto blocked=child.communicate();
+        check(!blocked && blocked.error().code==ii::core::ErrorCode::unsupported,
+              "Windows communication needs an explicit polling interval");
+        check(!take(child.poll()),"rejected communication keeps the child alive");
+        auto expired=channel.wait_polling(ii::io::Interest::readable,20ms,5ms);
+        check(!expired && expired.error().code==ii::io::ErrorCode::timed_out,"explicit Windows polling honors its deadline");
+        ii::runtime::EventLoop loop(2);
+        ii::io::Buffer buffer(8);
+        bool unsupported=false;
+        auto rejected=loop.read(channel,ii::io::Read{buffer,0,8,1s},[&](ii::io::IOResult reply) {
+            unsupported=!reply && reply.error().code==ii::io::ErrorCode::unsupported;
+        });
+        check(bool(rejected) && loop.poll()==1 && unsupported,"Windows loop rejects implicit readiness polling");
+        ii::io::Read explicit_request{buffer,0,8,1s}; explicit_request.polling_interval=5ms;
+        auto accepted=loop.read(channel,explicit_request,[](ii::io::IOResult) {});
+        check(bool(accepted) && loop.poll()==0 && accepted.token.cancel(),"explicit Windows loop polling is admitted");
+        auto input=child.input();
+        std::array<std::byte,4096> block{};
+        bool full=false;
+        for (int i=0;i<2048 && !full;++i) {
+            const auto written=input.write(block);
+            if (!written) {
+                check(written.error().code==ii::io::ErrorCode::would_block,"saturated pipe stays nonblocking");
+                full=true;
+            }
+        }
+        check(full,"fill the child input pipe");
+        ii::io::Buffer outgoing(1);
+        ii::io::Write write_request{outgoing,0,1,1s}; write_request.polling_interval=100ms;
+        const auto before=loop.stats().io_candidates;
+        const auto queued=loop.write(input,write_request,[](ii::io::IOResult) {});
+        check(queued && loop.poll({64,50ms})==0 && queued.token.pending() &&
+              loop.stats().io_candidates-before<=2,
+              "a full Windows pipe does not repeat a write before its requested interval");
+        check(queued.token.cancel(),"cancel a deferred Windows pipe write");
+        (void)take(child.cancel());
+    }
+#endif
     auto basic=run(launch(fixture,{"args","","quoted \" \\ ending\\","; $() & | < > 끝"}));
     check(basic.exit.reason==ExitReason::exited && basic.exit.code==0,"native successful exit");
     const std::vector<std::string> args{"","quoted \" \\ ending\\","; $() & | < > 끝"};
@@ -91,8 +149,10 @@ void contracts(const std::string& fixture) {
     check(run(empty).output.empty(),"closed input delivers EOF");
 
     const auto parent=take(current_environment()); const auto parent_cwd=std::filesystem::current_path();
-    const auto directory=parent_cwd/std::filesystem::path(u8"process fixture 작업 디렉터리");
-    std::filesystem::create_directories(directory);
+    auto directory_name=std::filesystem::path(u8"process fixture 작업 디렉터리-");
+    directory_name+=std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
+    const auto directory=parent_cwd/directory_name;
+    check(std::filesystem::create_directory(directory),"create a private process fixture directory");
     auto env=launch(fixture,{"environment","IISDKCORE_PROCESS_TEST","IISDKCORE_PROCESS_EMPTY","PATH"});
     env.inherit_environment=false; env.working_directory=directory;
     env.environment={{"IISDKCORE_PROCESS_TEST","value with spaces 한글"},{"IISDKCORE_PROCESS_EMPTY",""},{"PATH",std::nullopt}};
@@ -138,18 +198,69 @@ void contracts(const std::string& fixture) {
             "output-triggered cancellation safely retires an immediately exiting child");
     }
     auto sleeping=take(Process::start(launch(fixture,{"sleep"})));
+    CommunicationOptions invalid_polling; invalid_polling.polling_interval=0ms;
+    auto invalid_communication=sleeping.communicate({},invalid_polling);
+    check(!invalid_communication && invalid_communication.error().code==ii::core::ErrorCode::invalid_argument &&
+          !take(sleeping.poll()),"invalid explicit polling leaves the process running");
     check(take(sleeping.wait_for(15ms))==std::nullopt,"wait timeout leaves child running");
     auto stopped=take(sleeping.cancel()); check(stopped.reason==ExitReason::cancelled,"explicit cancel");
     check(take(sleeping.cancel()).reason==stopped.reason,"cancel is idempotent");
     check(take(sleeping.poll())->reason==stopped.reason,"stable reaped result");
     check(!sleeping.wait_for(-1ms),"negative wait rejected");
+#if defined(__APPLE__) || defined(__linux__)
+    // Exhaust descriptors only in this test process, after launching children.
+    // Failure to create kqueue/pidfd must never silently start timer polling.
+    auto no_signal=take(Process::start(launch(fixture,{"sleep"})));
+    auto no_signal_communication=take(Process::start(launch(fixture,{"sleep"})));
+    struct Exhaustion final {
+        rlimit original{};
+        std::vector<int> descriptors;
+        bool changed=false, exhausted=false;
+        Exhaustion() {
+            if (getrlimit(RLIMIT_NOFILE,&original)!=0) throw std::runtime_error("getrlimit");
+            descriptors.reserve(256);
+            auto limit=original; limit.rlim_cur=std::min<rlim_t>(original.rlim_cur,128);
+            if (setrlimit(RLIMIT_NOFILE,&limit)!=0) throw std::runtime_error("setrlimit");
+            changed=true;
+            for (;;) { const int fd=::open("/dev/null",O_RDONLY); if(fd<0) break; descriptors.push_back(fd); }
+            exhausted=errno==EMFILE;
+        }
+        ~Exhaustion() {
+            for(const auto fd:descriptors) ::close(fd);
+            if(changed) (void)setrlimit(RLIMIT_NOFILE,&original);
+        }
+    };
+    std::optional<ii::core::Result<std::optional<Exit>>> no_signal_wait;
+    std::optional<ii::core::Result<Communication>> no_signal_result;
+    bool exhausted=false;
+    {
+        Exhaustion exhaust;
+        exhausted=exhaust.exhausted;
+        no_signal_wait.emplace(no_signal.wait_for(20ms));
+        CommunicationOptions options; options.deadline=ii::core::Deadline::after(20ms);
+        no_signal_result.emplace(no_signal_communication.communicate({},options));
+    }
+    check(exhausted,"descriptor exhaustion reached the process limit");
+    check(!*no_signal_wait && (*no_signal_wait).error().code==ii::core::ErrorCode::failed,
+          "missing process notification returns an error instead of polling");
+    check(!*no_signal_result && (*no_signal_result).error().code==ii::core::ErrorCode::failed,
+          "communication cannot fall back to timer polling");
+    (void)take(no_signal.cancel());
+#endif
+    auto waited_child=take(Process::start(launch(fixture,{"sleep"})));
+    auto waiting=std::async(std::launch::async,[&] { return waited_child.wait_for(2s); });
+    std::this_thread::sleep_for(20ms);
+    auto externally_cancelled=take(waited_child.cancel());
+    auto observed_cancel=take(waiting.get());
+    check(observed_cancel && observed_cancel->reason==externally_cancelled.reason,
+          "a concurrent cancellation wakes the process exit wait");
     CommunicationOptions timed; timed.deadline=ii::core::Deadline::after(40ms);
     auto timeout_child=take(Process::start(launch(fixture,{"sleep"})));
-    auto timeout=take(timeout_child.communicate({},timed)); check(timeout.exit.reason==ExitReason::timed_out,"deadline terminates child");
+    auto timeout=take(timeout_child.communicate({},explicit_polling(timed))); check(timeout.exit.reason==ExitReason::timed_out,"deadline terminates child");
     std::stop_source stop; CommunicationOptions cancellation; cancellation.stop=stop.get_token();
     auto cancellable=take(Process::start(launch(fixture,{"sleep"})));
     std::thread request([&] { std::this_thread::sleep_for(25ms); stop.request_stop(); });
-    auto cancelled=cancellable.communicate({},cancellation);
+    auto cancelled=cancellable.communicate({},explicit_polling(cancellation));
     request.join();
     check(take(std::move(cancelled)).exit.reason==ExitReason::cancelled,"stop token cancels native child");
     stop.request_stop(); auto pre=run(launch(fixture,{"sleep"}),{},cancellation);
@@ -171,11 +282,11 @@ void contracts(const std::string& fixture) {
     std::array<std::byte,1> one{}; check(!alias.read(one) && alias.read(one).error().code==ii::io::ErrorCode::closed,"owner removal closes channel aliases");
     auto replacement=take(Process::start(launch(fixture,{"sleep"}))); auto previous=replacement.id();
     replacement=take(Process::start(launch(fixture,{"echo","moved"}))); wait_retired(previous);
-    check(text(take(replacement.communicate()).output)=="moved","move assignment retires previous tree");
+    check(text(take(replacement.communicate({},explicit_polling())).output)=="moved","move assignment retires previous tree");
 
     auto throwing=take(Process::start(launch(fixture,{"duplex"}))); const auto throwing_id=throwing.id();
     CommunicationOptions callback; callback.receive=[](Stream,ii::core::ByteView) { throw std::runtime_error("sink failure"); };
-    auto failure=throwing.communicate({},callback);
+    auto failure=throwing.communicate({},explicit_polling(callback));
     check(!failure && failure.error().cause,"sink exception reported with cause"); wait_retired(throwing_id);
     auto concurrent=take(Process::start(launch(fixture,{"duplex"})));
     std::promise<void> entered,release;
@@ -183,9 +294,9 @@ void contracts(const std::string& fixture) {
     std::atomic<bool> first=true;
     CommunicationOptions held;
     held.receive=[&](Stream,ii::core::ByteView) { if(first.exchange(false)) { entered.set_value(); released.wait(); } };
-    auto communicating=std::async(std::launch::async,[&] { return concurrent.communicate({},held); });
+    auto communicating=std::async(std::launch::async,[&] { return concurrent.communicate({},explicit_polling(held)); });
     const bool admitted=entered_future.wait_for(2s)==std::future_status::ready;
-    auto competing=concurrent.communicate();
+    auto competing=concurrent.communicate({},explicit_polling());
     auto concurrent_exit=concurrent.cancel();
     release.set_value();
     auto communicated=communicating.get();
@@ -254,7 +365,11 @@ void contracts(const std::string& fixture) {
     ii::runtime::EventLoop loop(4);
     bool delivered=false;
     ii::io::Buffer buffer(4);
-    auto watched=loop.read(piped.output(),ii::io::Read{buffer,0,4,2s},[&](ii::io::IOResult result) {
+    ii::io::Read pipe_request{buffer,0,4,2s};
+#if defined(_WIN32)
+    pipe_request.polling_interval=20ms;
+#endif
+    auto watched=loop.read(piped.output(),pipe_request,[&](ii::io::IOResult result) {
         check(bool(result) && result->transfer.bytes==4 &&
             std::string(reinterpret_cast<const char*>(buffer.bytes().data()),4)=="loop","event loop process pipe transfer"); delivered=true;
     });

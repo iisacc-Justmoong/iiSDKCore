@@ -33,12 +33,18 @@ struct QuerySubscriptionStats final {
                   dispatch_failed = 0;
     SubmitError last_dispatch = SubmitError::none;
     bool closed = false;
+    std::uint64_t unaffected = 0;
 };
 struct QueryStreamPublish final {
     std::uint64_t sequence = 0;
     std::size_t visited = 0, filtered = 0, enqueued = 0, rejected = 0,
                 stale = 0, projection_failed = 0, dispatch_failed = 0;
     std::exception_ptr first_failure;
+    std::size_t unaffected = 0;
+};
+struct QueryStreamStats final {
+    std::size_t cached_subscriptions = 0;
+    std::uint64_t membership_rebuilds = 0;
 };
 
 // A typed, bounded, in-process live feed. A null projection filters a source;
@@ -60,6 +66,7 @@ private:
         Post function;
         Submission post(Task task, Priority priority) { return function(std::move(task), priority); }
     };
+    struct RegistryEpoch final { std::atomic<bool> dirty{true}; };
     struct Subscriber final {
         std::mutex mutex;
         std::shared_ptr<const Query> selection;
@@ -75,12 +82,15 @@ private:
         Post dispatch;
         std::exception_ptr failure;
         std::atomic<bool> retired = false;
+        std::shared_ptr<RegistryEpoch> registry;
         TaskScope lifetime;
         QueryPort<Query, Revision> queries;
 
-        Subscriber(Query query, Handler receiver, Post executor, QuerySubscriptionOptions bounds)
+        Subscriber(Query query, Handler receiver, Post executor, QuerySubscriptionOptions bounds,
+                   std::shared_ptr<RegistryEpoch> epoch)
             : selection(std::make_shared<const Query>(std::move(query))), options(bounds),
               slots(bounds.capacity), handler(std::move(receiver)), dispatch(std::move(executor)),
+              registry(std::move(epoch)),
               lifetime([this] { cleanup(); }),
               queries([this](const Query& query) { return replace(query); }) {
             statistics.capacity = bounds.capacity;
@@ -92,7 +102,7 @@ private:
             {
                 std::lock_guard lock(mutex);
                 if (statistics.closed) return std::unexpected(QueryStreamError{QueryStreamErrorCode::stopped});
-                if (statistics.revision == std::numeric_limits<std::uint64_t>::max())
+                if (statistics.revision == (std::numeric_limits<std::uint64_t>::max)())
                     return std::unexpected(QueryStreamError{QueryStreamErrorCode::exhausted});
                 selection.swap(next);
                 slots.swap(previous);
@@ -108,6 +118,14 @@ private:
             { std::lock_guard lock(mutex); statistics.closed = true; }
             if (auto result = queries.close(); !result) return result;
             return lifetime.close();
+        }
+        ThreadResult try_close() {
+            if (queries.is_current() || lifetime.is_current())
+                return std::unexpected(ThreadError{ThreadErrorCode::self_join, {}});
+            { std::lock_guard lock(mutex); statistics.closed = true; }
+            lifetime.request_close();
+            if (auto result = queries.try_close(); !result) return result;
+            return lifetime.try_close();
         }
         void cleanup() {
             {
@@ -127,6 +145,7 @@ private:
                 }
             }
             retired.store(true, std::memory_order_release);
+            registry->dirty.store(true, std::memory_order_release);
         }
         QuerySubscriptionStats stats() {
             std::lock_guard lock(mutex);
@@ -227,6 +246,7 @@ public:
         Subscription& operator=(const Subscription&) = delete;
         ~Subscription() { if (!close()) std::terminate(); }
         [[nodiscard]] ThreadResult close() const { return state_ ? state_->close() : ThreadResult{}; }
+        [[nodiscard]] ThreadResult try_close() const { return state_ ? state_->try_close() : ThreadResult{}; }
         [[nodiscard]] QuerySubscriptionStats stats() const {
             return state_ ? state_->stats() : QuerySubscriptionStats{.closed=true};
         }
@@ -281,23 +301,58 @@ public:
         return subscribe_on(executor.sender(), std::move(query), std::move(handler), options);
     }
     [[nodiscard]] QueryStreamReply<QueryStreamPublish> publish(const Source& source) {
+        auto all=[](const Query&,const Source&) { return true; };
+        return publish_impl(source,all);
+    }
+    template<class Affected>
+        requires std::predicate<Affected&,const Query&,const Source&>
+    [[nodiscard]] QueryStreamReply<QueryStreamPublish> publish_changed(const Source& source,Affected&& affected) {
+        return publish_impl(source,affected);
+    }
+    [[nodiscard]] QueryStreamStats stats() const {
+        std::lock_guard lock(mutex_);
+        return {snapshot_ ? snapshot_->size() : 0,membership_rebuilds_};
+    }
+private:
+    template<class Affected>
+    QueryStreamReply<QueryStreamPublish> publish_impl(const Source& source,Affected& affected) {
         if (lifetime_.is_current()) return std::unexpected(QueryStreamError{QueryStreamErrorCode::reentrant});
         QueryStreamReply<QueryStreamPublish> result = std::unexpected(QueryStreamError{QueryStreamErrorCode::stopped});
         (void)lifetime_.run([&] {
             std::lock_guard producer(producer_);
-            std::vector<std::shared_ptr<Subscriber>> targets;
+            std::shared_ptr<const std::vector<std::shared_ptr<Subscriber>>> targets,previous;
+            std::vector<std::shared_ptr<Subscriber>> retired;
             QueryStreamPublish report;
             {
                 std::lock_guard lock(mutex_);
-                if (sequence_ == std::numeric_limits<std::uint64_t>::max()) {
+                if (sequence_ == (std::numeric_limits<std::uint64_t>::max)()) {
                     result = std::unexpected(QueryStreamError{QueryStreamErrorCode::exhausted}); return;
                 }
                 report.sequence = ++sequence_;
-                targets = subscribers_;
+                if (registry_->dirty.exchange(false,std::memory_order_acq_rel)) {
+                    try {
+                        std::size_t active=0;
+                        for (const auto& item:subscribers_) if(item)
+                            if(!item->retired.load(std::memory_order_acquire)) ++active;
+                        auto next=std::make_shared<std::vector<std::shared_ptr<Subscriber>>>();
+                        next->reserve(active); retired.reserve(subscribers_.size());
+                        for (auto& item:subscribers_) if(item) {
+                            if(item->retired.load(std::memory_order_acquire)) retired.push_back(std::move(item));
+                            else next->push_back(item);
+                        }
+                        previous.swap(snapshot_);
+                        snapshot_=std::move(next);
+                        ++membership_rebuilds_;
+                    } catch (...) {
+                        registry_->dirty.store(true,std::memory_order_release);
+                        throw;
+                    }
+                }
+                targets = snapshot_;
             }
+            previous.reset(); retired.clear();
             const auto produced = Clock::now();
-            for (const auto& target : targets) {
-                if (!target) continue;
+            for (const auto& target : *targets) {
                 (void)target->lifetime.run([&] {
                     std::shared_ptr<const Query> selection;
                     std::uint64_t revision;
@@ -309,7 +364,18 @@ public:
                     }
                     ++report.visited;
                     std::optional<Output> projected;
-                    try { projected = projector_(*selection, source); }
+                    try {
+                        if (!std::invoke(affected,*selection,source)) {
+                            std::lock_guard lock(target->mutex);
+                            if (target->statistics.closed || revision!=target->statistics.revision) {
+                                ++target->statistics.stale; ++report.stale;
+                            } else {
+                                ++target->statistics.unaffected; ++report.unaffected;
+                            }
+                            return;
+                        }
+                        projected = projector_(*selection, source);
+                    }
                     catch (...) {
                         auto failure = std::current_exception();
                         if (!report.first_failure) report.first_failure = failure;
@@ -345,7 +411,7 @@ public:
                         target->slots[(target->head + target->count) % target->slots.size()].swap(packet);
                         target->statistics.pending = ++target->count;
                         ++target->statistics.enqueued; ++report.enqueued;
-                        target->statistics.high_watermark = std::max(target->count, target->statistics.high_watermark);
+                        target->statistics.high_watermark = (std::max)(target->count, target->statistics.high_watermark);
                     }
                     if (!schedule(target)) ++report.dispatch_failed;
                 });
@@ -354,6 +420,7 @@ public:
         });
         return result;
     }
+public:
     [[nodiscard]] ThreadResult close() {
         if (lifetime_.is_current()) return std::unexpected(ThreadError{ThreadErrorCode::self_join, {}});
         std::vector<std::shared_ptr<Subscriber>> targets;
@@ -366,7 +433,7 @@ public:
         { std::lock_guard lock(mutex_); targets = subscribers_; }
         for (const auto& target : targets)
             if (target) if (auto result = target->close(); !result) return result;
-        { std::lock_guard lock(mutex_); subscribers_.clear(); }
+        { std::lock_guard lock(mutex_); subscribers_.clear(); snapshot_.reset(); }
         return {};
     }
 private:
@@ -379,7 +446,7 @@ private:
             return std::unexpected(QueryStreamError{QueryStreamErrorCode::invalid});
         QueryStreamReply<Subscription> result = std::unexpected(QueryStreamError{QueryStreamErrorCode::stopped});
         (void)lifetime_.run([&] {
-            auto state = std::make_shared<Subscriber>(std::move(query), std::move(handler), std::move(dispatch), options);
+            auto state = std::make_shared<Subscriber>(std::move(query), std::move(handler), std::move(dispatch), options,registry_);
             std::shared_ptr<Subscriber> retired;
             {
                 std::lock_guard lock(mutex_);
@@ -391,13 +458,18 @@ private:
                 }
                 retired.swap(*slot);
                 *slot = state;
+                registry_->dirty.store(true,std::memory_order_release);
             }
             result = Subscription(std::move(state));
         });
         return result;
     }
-    std::mutex mutex_, producer_;
+    mutable std::mutex mutex_;
+    std::mutex producer_;
     std::vector<std::shared_ptr<Subscriber>> subscribers_;
+    std::shared_ptr<RegistryEpoch> registry_=std::make_shared<RegistryEpoch>();
+    std::shared_ptr<const std::vector<std::shared_ptr<Subscriber>>> snapshot_;
+    std::uint64_t membership_rebuilds_=0;
     Projector projector_;
     std::uint64_t sequence_ = 0;
     TaskScope lifetime_;

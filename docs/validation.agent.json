@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/validation.md",
-    "sha256": "01521a43a3e99e925a01280634b0b1c98b1f3a6a419c7fd56ffc8a26af74483d",
-    "bytes": 107787,
-    "line_count": 1132,
+    "sha256": "a3b259a5121f403e6dcebeddf61f8e9e1b5be570b5c0bb647cb7939fc959fbe0",
+    "bytes": 119752,
+    "line_count": 1278,
     "encoding": "utf-8",
     "language": "ko"
   },
@@ -3494,7 +3494,7 @@
       "kind": "paragraph",
       "start_line": 778,
       "end_line": 778,
-      "raw": "Windows `HardwareWindows.cpp`는 위 SDK 및 LLVM-MinGW의 C++23 `-Wall -Wextra -Wpedantic -Werror -fsyntax-only` 검사도 통과하였다. `build/windows-probe/hardware-syntax-final.log`는 진단 없이 비어 있고 명령 종료 코드는 0이었다. 설치 버전 메타데이터는 0.6.0이며 설치 소비자는 `build/installed-consumer/build/Testing/Temporary/LastTest.log`에 6개 성공 기록을 남겼다. 전체 검사에는 Objective-C++ 소스 및 macro expansion으로 숨긴 다중 상속을 거절하는 회귀 검사가 포함되어 있다.\n"
+      "raw": "Windows `HardwareWindows.cpp`는 위 SDK 및 LLVM-MinGW의 C++23 `-Wall -Wextra -Wpedantic -Werror -fsyntax-only` 검사도 통과하였다. `resources/.recovery/core-history-20261030/windows-probe/hardware-syntax-final.log`는 진단 없이 비어 있고 명령 종료 코드는 0이었다. 설치 버전 메타데이터는 0.6.0이며 설치 소비자는 `build/installed-consumer/build/Testing/Temporary/LastTest.log`에 6개 성공 기록을 남겼다. 전체 검사에는 Objective-C++ 소스 및 macro expansion으로 숨긴 다중 상속을 거절하는 회귀 검사가 포함되어 있다.\n"
     },
     {
       "id": "b000344",
@@ -4613,7 +4613,7 @@
       "kind": "paragraph",
       "start_line": 993,
       "end_line": 998,
-      "raw": "The extraction comparison verifies 14 moved code/test/example files after only\ninclude-path and OS client/queue/test label changes. Eight existing FrameLoop and\nbrowser source/test/example files preserve their previously recorded hashes;\nthe other 61 retained tracked Core source files match their original Git bytes.\nExisting uncommitted work and original extraction inputs are preserved under\n`build/device-extraction-baseline/`.\n"
+      "raw": "The extraction comparison verifies 14 moved code/test/example files after only\ninclude-path and OS client/queue/test label changes. Eight existing FrameLoop and\nbrowser source/test/example files preserve their previously recorded hashes;\nthe other 61 retained tracked Core source files match their original Git bytes.\nExisting uncommitted work and original extraction inputs are preserved under\n`resources/.recovery/core-history-20261030/device-extraction-baseline/`.\n"
     },
     {
       "id": "b000448",
@@ -4961,6 +4961,414 @@
       "start_line": 1130,
       "end_line": 1132,
       "raw": "These results concern the native process slice. Remaining P1 feature migrations\ncontinue to follow the concrete-consumer boundary described in process.md and\nqt-migration-p0.md; they are not inferred from process-test success.\n"
+    },
+    {
+      "id": "b000484",
+      "kind": "blank",
+      "start_line": 1133,
+      "end_line": 1133,
+      "raw": "\n"
+    },
+    {
+      "id": "b000485",
+      "kind": "heading",
+      "start_line": 1134,
+      "end_line": 1134,
+      "raw": "## 상태 변화 기반 대기 검증 (2026-11-06)\n",
+      "level": 2,
+      "title": "상태 변화 기반 대기 검증 (2026-11-06)"
+    },
+    {
+      "id": "b000486",
+      "kind": "blank",
+      "start_line": 1135,
+      "end_line": 1135,
+      "raw": "\n"
+    },
+    {
+      "id": "b000487",
+      "kind": "paragraph",
+      "start_line": 1136,
+      "end_line": 1142,
+      "raw": "macOS arm64 Release의 `build/` 전체 빌드와 CTest 81/81이 통과하였다. 이 가운데 기존\n임시 설치본 재배치 소비자 시험도 포함된다. 빈 LiveStream의 주기 콜백과 입력 대기 중인\nPOSIX 호스트의 20ms 재검사는 변경 전 시험에서 재현되었고 변경 후 통과하였다. 실행 중\n프레임이 추가되는 경쟁, 신호 합치기, 이미 취소된 I/O 등록, 수동 호스트의 취소 깨우기,\n프로세스 종료·취소와 감시 대상의 동적 추가를 검사한다. HostLoop·Realtime·ComputeRouter\n시험을 각각 10회 반복한 결과도 모두 통과하였다. 감시를 구동하는 루프나 토큰을 취소한\n뒤에도 구독이 해제되어 다른 루프에서 감시를 다시 시작할 수 있는지 검사한다.\n"
+    },
+    {
+      "id": "b000488",
+      "kind": "blank",
+      "start_line": 1143,
+      "end_line": 1143,
+      "raw": "\n"
+    },
+    {
+      "id": "b000489",
+      "kind": "paragraph",
+      "start_line": 1144,
+      "end_line": 1148,
+      "raw": "Emscripten의 단일 스레드와 pthread 구성을 각각 Node에서 실행한 자동 시험은 유휴 일반\n이벤트 루프의 애니메이션 프레임 요청이 0회임을 확인하였다. 같은 시험에서 FrameLoop의\n세 프레임, 워커의 작업 전달, 타이머, 정지·재시작, 오류와 운전자 제거도 확인하였다.\n이는 Node의 테스트용 프레임 호스트 결과이며 실제 브라우저 표시나 스케줄링 보장은 아니다.\niOS arm64에 대해서는 변경된 런타임·I/O·프로세스 소스의 컴파일 구문만 확인하였다.\n"
+    },
+    {
+      "id": "b000490",
+      "kind": "blank",
+      "start_line": 1149,
+      "end_line": 1149,
+      "raw": "\n"
+    },
+    {
+      "id": "b000491",
+      "kind": "paragraph",
+      "start_line": 1150,
+      "end_line": 1153,
+      "raw": "Windows·Linux·Android의 실제 실행은 확인하지 않았다. Windows의 비동기 미지원 파이프·\n시리얼 준비 확인, POSIX 채널 잠금 경합, 프로세스 종료 알림이 없는 커널에는 제한적인\n재검사가 남는다. 명시적인 타이머·실시간 예약과 FrameLoop의 화면 주기는 유지한다.\n시스템 SDK 설치본과 제품 앱은 이 시험으로 갱신하지 않았다.\n"
+    },
+    {
+      "id": "b000492",
+      "kind": "blank",
+      "start_line": 1154,
+      "end_line": 1154,
+      "raw": "\n"
+    },
+    {
+      "id": "b000493",
+      "kind": "heading",
+      "start_line": 1155,
+      "end_line": 1155,
+      "raw": "## 부분 갱신·선택 조회 검증 (2026-11-06)\n",
+      "level": 2,
+      "title": "부분 갱신·선택 조회 검증 (2026-11-06)"
+    },
+    {
+      "id": "b000494",
+      "kind": "blank",
+      "start_line": 1156,
+      "end_line": 1156,
+      "raw": "\n"
+    },
+    {
+      "id": "b000495",
+      "kind": "paragraph",
+      "start_line": 1157,
+      "end_line": 1164,
+      "raw": "macOS arm64 Release의 `build/` 전체 빌드와 CTest 82/82가 통과하였다. 새 선택 게시·\n대상 조회 API는 임시 설치본을 다른 경로로 옮긴 소비자에서도 빌드·테스트하였다.\n설치 소비자 시험은 시스템 설치본을 바꾸지 않는다.\nComputeRouter, QueryStream, LoopIO 시험은 각각 다섯 차례 연속 통과하였다. 변경된\n실행기 한 곳만 감시하는지, 제한된 변경 대기 집합의 초과와 대상 교체를 안전하게\n처리하는지, 쿼리 교체와 변경 판정 예외가 다른 구독을 해치지 않는지, 선택한 변경\n필드만 전달하는지, 입출력 후보와 슬롯을 취소 후 반환하는지 검사한다. 안정된 프레임의\n슬롯 재사용 시험도 전체 CTest에 포함된다.\n"
+    },
+    {
+      "id": "b000496",
+      "kind": "blank",
+      "start_line": 1165,
+      "end_line": 1165,
+      "raw": "\n"
+    },
+    {
+      "id": "b000497",
+      "kind": "paragraph",
+      "start_line": 1166,
+      "end_line": 1169,
+      "raw": "EventLoop·FrameLoop·Runtime·LoadBalancer·ComputeRouter 구현과 관련 세 시험 및\nQueryStream 예제는 iOS arm64와 WASM pthread 구성에서 각각 `-fsyntax-only` 검사를\n통과하였다. 이 검사는 링크나 대상 플랫폼 실행이 아니며 Windows·Linux·Android의\n이번 변경에 대한 빌드와 실행은 검증하지 않았다. 성능 개선 비율은 측정하지 않았다.\n"
+    },
+    {
+      "id": "b000498",
+      "kind": "blank",
+      "start_line": 1170,
+      "end_line": 1170,
+      "raw": "\n"
+    },
+    {
+      "id": "b000499",
+      "kind": "paragraph",
+      "start_line": 1171,
+      "end_line": 1174,
+      "raw": "`publish_changed`의 변경과 쿼리 관계는 호출자가 제공한다. 기존 `publish` 및 명시적인\n`monitor()`는 전체 게시·조회 계약을 유지한다. 이벤트 루프는 활성 I/O 요청만 검사하지만\n각 수동 poll 또는 준비 상태 확인 시 감시 중인 채널을 확인하며, 기존 플랫폼별 제한된\n재검사는 그대로이다. 프레임 시뮬레이션 주기와 필요에 의한 대상 비교도 유지한다.\n"
+    },
+    {
+      "id": "b000500",
+      "kind": "blank",
+      "start_line": 1175,
+      "end_line": 1175,
+      "raw": "\n"
+    },
+    {
+      "id": "b000501",
+      "kind": "heading",
+      "start_line": 1176,
+      "end_line": 1176,
+      "raw": "## 다중 실행 큐 검증 (2026-11-06)\n",
+      "level": 2,
+      "title": "다중 실행 큐 검증 (2026-11-06)"
+    },
+    {
+      "id": "b000502",
+      "kind": "blank",
+      "start_line": 1177,
+      "end_line": 1177,
+      "raw": "\n"
+    },
+    {
+      "id": "b000503",
+      "kind": "paragraph",
+      "start_line": 1178,
+      "end_line": 1183,
+      "raw": "macOS arm64 Release의 전체 빌드와 CTest 82/82가 통과하였다. 설치 패키지를 임시\n경로로 옮긴 소비자는 큐 수 설정과 큐별 통계도 확인한다. 병렬 테스트는 20회 반복해\n통과하였다. 여러 큐의 동시 점유·병렬 작업·다른 홈 큐 워커의 처리·전체 용량 반환,\n4:2:1 우선순위, 객체별 FIFO, 큐 중간과 직렬 큐 선두의 취소를 검사하였다. 150개\n혼합 작업과 취소 결과를 독립적인 순서 모델과 비교한다. 기존 10,000회 작업 재사용\n시험도 통과하였다.\n"
+    },
+    {
+      "id": "b000504",
+      "kind": "blank",
+      "start_line": 1184,
+      "end_line": 1184,
+      "raw": "\n"
+    },
+    {
+      "id": "b000505",
+      "kind": "paragraph",
+      "start_line": 1185,
+      "end_line": 1189,
+      "raw": "macOS ThreadSanitizer 검사는 변경된 Runtime.cpp와 병렬 테스트를 계측하여 다섯 차례\n통과했고, 같은 범위의 AddressSanitizer·UndefinedBehaviorSanitizer 검사도 통과하였다.\n연결된 나머지 Core 공유 라이브러리는 계측하지 않았으므로 전체 라이브러리의 sanitizer\n완전 검증은 아니다. iOS arm64와 WASM pthread는 Runtime.cpp·병렬 시험·설치 소비자\n소스에 대한 문법 검사만 수행하였다. 대상 기기 실행은 확인하지 않았다.\n"
+    },
+    {
+      "id": "b000506",
+      "kind": "blank",
+      "start_line": 1190,
+      "end_line": 1190,
+      "raw": "\n"
+    },
+    {
+      "id": "b000507",
+      "kind": "paragraph",
+      "start_line": 1191,
+      "end_line": 1194,
+      "raw": "이 환경의 Android NDK 26 교차 검사는 `-std=c++2b`를 사용해도 현재 작업 트리의\n기존 Channel.h가 포함하는 `<stop_token>` 헤더를 찾지 못해 시작 단계에서 실패하였다.\n이 결과는 Android 빌드·실행 성공이 아니며, Windows와 Linux의 이번 변경도 검증하지\n않았다. 성능 향상 비율은 측정하지 않았고 시스템 SDK 설치본은 교체하지 않았다.\n"
+    },
+    {
+      "id": "b000508",
+      "kind": "blank",
+      "start_line": 1195,
+      "end_line": 1195,
+      "raw": "\n"
+    },
+    {
+      "id": "b000509",
+      "kind": "heading",
+      "start_line": 1196,
+      "end_line": 1196,
+      "raw": "## 논리 코어 정책과 GPU 조합 (2026-11-06)\n",
+      "level": 2,
+      "title": "논리 코어 정책과 GPU 조합 (2026-11-06)"
+    },
+    {
+      "id": "b000510",
+      "kind": "blank",
+      "start_line": 1197,
+      "end_line": 1197,
+      "raw": "\n"
+    },
+    {
+      "id": "b000511",
+      "kind": "paragraph",
+      "start_line": 1198,
+      "end_line": 1202,
+      "raw": "macOS arm64 전체 빌드와 CTest 82/82가 통과했다. 병렬 시험은 하드웨어 논리 실행\n단위 힌트와 capacity 제한, 명시 워커 우선, 잘못된 정책 거절, 다중 큐의 병렬·직렬\n계약을 확인하고 10회 반복 통과했다. 임시 설치 후 다른 경로로 옮긴 Core와 iiGPU를\n별도의 앱 소비자가 함께 연결하여 가짜 완료 이벤트를 Core EventLoop로 전달하는 시험도\n통과했다. GPU의 실제 셰이더 제출 경로는 소비자에서 컴파일·링크했으나 실행하지 않았다.\n"
+    },
+    {
+      "id": "b000512",
+      "kind": "blank",
+      "start_line": 1203,
+      "end_line": 1203,
+      "raw": "\n"
+    },
+    {
+      "id": "b000513",
+      "kind": "paragraph",
+      "start_line": 1204,
+      "end_line": 1207,
+      "raw": "Runtime.cpp와 병렬 시험만 계측한 macOS TSan 검사가 통과했다. iOS arm64와 WASM\npthreads는 변경 소스의 문법 검사만 수행했다. Android NDK 26은 이 작업 트리의 기존\n`<stop_token>` 헤더를 찾지 못했고 Windows·Linux 빌드와 대상 실행은 확인하지 않았다.\n물리 코어 점유율이나 GPU 가속 배율은 측정하지 않았으며 시스템 설치본은 변경하지 않았다.\n"
+    },
+    {
+      "id": "b000514",
+      "kind": "blank",
+      "start_line": 1208,
+      "end_line": 1208,
+      "raw": "\n"
+    },
+    {
+      "id": "b000515",
+      "kind": "heading",
+      "start_line": 1209,
+      "end_line": 1209,
+      "raw": "## 명시적 폴링과 네이티브 대기 (2026-11-06)\n",
+      "level": 2,
+      "title": "명시적 폴링과 네이티브 대기 (2026-11-06)"
+    },
+    {
+      "id": "b000516",
+      "kind": "blank",
+      "start_line": 1210,
+      "end_line": 1210,
+      "raw": "\n"
+    },
+    {
+      "id": "b000517",
+      "kind": "paragraph",
+      "start_line": 1211,
+      "end_line": 1217,
+      "raw": "macOS arm64에서 전체 대상 빌드와 관련 CTest 12개가 통과했다. 준비 대기 시험은\n점유된 POSIX 채널이 유휴 상태에서 주기적으로 깨어나지 않고 잠금 해제 시 여러\n대기자를 깨우는지와 제거된 대기자의 수명을 확인했다. 프로세스 시험은 파일 기술자\n부족으로 종료 통지를 만들 수 없을 때 반복 조회 대신 오류를 반환하는지 확인했다.\n양의 명시적 polling interval 검증과 Windows용 정책 분기 시험도 소스에 포함했다.\nWindows·Linux 대상 실행과 실제 GUI 앱 실행은 수행하지 않았고 시스템 설치본은\n변경하지 않았다.\n"
+    },
+    {
+      "id": "b000518",
+      "kind": "blank",
+      "start_line": 1218,
+      "end_line": 1218,
+      "raw": "\n"
+    },
+    {
+      "id": "b000519",
+      "kind": "heading",
+      "start_line": 1219,
+      "end_line": 1219,
+      "raw": "## 요청 기반 이벤트 루프 재검증 (2026-11-09)\n",
+      "level": 2,
+      "title": "요청 기반 이벤트 루프 재검증 (2026-11-09)"
+    },
+    {
+      "id": "b000520",
+      "kind": "blank",
+      "start_line": 1220,
+      "end_line": 1220,
+      "raw": "\n"
+    },
+    {
+      "id": "b000521",
+      "kind": "paragraph",
+      "start_line": 1221,
+      "end_line": 1226,
+      "raw": "macOS arm64 Release에서 이벤트·입출력·프레임·세션·작업 큐 및 쿼리 관련\nCTest 37개가 통과했다. 그중 루프, 호스트, 실시간 예약, 병렬 실행, 캡처 정리,\n혼합 TaskScope의 여섯 검사는 각각 10회 연속 통과했다. 빈 호스트 poll과 무관한\n작업이 대기 I/O를 재검사하거나 대기 스레드를 깨우지 않는지, 작업 처리 중 발생한\n기한·신호·취소, 토큰 대기와 직렬 큐 drain을 검사한다. 기존 10,000회 재사용 시험도\n통과했다. 실제 앱이나 GUI는 실행하지 않았고 설치본은 교체하지 않았다.\n"
+    },
+    {
+      "id": "b000522",
+      "kind": "blank",
+      "start_line": 1227,
+      "end_line": 1227,
+      "raw": "\n"
+    },
+    {
+      "id": "b000523",
+      "kind": "paragraph",
+      "start_line": 1228,
+      "end_line": 1234,
+      "raw": "Emscripten 단일 스레드 Release에서 Node 기반 `BrowserEvent` 검사는 통과했다.\n같은 구성의 기존 `Runtime` 검사는 고정 WebAssembly 메모리에서 65,536개 슬롯을\n선할당하다 `OOM`으로 실패했다. 테스트의 슬롯 수, 메모리 설정, 제한 시간은 변경하지\n않았다. 이 Node 결과는 실제 브라우저 화면 검증이 아니다. 포화 Windows 파이프에 대한\n회귀 사례는 작성했으나 Windows 빌드와 실행은 하지 않았다. Linux·Android·iOS 역시\n이번 변경을 실행 검증하지 않았다. CPU·메모리 사용률이나 성능 향상 비율은 측정하지\n않았다.\n"
+    },
+    {
+      "id": "b000524",
+      "kind": "blank",
+      "start_line": 1235,
+      "end_line": 1235,
+      "raw": "\n"
+    },
+    {
+      "id": "b000525",
+      "kind": "heading",
+      "start_line": 1236,
+      "end_line": 1236,
+      "raw": "## 혼합 예약 인덱스와 WebAssembly 용량 후속 검증 (2026-11-09)\n",
+      "level": 2,
+      "title": "혼합 예약 인덱스와 WebAssembly 용량 후속 검증 (2026-11-09)"
+    },
+    {
+      "id": "b000526",
+      "kind": "blank",
+      "start_line": 1237,
+      "end_line": 1237,
+      "raw": "\n"
+    },
+    {
+      "id": "b000527",
+      "kind": "paragraph",
+      "start_line": 1238,
+      "end_line": 1246,
+      "raw": "이 절은 위 요청 기반 이벤트 루프 검증에서 기록한 WebAssembly `Runtime` OOM에 대한\n후속 결과이다. macOS arm64 Release의 관련 빌드와 CTest 38개가 통과했다. 슬롯 성장과\n재사용, 혼합 I/O·실시간 예약의 순서와 기한 변경, 일반 작업 대량 적체보다 준비된\n실시간 예약을 우선하는 동작, 취소와 캡처 반환을 확인한다. 내부 인덱스 시험은\n8,192개 항목의 삽입·갱신·제거에 필요한 비교 횟수의 상한과 정렬을 확인한다.\n기존 10,000회 반복 재사용 시험도 유지했다. capacity가 65,536이고 작업 한 개를\n실행하는 macOS 시험의 일반 `operator new` 누적 할당은 변경 전 38,274,200바이트,\n변경 후 19,864바이트였다. 이는 해당 시험의 계측값이지 전체 프로세스의 최대 메모리나\n일반적인 성능 향상률은 아니다.\n"
+    },
+    {
+      "id": "b000528",
+      "kind": "blank",
+      "start_line": 1247,
+      "end_line": 1247,
+      "raw": "\n"
+    },
+    {
+      "id": "b000529",
+      "kind": "paragraph",
+      "start_line": 1248,
+      "end_line": 1253,
+      "raw": "Emscripten 단일 스레드와 pthread Release 각각에서 Node 기반 `Runtime`, `EventIndex`,\n`BrowserEvent` 3개 검사가 통과했다. 기존 희소 사용 검사와 더불어 작업 65,536개를\n동시에 접수하고 추가 접수 거절, 전체 실행과 반환을 검사했다. WebAssembly 메모리는\n단일 스레드에서 초기·최대 모두 258페이지, pthread에서 초기·최대 모두 256페이지로\n고정되어 있으며 기존 슬롯 수와 테스트 시간 제한을 변경하지 않았다. 이는 작은 콜백으로\n포화시킨 시험이며 임의 페이로드에 대한 메모리 보장은 아니다.\n"
+    },
+    {
+      "id": "b000530",
+      "kind": "blank",
+      "start_line": 1254,
+      "end_line": 1254,
+      "raw": "\n"
+    },
+    {
+      "id": "b000531",
+      "kind": "paragraph",
+      "start_line": 1255,
+      "end_line": 1259,
+      "raw": "macOS에서 7개 관련 검사를 각각 10회 병렬 반복할 때 실시간 마감 순서 검사가 두 차례\n실패했다. 같은 검사는 단독 30회와 이후 7개 검사 각각의 10회 병렬 반복에서는\n통과했다. 실패 당시 원인을 확정할 기록은 확보하지 못했으며, 제한 시간을 완화하지\n않았다. Node 실행은 실제 브라우저 화면 검증이 아니다. Windows·Linux·Android·iOS의\n이번 변경은 실행 검증하지 않았고, 제품 앱 실행과 시스템 설치본 갱신은 하지 않았다.\n"
+    },
+    {
+      "id": "b000532",
+      "kind": "blank",
+      "start_line": 1260,
+      "end_line": 1260,
+      "raw": "\n"
+    },
+    {
+      "id": "b000533",
+      "kind": "heading",
+      "start_line": 1261,
+      "end_line": 1261,
+      "raw": "## 명시적 런타임 자원 검증 (2026-11-09)\n",
+      "level": 2,
+      "title": "명시적 런타임 자원 검증 (2026-11-09)"
+    },
+    {
+      "id": "b000534",
+      "kind": "blank",
+      "start_line": 1262,
+      "end_line": 1262,
+      "raw": "\n"
+    },
+    {
+      "id": "b000535",
+      "kind": "paragraph",
+      "start_line": 1263,
+      "end_line": 1268,
+      "raw": "macOS arm64 Release의 전체 빌드와 CTest 95개가 통과했다. 기본 Runtime과\nApplication의 워커·작업 슬롯이 0인지, 기본 이벤트 루프는 명시적인 작업을\n처리하는지, 워커를 요청·반환·재할당할 때 오래된 토큰이 새 작업을 가리키지 않는지\n검사한다. 세션이 소유한 객체의 명시적 워커와 메모리 블록, 워커 할당과 객체 큐\n종료의 경쟁, 호스트 I/O 감시 전후의 대기 스레드 수명도 검사한다. C/Python의\n0 워커 생성과 슬롯 조회 및 설치 스테이징 소비자 검사도 포함한다.\n"
+    },
+    {
+      "id": "b000536",
+      "kind": "blank",
+      "start_line": 1269,
+      "end_line": 1269,
+      "raw": "\n"
+    },
+    {
+      "id": "b000537",
+      "kind": "paragraph",
+      "start_line": 1270,
+      "end_line": 1274,
+      "raw": "별도 빌드·스테이징한 iiGUI와 Core의 헤드리스 Application 연결 검사가 통과했으며\nHelloWorld와 HelloHosts는 명시적 워커 설정을 포함하여 빌드·링크했다. 예제 창은\n실행하지 않았다. 기본 I/O 대기 스레드는 최초 감시 요청 후 연결 종료까지 소유되며,\n요청이 없을 때는 만들지 않는다. GPU와 외부 모듈이 독립적으로 보유하는 자원을\n전역적으로 통제하거나 실제 기기의 자원 사용량을 측정한 결과는 아니다.\n"
+    },
+    {
+      "id": "b000538",
+      "kind": "blank",
+      "start_line": 1275,
+      "end_line": 1275,
+      "raw": "\n"
+    },
+    {
+      "id": "b000539",
+      "kind": "paragraph",
+      "start_line": 1276,
+      "end_line": 1278,
+      "raw": "Emscripten 단일 스레드와 pthread 구성에서도 Node 기반 `Runtime`, `Parallel`,\n`BrowserEvent` 검사가 각각 통과했다. 기존 65,536개 작업 시험의 메모리 한도와\n시간 제한은 바꾸지 않았다. 이는 실제 브라우저 화면이나 기기 검증은 아니다.\n"
     }
   ],
   "outline": [
@@ -5219,6 +5627,70 @@
       "title": "Native process P1 — 0.15.0 (2026-10-16)",
       "anchor": "native-process-p1--0150-2026-10-16",
       "start_line": 1066
+    },
+    {
+      "block_id": "b000485",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "상태 변화 기반 대기 검증 (2026-11-06)",
+      "anchor": "상태-변화-기반-대기-검증-2026-11-06",
+      "start_line": 1134
+    },
+    {
+      "block_id": "b000493",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "부분 갱신·선택 조회 검증 (2026-11-06)",
+      "anchor": "부분-갱신선택-조회-검증-2026-11-06",
+      "start_line": 1155
+    },
+    {
+      "block_id": "b000501",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "다중 실행 큐 검증 (2026-11-06)",
+      "anchor": "다중-실행-큐-검증-2026-11-06",
+      "start_line": 1176
+    },
+    {
+      "block_id": "b000509",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "논리 코어 정책과 GPU 조합 (2026-11-06)",
+      "anchor": "논리-코어-정책과-gpu-조합-2026-11-06",
+      "start_line": 1196
+    },
+    {
+      "block_id": "b000515",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "명시적 폴링과 네이티브 대기 (2026-11-06)",
+      "anchor": "명시적-폴링과-네이티브-대기-2026-11-06",
+      "start_line": 1209
+    },
+    {
+      "block_id": "b000519",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "요청 기반 이벤트 루프 재검증 (2026-11-09)",
+      "anchor": "요청-기반-이벤트-루프-재검증-2026-11-09",
+      "start_line": 1219
+    },
+    {
+      "block_id": "b000525",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "혼합 예약 인덱스와 WebAssembly 용량 후속 검증 (2026-11-09)",
+      "anchor": "혼합-예약-인덱스와-webassembly-용량-후속-검증-2026-11-09",
+      "start_line": 1236
+    },
+    {
+      "block_id": "b000533",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "명시적 런타임 자원 검증 (2026-11-09)",
+      "anchor": "명시적-런타임-자원-검증-2026-11-09",
+      "start_line": 1261
     }
   ],
   "indexes": {

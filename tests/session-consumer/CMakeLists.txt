@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.23)
+project(iiSDKCoreSessionConsumer LANGUAGES CXX)
+find_package(iiSDKCore CONFIG REQUIRED)
+enable_testing()
+add_executable(session_consumer main.cpp)
+target_link_libraries(session_consumer PRIVATE iiSDKCore::iiSDKCore)
+target_compile_features(session_consumer PRIVATE cxx_std_23)
+add_test(NAME session_consumer COMMAND session_consumer)

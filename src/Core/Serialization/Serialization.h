@@ -52,7 +52,7 @@ struct Codec<T> final {
       return std::unexpected(value.error());
     if constexpr (std::same_as<T, float>) {
       if (std::isfinite(*value) &&
-          (std::abs(*value) > std::numeric_limits<float>::max() ||
+          (std::abs(*value) > (std::numeric_limits<float>::max)() ||
            double(static_cast<float>(*value)) != *value))
         return in.reject<T>(ErrorCode::out_of_range,
                             "Floating point conversion would lose precision");

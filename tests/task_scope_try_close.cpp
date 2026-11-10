@@ -44,8 +44,22 @@ void captures(){
     const auto result=owner.try_close();check(!result&&result.error().code==ThreadErrorCode::would_block,"A capture still being destroyed was reported as retired");
     gate.release();check(bool(runtime.wait_idle())&&bool(owner.try_close())&&runtime.stats().pending==0,"Final capture or executor quota did not retire");
 }
+void mixed(){
+    EventLoop loop(512); int executed=0,destroyed=0,cleaned=0;
+    TaskScope owner([&]{++cleaned;});
+    struct Resource final { int& destroyed; explicit Resource(int& value):destroyed(value){} ~Resource(){++destroyed;} };
+    const auto submit=[&] {
+        auto resource=std::make_shared<Resource>(destroyed);
+        check(bool(owner.post(loop,[resource,&executed]{++executed;})),"Scoped work was rejected");
+    };
+    for(int i=0;i<128;++i)submit();
+    check(loop.poll({64,1s})==64 && executed==64,"A subset of scoped work did not finish");
+    for(int i=0;i<128;++i)submit();
+    check(bool(owner.try_close()) && executed==64 && destroyed==256 && cleaned==1 &&
+          loop.stats().pending==0,"Mixed completed and queued jobs did not release their captures");
+}
 }
 int main(int argc,char** argv){try{const std::string name=argc>1?argv[1]:"queued";
-    if(name=="queued")queued();else if(name=="active")active();else if(name=="self")self();else if(name=="failure")failure();else if(name=="captures")captures();else throw std::runtime_error("Unknown try_close test");
+    if(name=="queued")queued();else if(name=="active")active();else if(name=="self")self();else if(name=="failure")failure();else if(name=="captures")captures();else if(name=="mixed")mixed();else throw std::runtime_error("Unknown try_close test");
     std::cout<<"TaskScope try_close "<<name<<" passed\n";
 }catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}}

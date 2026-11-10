@@ -8,6 +8,8 @@ EventLoop::watch(channel, interest, ready, options)는 읽기 또는 쓰기 준�
 
 EventLoop::read(channel, Read, completion, priority)와 write(channel, Write, completion, priority)는 준비 상태를 감지하고 해당 바이트 전송을 직접 실행하여 IOResult를 전달한다. IOResult에는 요청 Buffer와 이번 전송의 바이트 수, 읽기의 EOF 상태가 포함된다. Buffer·Read·Write·IOResponse는 Runtime에 의존하지 않는 IO/Requests.h에 정의하며 기존 AsyncIO.h 포함 방식도 유지한다.
 
+POSIX 채널이 다른 작업에 점유되어 준비 감시를 설치할 수 없으면 잠금 해제 통지를 기다린다. 준비 확인과 실제 전송 사이에 `would_block`이나 `busy`가 발생해도 타이머를 설정하지 않고 해당 채널의 네이티브 준비 감시를 다시 설정한다. 사용자가 명시한 요청 기한과 반복 타이머는 그대로 유지한다. Windows의 기존 비동기 미지원 파이프·시리얼은 즉시 준비되지 않으면 `unsupported`를 완료로 반환한다. 반복 확인이 필요한 호출자는 `IOWatchOptions`, `Read`, `Write`의 `polling_interval`에 양의 주기를 명시한다.
+
 ```cpp
 #include <iiSDKCore/Runtime/EventLoop.h>
 using namespace std::chrono_literals;
@@ -32,11 +34,28 @@ Read/Write.timeout은 이 경로에서는 **접수 시점부터 준비 상태를
 
 watch/read/write는 같은 EventLoop의 고정 작업 슬롯을 사용한다. 일반 작업·타이머와 합쳐 capacity를 초과하면 full이며, 별도의 무제한 장치 큐를 생성하지 않는다. 우선순위의 4:2:1 선택 규칙, callback/time budget, suspend/resume과 stopped 접수 거절을 공유한다. 완료는 해당 루프의 dispatch 스레드에서 호출하며 한 요청은 한 번만 완료한다. 콜백 예외는 슬롯과 캡처를 정리한 뒤 poll/run의 호출자에게 전달한다.
 
-poll은 준비 상태를 0 timeout으로 검사하며 잠드는 커널 대기를 수행하지 않는다. UIKit·Android·GUI·WASM 호스트가 poll을 호출할 때 감지가 이루어진다. next_deadline은 타이머와 I/O의 기한·재시도 시각을 제공하며, 무기한 감시의 향후 장치 이벤트 시각을 예측하지 않는다. run은 네이티브 또는 지원되는 WASM 워커에서 대기를 구동하며 브라우저 메인 스레드 제한을 유지한다.
+I/O 준비 검사와 네이티브 대기 집합은 요청의 등록·반환 시 갱신하는 I/O 슬롯 목록만 사용한다. 일반 작업이나 타이머는 검사 후보에 포함되지 않으며, 완료·취소한 I/O 슬롯은 재사용 전에 목록에서 제거된다. 한 번의 dispatch에서 무관한 콜백마다 모든 I/O를 다시 검사하지 않는다. 네이티브 준비 감시가 있는 HostLoop는 I/O 상태가 바뀌거나 대기·기한이 완료될 때 검사하며, 빈 poll이나 일반 작업만으로 대기 스레드를 깨우거나 채널을 재검사하지 않는다. 자동 감시가 없는 직접 구동 `poll()`은 호출자가 요청한 준비 확인을 한 번 수행한다. `LoopStats.io_candidates`는 준비 검사에서 방문한 I/O 슬롯의 누적 횟수이다.
 
-네이티브 POSIX에서는 모든 대기 채널과 비차단 wake pipe를 같은 poll 집합으로 기다린다. 작업 제출·TaskToken 취소·suspend/resume·stop은 이 파이프를 통해 커널 대기를 깨운다. 채널 핸들은 대기 동안 잠금과 소유 참조로 고정하여 close/FD 재사용과의 경쟁을 막는다. 취소 확인과 busy 재시도를 위해 한 대기 구간은 최대 20ms로 제한하며 OS 스케줄링 지연의 상한을 보장하지 않는다. 실제로 대기 집합을 준비한 횟수는 LoopStats.io_waits로 관찰할 수 있다.
+준비된 I/O 완료와 그 기한은 다른 작업과 함께 인덱싱하므로 dispatch의 작업 선택과
+다음 기한 조회에서 전체 활성 슬롯을 검색하지 않는다. 네이티브 대기 후 준비 확인은
+현재 감시 중인 I/O 목록을 검사한다. 이는 개별 OS 준비 이벤트를 각 채널에 직접
+매핑하는 최적화까지 구현했다는 뜻은 아니다.
 
-Windows는 기존 COM 큐 상태와 파일 준비 검사에 네이티브 wake event를 결합하며 20ms 구간으로 COM 상태를 재검사한다. IOCP/overlapped COM 구현은 아니다. WASM은 가상 파일 채널을 호스트 또는 워커에서 처리하며, 물리 장치 접근을 모사하지 않는다.
+poll은 준비 상태를 0 timeout으로 검사하며 잠드는 커널 대기를 수행하지 않는다. UIKit·Android·GUI·WASM 호스트가 poll을 호출할 때 감지가 이루어진다. next_deadline은 타이머와 I/O의 기한을 제공하며, 무기한 감시의 향후 장치 이벤트 시각을 예측하지 않는다. run은 네이티브 또는 지원되는 WASM 워커에서 대기를 구동하며 브라우저 메인 스레드 제한을 유지한다.
+
+네이티브 POSIX에서는 모든 대기 채널과 비차단 wake pipe를 같은 poll 집합으로 기다린다. 작업 제출·TaskToken 취소·I/O 취소 신호·suspend/resume·stop은 이 파이프를 통해 커널 대기를 깨운다. 준비 상태와 정해진 기한이 없으면 대기 구간을 주기적으로 재검사하지 않는다. 다른 스레드가 채널 잠금을 점유하면 해제 통지가 대기를 깨운다. 채널 핸들은 대기 동안 잠금과 소유 참조로 고정하여 close/FD 재사용과의 경쟁을 막는다. 실제로 대기 집합을 준비한 횟수는 LoopStats.io_waits로 관찰할 수 있다.
+
+Windows는 기존 COM 큐 상태와 파일 준비 검사에 네이티브 wake event를 결합한다. IOCP/overlapped COM 구현이 아니므로, 반복 상태 확인은 호출자가 주기를 지정해야 한다. 특히 비동기 미지원 파이프가 쓰기 가능으로 표시된 뒤 실제 쓰기가 `would_block`을 반환하면 지정된 다음 확인 시각 전에는 재시도하지 않는다. 취소와 원래 기한은 그 주기를 기다리지 않고 처리한다. WASM은 가상 파일 채널을 호스트 또는 워커에서 처리하며, 물리 장치 접근을 모사하지 않는다.
+
+POSIX 대기 집합은 채널의 임시 참조를 재사용 가능한 배열에 모아 정렬한 뒤
+같은 채널의 읽기·쓰기 관심을 하나로 합친다. 서로 다른 채널마다 앞의 전체
+채널을 다시 검색하지 않으므로 집합 구성의 정렬 비용은 O(n log n)이다.
+실제 poll 대기 중에는 이전과 같이 채널 소유 참조와 잠금을 유지한다. 잠금이
+경합하면 해당 채널은 빠르게 건너뛰고 잠금 해제 알림을 구독한다.
+이는 목록 구성의 복잡도 설명이며 Qt 또는 특정 장치 대비 속도 측정은 아니다.
+회귀 검사는 POSIX 파이프 64개와 각각 중복된 감시를 사용해 준비 신호와 채널
+소유 잠금의 반환을 확인한다. Windows 전용 포화 파이프 회귀 사례도 제공한다.
+Windows의 실행 검증 여부는 별도로 기록해야 한다.
 
 ## 장치 경계
 
@@ -49,7 +68,7 @@ open_serial은 기존 raw 8N1 시리얼 설정을 사용한다. USB 시리얼도
 | macOS/Linux | POSIX 파일·시리얼·문자 장치·FIFO, poll+wake pipe |
 | Android | 앱이 접근 가능한 POSIX 파일·tty·문자 장치·FIFO; USB Host 브리지 없음 |
 | iOS | 앱이 접근 가능한 POSIX 파일·문자 장치·FIFO; 시리얼 열기와 ExternalAccessory/CoreBluetooth 브리지 없음 |
-| Windows | 기존 파일·COM, 상태 재검사+wake event; open_device는 unsupported |
+| Windows | 파일은 즉시 준비; 기존 파이프·COM의 반복 확인은 명시적 주기가 필요; open_device는 unsupported |
 | WASM | 가상 파일; open_serial/open_device는 unsupported |
 
 이 문서의 0.5.0 채널 기능은 열어 둔 채널의 준비 상태를 감지한다. USB/HID 장치 목록 열거·hotplug 서비스·Bluetooth·오디오·MIDI·소켓 연결 또는 장치별 ioctl API를 추가한 것은 아니다. OS 접근 권한과 드라이버 지원은 그대로 적용된다. 0.6.0에 추가한 Hardware·Protocols API는 0.12.0부터 독립 동위 모듈 iiDeviceMultimedia로 이동했다. Core는 그 모듈 없이 일반 채널 I/O를 제공하며, 장치 모듈 0.2 역시 Core 없이 동작한다. 두 모듈의 연결은 앱의 poll() 드라이버가 소유한다. 현재 장치 지원 범위는 [새 모듈 계약](../../iiDeviceMultimedia/docs/hardware.md)을 따른다.
@@ -70,4 +89,4 @@ tests/loop_io.cpp는 파일·FIFO·PTY의 입력과 출력, typed QueryPort 전�
 
 ## 외부 GUI·이벤트 호스트 (0.16)
 
-외부 루프에서 poll만 호출하고 긴 타이머로 잠들면 채널 준비를 통지받을 수 없다. HostLoop의 기본 준비 대기 연결은 이 경계를 해결한다. 하나의 관리형 대기 스레드가 기존 폴러를 사용하고 완료는 소유 호스트의 poll에서 전달한다. 미완료 I/O가 없으면 대기 스레드는 조건 변수에서 잠든다. 대기 중 I/O의 협력적 취소·닫힘 확인에는 기존 최대 20ms 대기 한도가 적용된다. 느린 동기 파일·드라이버 호출은 계속 AsyncIO·Runtime에 격리한다. [호스트 연결 계약](host-loop.md)을 따른다.
+외부 루프에서 poll만 호출하고 긴 타이머로 잠들면 채널 준비를 통지받을 수 없다. HostLoop의 준비 대기 연결은 이 경계를 해결한다. 명시적인 I/O 감시가 처음 등록될 때 하나의 관리형 대기 스레드를 할당하며, 기존 폴러를 사용하고 완료는 소유 호스트의 poll에서 전달한다. 감시가 없으면 아직 스레드를 만들지 않으며, 이미 할당된 스레드는 미완료 I/O가 없을 때 조건 변수에서 잠들고 호스트 연결 종료 시 반환된다. POSIX 취소와 채널 점유 해제는 네이티브 대기를 직접 깨운다. 느린 동기 파일·드라이버 호출은 계속 AsyncIO·Runtime에 격리한다. [호스트 연결 계약](host-loop.md)을 따른다.

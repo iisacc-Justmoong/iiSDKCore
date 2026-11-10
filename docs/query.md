@@ -1,5 +1,56 @@
 # 객체 간 쿼리 통신
 
+## 대등한 양방향 연결
+
+`QueryPeer<Incoming, IncomingReply, Outgoing, OutgoingReply>`는 자기 수신 처리기와
+상대 노드로 향하는 쿼리 경로를 함께 가진다. 양쪽은 독립적으로 요청을 시작하며
+양 방향의 요청·응답 타입이 달라도 된다. 양 방향이 같으면 뒤의 두 타입을 생략한다.
+이는 한 요청의 응답과 별개인 역방향 쿼리이다.
+
+```cpp
+struct Increase { int value; };
+struct Format { int value; };
+using Left = ii::runtime::QueryPeer<Increase, int, Format, std::string>;
+using Right = ii::runtime::QueryPeer<Format, std::string, Increase, int>;
+
+Left left([](const Increase& q) { return q.value + 1; });
+Right right([](const Format& q) { return std::to_string(q.value); });
+auto linked = left.connect(right);
+if (linked) {
+    auto from_right = left.send(Format{42});  // Right가 수신한다.
+    auto from_left = right.send(Increase{41}); // Left가 별도 쿼리를 수신한다.
+}
+```
+
+`connect`는 두 노드를 원자적으로 짝짓고 이미 연결된 노드, 닫힌 노드, 자기 자신을
+각각 `busy`, `closed`, `same_node`로 거절한다. 한 `QueryPeer`는 한 상대와 연결하며
+여러 상대가 필요한 객체는 독립적인 피어 멤버를 여러 개 소유할 수 있다. 연결은 상대를
+강하게 소유하지 않는다. `disconnect()`는 양쪽의 새 연결 사용을 중지하고 양쪽 모두
+다른 상대에 다시 연결할 수 있게 한다. 호출과 경합하여 이미 경로를 취득한 요청과
+접수된 비동기 요청은 기존 수신자에게 전달될 수 있으나 새 상대에게 이동하지 않는다.
+단순 연결 해제는 이미 접수된 요청의 취소 장벽이 아니다.
+
+상대의 수신 포트는 `QueryPort`의 기존 실행자·오류·종료 계약을 따른다. 대등한 양쪽
+모두 `SerialQueue`와 수신 처리기를 지정할 수 있고, `post(request, completion)`은
+상대의 큐에 제출한다. 접수 실패는 `Submission`이고 수신 처리 결과는 `QueryReply`이다.
+완료 콜백은 수신 큐에서 실행된다. 동기 `send`는 같은 실행 영역이거나 실행자를
+지정하지 않은 저수준 사용에만 적합하며, 서로 다른 큐 사이에서는 `post`를 사용한다.
+동기 순환 호출과 완료 콜백의 송신 객체 수명은 호출자가 관리한다.
+
+닫힌 연결의 `send`는 `receiver_expired`, `post`는 `stopped`이다. 노드의 `close()`는
+새 연결을 막고 해당 수신 포트의 작업을 취소·정리한다. `try_close()`가 `would_block`을
+반환하면 접수는 중지되었으나 활성 처리기가 끝나지 않은 상태이며, 소유자는 안전한
+실행 영역에서 종료를 다시 완료해야 한다. 자기 수신 처리기에서의 종료는 `self_join`으로
+거절한다. 소유 객체의 상태를 처리기가 캡처한다면 객체 소멸자 본문에서 상태를 바꾸기
+전에 피어를 닫고, 연결된 `SerialQueue`는 피어보다 오래 유지한다. 연결 해제·종료와
+동시인 `send/post`는 안전하지만 객체 자체의 소멸과 그 객체 메서드 호출을 동시에
+시작해서는 안 된다.
+
+대등 연결은 선택적 다중 구독을 제공하는 `QueryStream`을 대체하지 않는다. 두 노드가
+서로 발행한 선택 이벤트를 다중 수신해야 하면 각 노드가 별도의 스트림을 소유해 기존
+방식으로 연결한다. `iiSDKCore.QueryPeer`와 설치 소비자 검사가 양 방향 요청, 서로 다른
+타입, 실행 영역, 연결 교체, 포화와 종료를 다룬다.
+
 iiSDK에서 객체는 객체에게 쿼리를 전달해 통신한다. 쿼리는 GraphQL처럼 필요한 입력 값과 응답 필드만 명시하는 경량 메시지이며, 조회·명령·알림을 포함한다. 이 선택 원칙을 C++ 요청·응답 타입으로 표현한다. 메시지의 의미와 선택 가능한 필드는 제품/상위 모듈이 정의한다.
 
 ## 값 중심의 명시적 계약
@@ -91,6 +142,11 @@ public:
 제품 수준의 거절은 응답 타입에 명시적으로 표현한다. 예를 들어 재고 부족, 잘못된 문서 상태 등은 도메인 응답이며 런타임 오류로 자동 변환하지 않는다. completion 자체의 예외는 QueryError로 재포장하지 않고 EventLoop의 예외 전파·정리 계약을 따른다.
 
 ## 수명과 취소
+
+`try_close()`는 새 요청을 차단하고 대기 작업을 취소하되 활성 처리기나 캡처가
+퇴역하기를 기다리지 않는다. 아직 정리 중이면 `would_block`을 반환한다. 호출자는
+포트와 처리기 소유자를 유지한 채 안전한 실행 영역에서 다시 호출해 종료 장벽을
+완료해야 한다. 자기 처리기에서의 종료는 `self_join`으로 거절한다.
 
 포트는 이동/복사하지 않는다. 각 포트의 TaskScope가 비동기 작업과 동기 send의 실행 수명을 관리한다. `close()`와 소멸은 새 제출을 막고 대기 쿼리를 취소하며, 실행 중 처리기·completion과 캡처 파괴 및 실행자 슬롯 반환을 기다린 뒤 처리기를 해제한다. 소멸한 포트가 있던 주소에 새 포트가 만들어져도 이전 작업은 새 수신자에게 전달되지 않는다.
 

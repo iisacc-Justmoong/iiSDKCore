@@ -37,7 +37,7 @@ public:
     {
       std::lock_guard lock(mutex_);
       require_readable();
-      if (revision_ == std::numeric_limits<std::uint64_t>::max())
+      if (revision_ == (std::numeric_limits<std::uint64_t>::max)())
         throw std::overflow_error("Shared value revision exhausted");
       retired = std::exchange(block_, std::move(block));
       ++revision_;
@@ -59,7 +59,7 @@ public:
     std::unique_lock lock(mutex_);
     if (editing_)
       return fail(ErrorCode::busy, "Recursive shared value write");
-    if (revision_ == std::numeric_limits<std::uint64_t>::max())
+    if (revision_ == (std::numeric_limits<std::uint64_t>::max)())
       return fail(ErrorCode::full, "Shared value revision exhausted");
     bool reuse = false;
     if constexpr (std::is_nothrow_invocable_v<Edit, T &>) {
@@ -122,7 +122,7 @@ public:
           revision_ != base.revision)
         return fail(ErrorCode::busy,
                     "Shared value changed during edit; retry explicitly");
-      if (revision_ == std::numeric_limits<std::uint64_t>::max())
+      if (revision_ == (std::numeric_limits<std::uint64_t>::max)())
         return fail(ErrorCode::full, "Shared value revision exhausted");
       retired = std::exchange(block_, std::move(next));
       ++revision_;

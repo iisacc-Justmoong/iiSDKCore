@@ -297,9 +297,9 @@ private:
         } else {
             try {
                 const auto capacity = runtime_.stats().capacity;
-                const auto grain = std::max(options.grain, count / capacity + (count % capacity != 0));
+                const auto grain = (std::max)(options.grain, count / capacity + (count % capacity != 0));
                 for (std::size_t begin = 0; begin < count;) {
-                    const auto end = begin + std::min(grain, count - begin);
+                    const auto end = begin + (std::min)(grain, count - begin);
                     auto chunk = std::make_shared<concurrent_detail::Chunk<Out, Step, Finish>>(batch, step, begin, end);
                     const auto submitted = lifetime_.post(runtime_, [chunk] { chunk->execute(); }, options.priority);
                     batch->promise.admitted(submitted);

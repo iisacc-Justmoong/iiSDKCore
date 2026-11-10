@@ -18,6 +18,64 @@ struct Fields final { std::optional<int> level; std::optional<std::string> label
 using Feed = QueryStream<Select, Sample, Fields>;
 using Event = QueryStreamEvent<Fields>;
 
+void incremental_publication() {
+    struct Change final { int device,value; unsigned fields; };
+    struct Interest final { int device; unsigned fields; };
+    EventLoop loop;
+    int projections=0,first_calls=0,second_calls=0;
+    QueryStream<Interest,Change,int> feed([&](const Interest&,const Change& source) -> std::optional<int> {
+        ++projections; return source.value;
+    },{.max_subscriptions=64});
+    auto first=feed.subscribe(loop,Interest{1,1},[&](auto){++first_calls;});
+    auto second=feed.subscribe(loop,Interest{1,2},[&](auto){++second_calls;});
+    check(first && second,"change-specific subscriptions");
+    auto affected=[](const Interest& query,const Change& change) {
+        return query.device==change.device && (query.fields&change.fields)!=0;
+    };
+    auto result=feed.publish_changed({1,42,1},affected);
+    check(result && result->visited==2 && result->unaffected==1 && result->enqueued==1 && projections==1,
+          "only queries affected by the changed field run the projector");
+    loop.poll({16,1s});
+    check(first_calls==1 && second_calls==0,"unaffected query receives no update");
+    const auto initial=feed.stats().membership_rebuilds;
+    check(initial==1,"initial subscriber snapshot built once");
+    result=feed.publish_changed({2,13,0},affected);
+    check(result && result->unaffected==2 && projections==1 && feed.stats().membership_rebuilds==initial,
+          "unchanged membership and empty change do not trigger full projection or rebuild");
+    check(bool(second->close()),"remove an unaffected subscription");
+    result=feed.publish_changed({1,8,1},affected);
+    check(result && result->visited==1 && result->enqueued==1 &&
+          feed.stats().membership_rebuilds==initial+1,"removal invalidates membership once");
+    loop.poll({16,1s});
+    check(first_calls==2 && second_calls==0,"remaining subscriber still receives updates");
+    check(bool(first->close()) && bool(feed.close()),"close changed publication feed");
+}
+
+void incremental_selected_fields() {
+    struct Change final { int level; std::string label; bool level_changed,label_changed; };
+    struct Interest final { bool level,label; };
+    struct Output final { std::optional<int> level; std::optional<std::string> label; };
+    EventLoop loop;
+    QueryStream<Interest,Change,Output> feed([](const Interest& query,const Change& change) -> std::optional<Output> {
+        Output value;
+        if(query.level && change.level_changed) value.level=change.level;
+        if(query.label && change.label_changed) value.label=change.label;
+        return value;
+    });
+    std::vector<Output> received;
+    auto subscription=feed.subscribe(loop,Interest{true,true},[&](auto event){received.push_back(std::move(event.value));});
+    const auto affected=[](const Interest& query,const Change& change) {
+        return (query.level && change.level_changed) || (query.label && change.label_changed);
+    };
+    check(bool(feed.publish_changed({0,"unchanged",true,false},affected)),"publish changed level");
+    check(bool(feed.publish_changed({0,"updated",false,true},affected)),"publish changed label");
+    loop.poll({16,1s});
+    check(received.size()==2 && received[0].level==0 && !received[0].label &&
+          !received[1].level && received[1].label=="updated",
+          "selected output contains only fields changed by each event, including zero");
+    check(bool(subscription->close()) && bool(feed.close()),"close field-level fixture");
+}
+
 void selection_and_revision() {
     EventLoop loop;
     int label_reads = 0;
@@ -205,6 +263,53 @@ void concurrent_query_replacement() {
           "in-flight old projection cannot enter the new query revision");
     (void)feed.publish(5); loop.poll({16, 1s});
     check(data == std::vector<int>({10}), "only new query output emitted after racing replacement");
+}
+
+void nonblocking_subscription_removal() {
+    EventLoop loop;
+    std::latch entered(1), release(1);
+    QueryStream<int,int,int> feed([&](int,int source) {
+        entered.count_down();release.wait();return std::optional<int>(source);
+    });
+    int delivered=0;auto sub=feed.subscribe(loop,0,[&](auto){++delivered;});
+    check(bool(sub),"nonblocking removal subscription");
+    std::thread producer([&]{(void)feed.publish(7);});entered.wait();
+    auto first=sub->try_close();
+    check(!first&&first.error().code==ThreadErrorCode::would_block&&sub->stats().closed,
+          "nonblocking close stops admission without waiting for a projector");
+    release.count_down();producer.join();
+    check(bool(sub->try_close()),"nonblocking removal finishes after the projector retires");
+    loop.poll({16,1s});
+    check(delivered==0&&bool(sub->close())&&bool(feed.close()),"retired subscription delivered a stale event");
+}
+
+void incremental_query_replacement_and_failure() {
+    EventLoop loop;
+    std::latch entered(1),release(1);
+    int projections=0,delivered=0;
+    QueryStream<int,int,int> feed([&](int,int source) {
+        ++projections; return std::optional<int>(source);
+    });
+    auto first=feed.subscribe(loop,1,[&](auto){++delivered;});
+    auto second=feed.subscribe(loop,2,[&](auto){++delivered;});
+    QueryStreamReply<QueryStreamPublish> result=std::unexpected(QueryStreamError{QueryStreamErrorCode::invalid});
+    std::thread producer([&] {
+        result=feed.publish_changed(10,[&](int query,int) {
+            if(query==1) { entered.count_down(); release.wait(); return false; }
+            throw std::runtime_error("change selector failed");
+        });
+    });
+    entered.wait();
+    const auto changed=first->queries().send(3);
+    release.count_down(); producer.join();
+    check(changed && *changed && result && result->stale==1 && result->unaffected==0 &&
+          result->projection_failed==1 && result->first_failure && projections==0,
+          "a replaced query is stale and a selector failure is isolated");
+    result=feed.publish_changed(11,[](int query,int){return query==3;});
+    loop.poll({16,1s});
+    check(result && result->enqueued==1 && result->unaffected==1 && projections==1 && delivered==1,
+          "only the current affected selection resumes after concurrent replacement");
+    check(bool(first->close()) && bool(second->close()) && bool(feed.close()),"close incremental race fixture");
 }
 
 void workers_and_removal() {
@@ -401,11 +506,15 @@ int main(int argc, char** argv) {
             std::cout << "payload reentry passed\n";
             return 0;
         }
+        incremental_publication();
+        incremental_selected_fields();
         selection_and_revision();
         bounds_and_retry();
         failures_and_lifetimes();
         query_port_and_batching();
         concurrent_query_replacement();
+        nonblocking_subscription_removal();
+        incremental_query_replacement_and_failure();
         workers_and_removal();
         validation_and_reentry();
         cancellation_and_host();

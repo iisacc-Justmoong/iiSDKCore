@@ -1,4 +1,5 @@
 #include "EventLoop.h"
+#include "EventLoopIndex.h"
 #include "HostLoop.h"
 #include "Thread.h"
 #include "../IO/Poller.h"
@@ -13,10 +14,12 @@
 #include <atomic>
 #include <concepts>
 #include <condition_variable>
+#include <deque>
 #include <exception>
 #include <limits>
 #include <mutex>
 #include <stdexcept>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -28,6 +31,7 @@ namespace ii::runtime {
 namespace {
 std::atomic<std::uint64_t> next_task_owner{1};
 thread_local std::size_t external_hosts=0;
+thread_local const void* current_dispatch=nullptr;
 constexpr std::array wheel{
     Priority::high,   Priority::high,   Priority::high,      Priority::high,
     Priority::normal, Priority::normal, Priority::background};
@@ -78,6 +82,8 @@ struct HostLoop::State final {
   std::size_t active=0;
   std::exception_ptr failure;
   bool registered=false; // Host-owner-only execution-context registration.
+  bool monitor_io=false;
+  bool io_waiter_active=false;
   void signal() noexcept {
     {
       std::lock_guard lock(mutex);
@@ -90,18 +96,22 @@ struct HostLoop::State final {
       WakeInvocation invocation(this);
       wake(); // Public constructor admits only noexcept-invocable wake targets.
     }
-    { std::lock_guard lock(mutex); --active; idle.notify_all(); }
+    { std::lock_guard lock(mutex); if (--active==0 && closing.load()) idle.notify_all(); }
   }
   void acknowledge() {
     std::exception_ptr error;
     { std::lock_guard lock(mutex); pending=false; error=failure; }
     if (error) std::rethrow_exception(error);
   }
+  // Caller holds the EventLoop mutex, serializing attachment and I/O admission.
+  void start_monitor(EventLoop::Impl&);
   void monitor(EventLoop::Impl&);
 };
 
 struct EventLoop::Impl {
-  enum class Status { free, queued, executing, retiring };
+  enum class Status : unsigned char { free, queued, executing, retiring };
+  struct RetirementWait final { std::condition_variable changed; std::size_t count=0; };
+  enum class Scheduled : unsigned char { none, timed, realtime_timed, high, normal, background, realtime };
   struct IOOperation {
     io::Channel channel;
     io::Interest interest = io::Interest::readable;
@@ -109,8 +119,9 @@ struct EventLoop::Impl {
     IOCompletion completion;
     std::variant<std::monostate, io::Read, io::Write> request;
     io::CancellationToken stop;
+    std::unique_ptr<std::stop_callback<std::function<void()>>> cancellation;
     std::optional<io::Result<void>> ready;
-    Clock::time_point retry_after{};
+    std::optional<std::chrono::milliseconds> polling_interval;
     bool probe = false;
     IOOperation() = default;
     IOOperation(IOOperation &&other) noexcept { swap(other); }
@@ -124,8 +135,9 @@ struct EventLoop::Impl {
       completion.swap(other.completion);
       request.swap(other.request);
       swap(stop, other.stop);
+      swap(cancellation, other.cancellation);
       ready.swap(other.ready);
-      swap(retry_after, other.retry_after);
+      swap(polling_interval, other.polling_interval);
       swap(probe, other.probe);
     }
     friend void swap(IOOperation &left, IOOperation &right) noexcept {
@@ -144,24 +156,31 @@ struct EventLoop::Impl {
           request);
     }
   };
-  struct Slot {
-    Task task;
+  struct RealtimeOperation final {
+    RealtimeSchedule schedule;
     SliceTask slice;
-    std::optional<RealtimeSchedule> realtime;
     Clock::time_point job_deadline{};
     Clock::duration spent{};
-    std::optional<IOOperation> io;
+  };
+  struct Slot {
+    Task task;
+    std::unique_ptr<RealtimeOperation> realtime;
+    std::unique_ptr<IOOperation> io;
     Clock::time_point deadline{};
     Clock::duration interval{};
     std::uint64_t generation = 0, sequence = 0;
+    Clock::time_point wake_at{};
     Priority priority = Priority::normal;
+    std::size_t io_position = 0;
     Status status = Status::free;
-    std::size_t active_position = 0;
-    bool cancelled = false;
+    Scheduled scheduled = Scheduled::none;
+    bool tracked_io = false;
+    bool cancelled = false, signaled_task = false, has_wake = false;
   };
   struct DispatchGuard {
     Impl &impl;
-    explicit DispatchGuard(Impl &value) : impl(value) {
+    const void* previous;
+    explicit DispatchGuard(Impl &value) : impl(value), previous(current_dispatch) {
       std::lock_guard lock(impl.mutex);
       if (impl.host && (impl.host->owner!=std::this_thread::get_id() ||
           impl.host->closing.load() || WakeInvocation::contains(impl.host.get())))
@@ -169,92 +188,206 @@ struct EventLoop::Impl {
       if (impl.dispatching.test_and_set())
         throw std::logic_error("EventLoop dispatch is already active "
                                "(recursive or concurrent pump)");
+      current_dispatch=&impl;
     }
-    ~DispatchGuard() { impl.dispatching.clear(); }
+    ~DispatchGuard() { current_dispatch=previous; impl.dispatching.clear(); }
   };
   explicit Impl(std::size_t capacity)
-      : slots(capacity), owner(TaskToken::next_owner()), reactor(capacity) {
+      : slots(std::min(capacity,std::size_t{64})), owner(TaskToken::next_owner()),
+        reactor(std::min(capacity,std::size_t{64})) {
     if (capacity == 0)
       throw std::invalid_argument("EventLoop capacity must be positive");
-    free.reserve(capacity);
-    active.reserve(capacity);
-    io_waits.reserve(capacity);
-    for (std::size_t i = capacity; i > 0; --i)
+    free.reserve(slots.size());
+    io_active.reserve(slots.size());
+    realtime_active.reserve(std::min(capacity,std::size_t{8}));
+    io_waits.reserve(slots.size());
+    reserve_indices(slots.size());
+    realtime_timed.reserve_slots(slots.size());
+    realtime_ready.reserve_slots(slots.size());
+    realtime_timed.reserve_entries(1);
+    realtime_ready.reserve_entries(1);
+    realtime_free.reserve(1);
+    realtime_free.push_back(std::make_unique<RealtimeOperation>());
+    for (std::size_t i = slots.size(); i > 0; --i)
       free.push_back(i - 1);
     statistics.capacity = capacity;
   }
-  void activate(std::size_t index) {
-    slots[index].active_position = active.size();
-    active.push_back(index);
+  bool ensure_free() {
+    if (!free.empty()) return true;
+    const auto old=slots.size();
+    if (old>=statistics.capacity) return false;
+    const auto additional=std::min(statistics.capacity-old,std::max(old,std::size_t{1}));
+    const auto target=old+additional;
+    // Reserve all storage needed to admit and later retire the new slots
+    // before exposing any of them. Deque growth keeps existing slots stable.
+    free.reserve(target);
+    reserve_indices(target);
+    slots.resize(target);
+    for (auto i=target;i>old;--i) free.push_back(i-1);
+    return true;
+  }
+  void reserve_indices(std::size_t count) {
+    timed.reserve_slots(count);
+    timed.reserve_entries(count);
+  }
+  template<class T> void reserve_pool(std::vector<T>& pool,std::size_t count) {
+    if (count<=pool.capacity()) return;
+    const auto current=pool.capacity();
+    const auto growth=std::min(statistics.capacity-current,std::max(std::size_t{1},current));
+    pool.reserve(std::max(count,current+growth));
+  }
+  void activate_io(std::size_t index) {
+    auto &slot = slots[index];
+    slot.io_position = io_active.size();
+    slot.tracked_io = true;
+    io_active.push_back(index);
+    ++io_revision;
+    ++io_probe_revision;
+  }
+  void activate_realtime(std::size_t index) {
+    realtime_active.push_back(index);
+  }
+  void unschedule(std::size_t index) noexcept {
+    auto& slot=slots[index];
+    switch(slot.scheduled) {
+      case Scheduled::timed: (void)timed.erase(index); break;
+      case Scheduled::realtime_timed: (void)realtime_timed.erase(index); break;
+      case Scheduled::high: (void)ready[0].erase(index); break;
+      case Scheduled::normal: (void)ready[1].erase(index); break;
+      case Scheduled::background: (void)ready[2].erase(index); break;
+      case Scheduled::realtime: (void)realtime_ready.erase(index); break;
+      case Scheduled::none: break;
+    }
+    slot.scheduled=Scheduled::none;
+  }
+  void schedule_ready(std::size_t index) {
+    auto& slot=slots[index];
+    unschedule(index);
+    const auto priority=static_cast<std::size_t>(slot.priority);
+    ready[priority].set(index,{Clock::time_point{},slot.sequence});
+    slot.scheduled=static_cast<Scheduled>(static_cast<unsigned>(Scheduled::high)+priority);
+  }
+  void schedule(std::size_t index) {
+    auto& slot=slots[index];
+    unschedule(index);
+    if (slot.status!=Status::queued) return;
+    if (slot.realtime && slot.realtime->schedule.on_demand && !slot.has_wake) return;
+    if (slot.signaled_task && !slot.has_wake) return;
+    auto when=slot.deadline;
+    if (slot.realtime && slot.realtime->schedule.on_demand) when=std::max(when,slot.wake_at);
+    if (slot.realtime) {
+      realtime_timed.set(index,{when,slot.sequence});
+      slot.scheduled=Scheduled::realtime_timed;
+      return;
+    }
+    if (slot.io) {
+      if (slot.io->ready) { schedule_ready(index); return; }
+      if (const auto retry=io_retries.find(index);
+          retry!=io_retries.end() && retry->second!=Clock::time_point::min())
+        when=std::min(when,retry->second);
+      if (when==Clock::time_point::max()) return;
+    }
+    timed.set(index,{when,slot.sequence});
+    slot.scheduled=Scheduled::timed;
   }
   void release(std::size_t index) {
     auto &slot = slots[index];
-    const bool was_realtime = slot.realtime.has_value();
-    const auto moved = active.back();
-    active[slot.active_position] = moved;
-    slots[moved].active_position = slot.active_position;
-    active.pop_back();
+    unschedule(index);
+    const bool was_realtime = bool(slot.realtime);
+    if (was_realtime) {
+      const auto position=std::find(realtime_active.begin(),realtime_active.end(),index);
+      if (position==realtime_active.end()) std::terminate();
+      *position=realtime_active.back();
+      realtime_active.pop_back();
+    }
+    if (slot.tracked_io) {
+      ++io_revision;
+      if (!io_retries.empty()) io_retries.erase(index);
+      const auto moved_io = io_active.back();
+      io_active[slot.io_position] = moved_io;
+      slots[moved_io].io_position = slot.io_position;
+      io_active.pop_back();
+      slot.tracked_io = false;
+    }
+    if (was_realtime) realtime_free.push_back(std::move(slot.realtime));
+    else --normal_pending[static_cast<std::size_t>(slot.priority)];
     slot.status = Status::free;
     slot.deadline = {};
     slot.interval = {};
     slot.sequence = 0;
     slot.priority = Priority::normal;
     slot.cancelled = false;
-    slot.realtime.reset();
-    slot.job_deadline = {};
-    slot.spent = {};
+    slot.signaled_task = false;
+    slot.has_wake=false;
     free.push_back(index);
     --statistics.pending;
+    if (!retirement_waiters.empty()) {
+      const auto waiter=retirement_waiters.find(index);
+      if (waiter!=retirement_waiters.end()) waiter->second->changed.notify_all();
+    }
     if (was_realtime)
       statistics.reserved_utilization = static_cast<double>(utilization());
   }
   long double utilization() const {
     long double total = 0;
-    for (const auto index : active) {
+    for (const auto index : realtime_active) {
       const auto &slot = slots[index];
       if (slot.status != Status::free && slot.realtime)
-        total += static_cast<long double>(slot.realtime->runtime.count()) /
-                 slot.realtime->period.count();
+        total += static_cast<long double>(slot.realtime->schedule.runtime.count()) /
+                 slot.realtime->schedule.period.count();
     }
     return total;
   }
   std::optional<Clock::time_point> deadline() const {
-    std::optional<Clock::time_point> next;
-    if (state != LoopState::ready)
-      return next;
-    const auto now = Clock::now();
-    for (const auto index : active) {
-      const auto &slot = slots[index];
-      if (slot.status != Status::queued)
-        continue;
-      auto candidate = slot.deadline;
-      if (slot.io) {
-        if (slot.io->ready)
-          candidate = now;
-        else if (slot.io->retry_after > now)
-          candidate = std::min(candidate, slot.io->retry_after);
-        else if (candidate == Clock::time_point::max())
-          continue;
-      }
-      if (!next || candidate < *next)
-        next = candidate;
-    }
-    return next;
+    if (state!=LoopState::ready) return std::nullopt;
+    if (realtime_ready.size() || ready[0].size() || ready[1].size() || ready[2].size())
+      return Clock::now();
+    const auto first=timed.front();
+    const auto realtime_first=realtime_timed.front();
+    if (first && realtime_first) return std::min(first->key.time,realtime_first->key.time);
+    if (first) return first->key.time;
+    if (realtime_first) return realtime_first->key.time;
+    return std::nullopt;
   }
-  void refresh_io(Clock::time_point now) {
-    for (const auto index : active) {
+  std::size_t refresh_io(Clock::time_point now) {
+    std::size_t became_ready = 0;
+    io_next_check.reset();
+    for (const auto index : io_active) {
+      ++statistics.io_candidates;
       auto &slot = slots[index];
       if (slot.status != Status::queued || !slot.io)
         continue;
       auto &operation = *slot.io;
+      const auto retry=io_retries.find(index);
+      const auto previous_retry=retry==io_retries.end() ? Clock::time_point::min() : retry->second;
+      const auto remember_next = [&] {
+        if (operation.ready) return;
+        auto candidate=slot.deadline;
+        if (retry!=io_retries.end() && retry->second!=Clock::time_point::min())
+          candidate=std::min(candidate,retry->second);
+        if (candidate!=Clock::time_point::max() && (!io_next_check || candidate<*io_next_check))
+          io_next_check=candidate;
+      };
       if (operation.stop.cancelled()) {
+        const bool newly_ready=!operation.ready;
+        if (newly_ready) ++became_ready;
         operation.ready =
             std::unexpected(io::Error{io::ErrorCode::cancelled, {}});
+        if (newly_ready) schedule(index);
         continue;
       }
-      if (operation.ready ||
-          (operation.retry_after > now && slot.deadline > now))
+      if (operation.ready)
         continue;
+      if (retry!=io_retries.end() && now < retry->second) {
+        if (slot.deadline <= now) {
+          operation.ready = std::unexpected(io::Error{io::ErrorCode::timed_out, {}});
+          ++became_ready;
+          schedule(index);
+        }
+        remember_next();
+        continue;
+      }
+      if (retry!=io_retries.end()) retry->second=Clock::time_point::min();
       auto ready = operation.empty_transfer()
                        ? io::Result<void>{}
                        : operation.channel.wait(operation.interest,
@@ -262,80 +395,135 @@ struct EventLoop::Impl {
       if (ready || (ready.error().code != io::ErrorCode::would_block &&
                     ready.error().code != io::ErrorCode::busy)) {
         operation.ready = std::move(ready);
+        ++became_ready;
+      } else if (!operation.probe && slot.deadline>now && !operation.polling_interval &&
+                 io::detail::needs_explicit_polling(operation.channel.capabilities())) {
+        const auto error=ready.error().code==io::ErrorCode::busy ? io::ErrorCode::busy : io::ErrorCode::unsupported;
+        operation.ready=std::unexpected(io::Error{error,ready.error().native});
+        ++became_ready;
       } else if (slot.deadline <= now) {
         const auto error =
             operation.probe ? ready.error().code : io::ErrorCode::timed_out;
         operation.ready =
             std::unexpected(io::Error{error, ready.error().native});
-      }
+        ++became_ready;
+      } else if (retry!=io_retries.end())
+        retry->second=add_saturated(now,*operation.polling_interval);
+      if (operation.ready || (retry!=io_retries.end() && retry->second!=previous_retry))
+        schedule(index);
+      remember_next();
+    }
+    io_probed_revision=io_probe_revision;
+    return became_ready;
+  }
+  void notify(bool io_change = false) {
+    if (!host) changed.notify_all();
+    if (io_change) {
+      ++io_revision;
+      if (host && host->monitor_io) io_changed.notify_all();
+    }
+    // A hosted loop's reactor belongs only to the I/O monitor; ordinary
+    // posts already signal the external host and must not interrupt it.
+    if (!host || (io_change && host->monitor_io)) reactor.wake();
+  }
+  void advance_realtime(std::size_t index,Clock::time_point now) {
+    auto& slot=slots[index];
+    if (now<slot.realtime->job_deadline) return;
+    const auto position=core::Time::period(slot.deadline,slot.realtime->schedule.period,now);
+    const bool expired=now>=core::Time::add(position.release,slot.realtime->schedule.deadline);
+    const auto missed=position.skipped+static_cast<std::uint64_t>(expired);
+    if (!slot.realtime->schedule.on_demand) {
+      statistics.deadline_misses+=missed;
+      statistics.skipped_releases+=missed;
+      statistics.max_lateness=std::max(statistics.max_lateness,
+                                       core::Time::elapsed(slot.realtime->job_deadline,now));
+    }
+    slot.deadline=expired ? position.next : position.release;
+    slot.realtime->job_deadline=core::Time::add(slot.deadline,slot.realtime->schedule.deadline);
+    slot.realtime->spent={};
+    slot.sequence=++sequence;
+  }
+  void promote_realtime(Clock::time_point now) {
+    while (const auto next=realtime_timed.front()) {
+      if (next->key.time>now) break;
+      const auto index=realtime_timed.take()->slot;
+      auto& slot=slots[index];
+      slot.scheduled=Scheduled::none;
+      advance_realtime(index,now);
+      if (slot.deadline<=now && now<slot.realtime->job_deadline &&
+          (!slot.realtime->schedule.on_demand || (slot.has_wake && slot.wake_at<=now))) {
+        realtime_ready.set(index,{slot.realtime->job_deadline,slot.sequence});
+        slot.scheduled=Scheduled::realtime;
+      } else schedule(index);
     }
   }
-  void notify() {
-    ++revision;
-    changed.notify_all();
-    reactor.wake();
+  void promote(Clock::time_point now) {
+    while (const auto next=timed.front()) {
+      if (next->key.time>now) break;
+      const auto index=next->slot;
+      auto& slot=slots[index];
+      if (slot.io) {
+        // A due I/O deadline/retry is resolved by its readiness contract.
+        refresh_io(now);
+        const auto remaining=timed.front();
+        if (remaining && remaining->slot==index && remaining->key.time<=now)
+          throw std::logic_error("due I/O readiness did not advance");
+        continue;
+      }
+      (void)timed.take();
+      slot.scheduled=Scheduled::none;
+      schedule_ready(index);
+    }
   }
   std::optional<std::size_t> select(Clock::time_point now) {
-    std::optional<std::size_t> realtime_choice;
-    for (const auto i : active) {
-      auto &slot = slots[i];
-      if (slot.status != Status::queued || !slot.realtime)
+    for (;;) {
+      promote_realtime(now);
+      const auto candidate=realtime_ready.front();
+      if (candidate && candidate->key.time<=now) {
+        const auto index=realtime_ready.take()->slot;
+        slots[index].scheduled=Scheduled::none;
+        advance_realtime(index,now);
+        schedule(index);
         continue;
-      if (now >= slot.job_deadline) {
-        const auto position =
-            core::Time::period(slot.deadline, slot.realtime->period, now);
-        const bool expired =
-            now >= core::Time::add(position.release, slot.realtime->deadline);
-        const auto missed =
-            position.skipped + static_cast<std::uint64_t>(expired);
-        statistics.deadline_misses += missed;
-        statistics.skipped_releases += missed;
-        statistics.max_lateness =
-            std::max(statistics.max_lateness,
-                     core::Time::elapsed(slot.job_deadline, now));
-        slot.deadline = expired ? position.next : position.release;
-        slot.job_deadline =
-            core::Time::add(slot.deadline, slot.realtime->deadline);
-        slot.spent = {};
-        slot.sequence = ++sequence;
       }
-      if (slot.deadline <= now && now < slot.job_deadline &&
-          (!realtime_choice ||
-           slot.job_deadline < slots[*realtime_choice].job_deadline ||
-           (slot.job_deadline == slots[*realtime_choice].job_deadline &&
-            slot.sequence < slots[*realtime_choice].sequence)))
-        realtime_choice = i;
+      if (candidate) {
+        const auto index=realtime_ready.take()->slot;
+        slots[index].scheduled=Scheduled::none;
+        return index;
+      }
+      promote(now);
+      const auto next_realtime=realtime_timed.front();
+      if (next_realtime) {
+        const auto current=Clock::now();
+        if (next_realtime->key.time<=current) { now=current; continue; }
+      }
+      break;
     }
-    if (realtime_choice)
-      return realtime_choice;
-    std::array<std::optional<std::size_t>, 3> ready;
-    for (const auto i : active) {
-      const auto &slot = slots[i];
-      if (slot.status != Status::queued || slot.realtime ||
-          !(slot.io ? bool(slot.io->ready) : slot.deadline <= now))
-        continue;
-      const auto bucket = static_cast<std::size_t>(slot.priority);
-      if (bucket >= ready.size())
-        continue; // Invalid enum values were never eligible for the priority wheel.
-      auto &candidate = ready[bucket];
-      if (!candidate || slot.sequence < slots[*candidate].sequence)
-        candidate = i;
-    }
-    for (std::size_t attempt = 0; attempt < wheel.size(); ++attempt) {
-      const auto priority = wheel[cursor];
-      cursor = (cursor + 1) % wheel.size();
-      const auto chosen = ready[static_cast<std::size_t>(priority)];
-      if (chosen)
-        return chosen;
+    for (std::size_t attempt=0;attempt<wheel.size();++attempt) {
+      const auto priority=static_cast<std::size_t>(wheel[cursor]);
+      cursor=(cursor+1)%wheel.size();
+      if (const auto candidate=ready[priority].take()) {
+        slots[candidate->slot].scheduled=Scheduled::none;
+        return candidate->slot;
+      }
     }
     return std::nullopt;
   }
   mutable std::mutex mutex;
   std::condition_variable changed;
+  std::condition_variable io_changed;
   std::atomic_flag dispatching = ATOMIC_FLAG_INIT;
-  std::vector<Slot> slots;
+  std::deque<Slot> slots;
   std::vector<std::size_t> free;
-  std::vector<std::size_t> active;
+  std::vector<std::size_t> io_active;
+  std::vector<std::size_t> realtime_active;
+  std::vector<std::unique_ptr<IOOperation>> io_free;
+  std::vector<std::unique_ptr<RealtimeOperation>> realtime_free;
+  std::array<std::size_t,3> normal_pending{};
+  detail::EventLoopIndex timed,realtime_timed,realtime_ready;
+  std::array<detail::EventLoopIndex,3> ready;
+  std::unordered_map<std::size_t,std::unique_ptr<RetirementWait>> retirement_waiters;
+  std::unordered_map<std::size_t,Clock::time_point> io_retries;
   const std::uint64_t owner;
   io::detail::ReadinessPoller reactor;
   std::vector<io::detail::WatchEntry> io_waits;
@@ -344,7 +532,9 @@ struct EventLoop::Impl {
   LoopState state = LoopState::ready;
   LoopStats statistics;
   std::shared_ptr<HostLoop::State> host;
-  std::uint64_t revision=0;
+  std::uint64_t io_revision=0, io_probe_revision=0;
+  std::uint64_t io_probed_revision=0;
+  std::optional<Clock::time_point> io_next_check;
 };
 
 void HostLoop::State::monitor(EventLoop::Impl& events) {
@@ -352,38 +542,34 @@ void HostLoop::State::monitor(EventLoop::Impl& events) {
     for (;;) {
       std::unique_lock lock(events.mutex);
       if (closing.load() || events.state==LoopState::stopped) return;
-      const auto revision=events.revision;
+      const auto revision=events.io_revision;
       bool became_ready=false;
       events.io_waits.clear();
       std::optional<Clock::time_point> next;
       if (events.state==LoopState::ready) {
-        std::size_t before=0,after=0;
-        for (const auto index:events.active) {
-          const auto& slot=events.slots[index];
-          if (slot.io && slot.io->ready) ++before;
-        }
         const auto now=Clock::now();
-        events.refresh_io(now);
-        for (const auto index:events.active) {
+        became_ready=events.refresh_io(now)>0;
+        for (const auto index:events.io_active) {
           const auto& slot=events.slots[index];
           if (slot.status!=EventLoop::Impl::Status::queued || !slot.io) continue;
-          if (slot.io->ready) { ++after; continue; }
-          events.io_waits.push_back({slot.io->channel,slot.io->interest});
+          if (slot.io->ready) continue;
+          events.io_waits.push_back({slot.io->channel,slot.io->interest,slot.io->polling_interval});
           auto deadline=slot.deadline;
-          if (slot.io->retry_after>now) deadline=std::min(deadline,slot.io->retry_after);
-          if (!next || deadline<*next) next=deadline;
+          if (const auto retry=events.io_retries.find(index);
+              retry!=events.io_retries.end() && retry->second!=Clock::time_point::min())
+            deadline=std::min(deadline,retry->second);
+          if (deadline!=Clock::time_point::max() && (!next || deadline<*next)) next=deadline;
         }
-        became_ready=after>before;
       }
       if (became_ready) {
         lock.unlock(); signal(); lock.lock();
         if (closing.load() || events.state==LoopState::stopped) return;
-        if (events.revision!=revision) continue;
+        if (events.io_revision!=revision) continue;
       }
       if (events.io_waits.empty()) {
-        events.changed.wait(lock,[&] { return closing.load() || events.state==LoopState::stopped || events.revision!=revision; });
+        events.io_changed.wait(lock,[&] { return closing.load() || events.state==LoopState::stopped || events.io_revision!=revision; });
       } else {
-        auto timeout=std::chrono::milliseconds(20);
+        auto timeout=std::chrono::milliseconds::max();
         if (next) timeout=std::clamp(std::chrono::ceil<std::chrono::milliseconds>(*next-Clock::now()),
             std::chrono::milliseconds(0),timeout);
         events.reactor.prepare(events.io_waits,timeout);
@@ -399,21 +585,29 @@ void HostLoop::State::monitor(EventLoop::Impl& events) {
   }
 }
 
+void HostLoop::State::start_monitor(EventLoop::Impl& events) {
+  if (waiter.joinable()) return;
+  const auto started=waiter.start([state=this,loop=&events](ThreadContext&) { state->monitor(*loop); });
+  if (!started)
+    throw std::runtime_error("HostLoop cannot start its native readiness waiter; disable monitor_io for a manually driven host");
+  std::lock_guard lock(mutex);
+  io_waiter_active=true;
+}
+
 std::shared_ptr<HostLoop::State> HostLoop::connect(EventLoop& loop,Task wake,HostLoopOptions options) {
   if (!wake) throw std::invalid_argument("HostLoop requires a wake callback");
   auto state=std::make_shared<State>();
-  state->loop=loop.impl_; state->wake=std::move(wake);
+  state->loop=loop.impl_; state->wake=std::move(wake); state->monitor_io=options.monitor_io;
   {
     std::lock_guard lock(loop.impl_->mutex);
     if (loop.impl_->host || loop.impl_->dispatching.test() || loop.impl_->state==LoopState::stopped)
       throw std::logic_error("HostLoop requires an idle, live, unbound EventLoop");
     loop.impl_->host=state;
-  }
-  if (options.monitor_io) {
-    auto started=state->waiter.start([state=state.get(),events=loop.impl_.get()](ThreadContext&) { state->monitor(*events); });
-    if (!started) {
-      (void)disconnect(state);
-      throw std::runtime_error("HostLoop cannot start its native readiness waiter; disable monitor_io for a manually driven host");
+    try {
+      if (options.monitor_io && !loop.impl_->io_active.empty()) state->start_monitor(*loop.impl_);
+    } catch (...) {
+      loop.impl_->host.reset();
+      throw;
     }
   }
   state->registered=true; ++external_hosts;
@@ -432,7 +626,7 @@ core::Result<void> HostLoop::disconnect(std::shared_ptr<State> state) {
     std::lock_guard lock(events->mutex);
     if (events->dispatching.test()) return core::fail(core::ErrorCode::busy,"HostLoop cannot detach during dispatch");
     state->closing.store(true);
-    events->notify();
+    events->notify(true);
   } else state->closing.store(true);
   Task retired;
   {
@@ -442,6 +636,7 @@ core::Result<void> HostLoop::disconnect(std::shared_ptr<State> state) {
     state->statistics.connected=false;
   }
   const auto joined=state->waiter.join();
+  { std::lock_guard lock(state->mutex); state->io_waiter_active=false; }
   if (state->registered) { state->registered=false; --external_hosts; }
   if (events) {
     std::lock_guard lock(events->mutex);
@@ -462,6 +657,7 @@ HostLoop::~HostLoop() {
 }
 core::Result<void> HostLoop::close() { return disconnect(state_); }
 HostLoopStats HostLoop::stats() const { std::lock_guard lock(state_->mutex); return state_->statistics; }
+bool HostLoop::io_waiter_active() const { std::lock_guard lock(state_->mutex); return state_->io_waiter_active; }
 bool HostLoop::is_current_thread() noexcept { return external_hosts!=0; }
 
 EventLoop::EventLoop(std::size_t capacity)
@@ -476,7 +672,7 @@ EventLoop::~EventLoop() {
 
 Submission EventLoop::submit(const std::shared_ptr<Impl>& impl_,Clock::time_point deadline,
                              Clock::duration interval, Task task,
-                             Priority priority) {
+                             Priority priority, bool signaled_task) {
   std::unique_lock lock(impl_->mutex);
   auto reject = [&](SubmitError error) {
     ++impl_->statistics.rejected;
@@ -489,11 +685,13 @@ Submission EventLoop::submit(const std::shared_ptr<Impl>& impl_,Clock::time_poin
     return reject(SubmitError::invalid);
   if (impl_->state == LoopState::stopped)
     return reject(SubmitError::stopped);
-  if (impl_->free.empty())
+  if (!impl_->ensure_free())
     return reject(SubmitError::full);
+  const auto priority_index=static_cast<std::size_t>(priority);
+  impl_->ready[priority_index].reserve_slots(impl_->slots.size());
+  impl_->ready[priority_index].reserve_entries(impl_->normal_pending[priority_index]+1);
   const auto index = impl_->free.back();
   impl_->free.pop_back();
-  impl_->activate(index);
   auto &slot = impl_->slots[index];
   slot.task.swap(task);
   slot.deadline = deadline;
@@ -502,7 +700,10 @@ Submission EventLoop::submit(const std::shared_ptr<Impl>& impl_,Clock::time_poin
   slot.sequence = ++impl_->sequence;
   ++slot.generation;
   slot.cancelled = false;
+  slot.signaled_task = signaled_task;
   slot.status = Impl::Status::queued;
+  ++impl_->normal_pending[priority_index];
+  impl_->schedule(index);
   ++impl_->statistics.submitted;
   ++impl_->statistics.pending;
   impl_->statistics.high_watermark =
@@ -514,8 +715,9 @@ Submission EventLoop::submit(const std::shared_ptr<Impl>& impl_,Clock::time_poin
   token.executor_ = impl_;
   token.cancel_ = &EventLoop::cancel_impl;
   token.pending_ = &EventLoop::pending_impl;
-  impl_->notify();
-  auto host=impl_->host; lock.unlock(); if (host) host->signal();
+  token.wait_ = &EventLoop::wait_impl;
+  if (!signaled_task) impl_->notify();
+  auto host=impl_->host; lock.unlock(); if (host && !signaled_task) host->signal();
   return {token, SubmitError::none};
 }
 
@@ -550,6 +752,9 @@ Submission EventLoop::submit_every(const std::shared_ptr<Impl>& impl_,Clock::dur
 Submission EventLoop::realtime(RealtimeSchedule schedule, SliceTask task) {
   return submit_realtime(impl_,std::move(schedule),std::move(task));
 }
+Submission EventLoop::on_signal(Task task,Priority priority) {
+  return submit(impl_,Clock::time_point::max(),{},std::move(task),priority,true);
+}
 Submission EventLoop::submit_realtime(const std::shared_ptr<Impl>& impl_,RealtimeSchedule schedule,SliceTask task) {
   std::unique_lock lock(impl_->mutex);
   auto reject = [&](SubmitError error) {
@@ -566,26 +771,45 @@ Submission EventLoop::submit_realtime(const std::shared_ptr<Impl>& impl_,Realtim
     return reject(SubmitError::invalid);
   if (impl_->state == LoopState::stopped)
     return reject(SubmitError::stopped);
-  if (impl_->free.empty())
+  if (!impl_->ensure_free())
     return reject(SubmitError::full);
   const auto utilization = impl_->utilization() +
                            static_cast<long double>(schedule.runtime.count()) /
                                schedule.period.count();
   if (utilization > 1.0L)
     return reject(SubmitError::overloaded);
+  impl_->realtime_timed.reserve_slots(impl_->slots.size());
+  impl_->realtime_ready.reserve_slots(impl_->slots.size());
+  impl_->realtime_timed.reserve_entries(impl_->realtime_active.size()+1);
+  impl_->realtime_ready.reserve_entries(impl_->realtime_active.size()+1);
+  if (impl_->realtime_active.size()==impl_->realtime_active.capacity()) {
+    const auto count=impl_->realtime_active.size();
+    const auto extra=std::min(impl_->slots.size()-count,std::max(std::size_t{1},count));
+    impl_->realtime_active.reserve(count+extra);
+  }
+  std::unique_ptr<Impl::RealtimeOperation> operation;
+  if (impl_->realtime_free.empty()) {
+    impl_->reserve_pool(impl_->realtime_free,impl_->realtime_active.size()+1);
+    operation=std::make_unique<Impl::RealtimeOperation>();
+  } else {
+    operation=std::move(impl_->realtime_free.back());
+    impl_->realtime_free.pop_back();
+  }
   const auto index = impl_->free.back();
   impl_->free.pop_back();
-  impl_->activate(index);
   auto &slot = impl_->slots[index];
-  slot.slice.swap(task);
-  slot.realtime = schedule;
+  operation->schedule=schedule;
+  operation->slice.swap(task);
+  slot.realtime=std::move(operation);
+  impl_->activate_realtime(index);
   slot.deadline = schedule.start.value_or(Clock::now());
-  slot.job_deadline = core::Time::add(slot.deadline, schedule.deadline);
-  slot.spent = {};
+  slot.realtime->job_deadline = core::Time::add(slot.deadline, schedule.deadline);
+  slot.realtime->spent = {};
   slot.sequence = ++impl_->sequence;
   ++slot.generation;
   slot.cancelled = false;
   slot.status = Impl::Status::queued;
+  impl_->schedule(index);
   ++impl_->statistics.submitted;
   ++impl_->statistics.pending;
   impl_->statistics.high_watermark =
@@ -598,8 +822,9 @@ Submission EventLoop::submit_realtime(const std::shared_ptr<Impl>& impl_,Realtim
   token.executor_ = impl_;
   token.cancel_ = &EventLoop::cancel_impl;
   token.pending_ = &EventLoop::pending_impl;
-  impl_->notify();
-  auto host=impl_->host; lock.unlock(); if (host) host->signal();
+  token.wait_ = &EventLoop::wait_impl;
+  if (!schedule.on_demand) impl_->notify();
+  auto host=impl_->host; lock.unlock(); if (host && !schedule.on_demand) host->signal();
   return {token, SubmitError::none};
 }
 
@@ -608,6 +833,29 @@ EventLoop::submit_io(const std::shared_ptr<Impl>& impl_,io::Channel channel, io:
                      IOCompletion completion,
                      std::variant<std::monostate, io::Read, io::Write> request,
                      IOWatchOptions options) {
+  // Register before taking the loop lock: an already-cancelled token invokes
+  // its callback synchronously. The callback can then safely notify the host.
+  std::unique_ptr<std::stop_callback<std::function<void()>>> cancellation;
+  if (options.stop.native_token().stop_possible()) {
+    const std::weak_ptr<Impl> weak=impl_;
+    cancellation=std::make_unique<std::stop_callback<std::function<void()>>>(
+        options.stop.native_token(),[weak] {
+          if (const auto state=weak.lock()) {
+            std::shared_ptr<HostLoop::State> host;
+            {
+              std::lock_guard guard(state->mutex);
+              host=state->host;
+              state->notify(true);
+              ++state->io_probe_revision;
+              state->reactor.wake_persistent();
+              // Prevent a new readiness epoch while the old native leases
+              // retire; manually driven hosts have no outstanding epoch.
+              if (host) state->reactor.synchronize();
+            }
+            if (host) host->signal();
+          }
+        });
+  }
   std::unique_lock lock(impl_->mutex);
   auto reject = [&](SubmitError error) {
     ++impl_->statistics.rejected;
@@ -628,23 +876,42 @@ EventLoop::submit_io(const std::shared_ptr<Impl>& impl_,io::Channel channel, io:
        options.priority != Priority::normal &&
        options.priority != Priority::background) ||
       (options.timeout && *options.timeout < Clock::duration::zero()) ||
+      !io::detail::valid_polling_interval(options.polling_interval) ||
       !valid_request || (request.index() == 0 ? !ready : !completion))
     return reject(SubmitError::invalid);
   if (impl_->state == LoopState::stopped)
     return reject(SubmitError::stopped);
-  if (impl_->free.empty())
+  if (!impl_->ensure_free())
     return reject(SubmitError::full);
+  if (impl_->host && impl_->host->monitor_io) impl_->host->start_monitor(*impl_);
+  const auto priority_index=static_cast<std::size_t>(options.priority);
+  impl_->ready[priority_index].reserve_slots(impl_->slots.size());
+  impl_->ready[priority_index].reserve_entries(impl_->normal_pending[priority_index]+1);
+  impl_->reserve_pool(impl_->io_active,impl_->io_active.size()+1);
+  std::unique_ptr<Impl::IOOperation> payload;
+  if (impl_->io_free.empty()) {
+    impl_->reserve_pool(impl_->io_free,impl_->io_active.size()+1);
+    payload=std::make_unique<Impl::IOOperation>();
+  } else {
+    payload=std::move(impl_->io_free.back());
+    impl_->io_free.pop_back();
+  }
   const auto index = impl_->free.back();
+  if (options.polling_interval && io::detail::needs_explicit_polling(channel.capabilities()))
+    impl_->io_retries.emplace(index,Clock::time_point::min());
   impl_->free.pop_back();
-  impl_->activate(index);
   auto &slot = impl_->slots[index];
-  auto &operation = slot.io.emplace();
+  slot.io=std::move(payload);
+  auto &operation=*slot.io;
+  impl_->activate_io(index);
   operation.channel = std::move(channel);
   operation.interest = interest;
   operation.ready_callback.swap(ready);
   operation.completion.swap(completion);
   operation.request = std::move(request);
   operation.stop = std::move(options.stop);
+  operation.polling_interval = options.polling_interval;
+  operation.cancellation=std::move(cancellation);
   operation.probe =
       options.timeout && *options.timeout == Clock::duration::zero();
   slot.deadline = options.timeout
@@ -655,6 +922,8 @@ EventLoop::submit_io(const std::shared_ptr<Impl>& impl_,io::Channel channel, io:
   ++slot.generation;
   slot.cancelled = false;
   slot.status = Impl::Status::queued;
+  ++impl_->normal_pending[priority_index];
+  impl_->schedule(index);
   ++impl_->statistics.submitted;
   ++impl_->statistics.pending;
   impl_->statistics.high_watermark =
@@ -666,7 +935,8 @@ EventLoop::submit_io(const std::shared_ptr<Impl>& impl_,io::Channel channel, io:
   token.executor_ = impl_;
   token.cancel_ = &EventLoop::cancel_impl;
   token.pending_ = &EventLoop::pending_impl;
-  impl_->notify();
+  token.wait_ = &EventLoop::wait_impl;
+  impl_->notify(true);
   auto host=impl_->host; lock.unlock(); if (host) host->signal();
   return {token, SubmitError::none};
 }
@@ -678,7 +948,7 @@ Submission EventLoop::watch(io::Channel channel, io::Interest interest,
 Submission EventLoop::read(io::Channel channel, io::Read request,
                            IOCompletion completion, Priority priority) {
   IOWatchOptions options{transfer_timeout(request.timeout), request.stop,
-                         priority};
+                         priority, request.polling_interval};
   return submit_io(impl_,std::move(channel), io::Interest::readable, {},
                    std::move(completion), std::move(request),
                    std::move(options));
@@ -686,7 +956,7 @@ Submission EventLoop::read(io::Channel channel, io::Read request,
 Submission EventLoop::write(io::Channel channel, io::Write request,
                             IOCompletion completion, Priority priority) {
   IOWatchOptions options{transfer_timeout(request.timeout), request.stop,
-                         priority};
+                         priority, request.polling_interval};
   return submit_io(impl_,std::move(channel), io::Interest::writable, {},
                    std::move(completion), std::move(request),
                    std::move(options));
@@ -715,18 +985,30 @@ Submission EventLoop::Sender::realtime(RealtimeSchedule schedule,SliceTask task)
   const auto state=state_.lock();
   return state ? EventLoop::submit_realtime(state,std::move(schedule),std::move(task)) : Submission{{},SubmitError::stopped};
 }
+bool EventLoop::Sender::wake_realtime(TaskToken token,Clock::time_point when) const {
+  const auto state=state_.lock();
+  return state && EventLoop::wake_realtime_impl(state,token,when);
+}
+Submission EventLoop::Sender::on_signal(Task task,Priority priority) const {
+  const auto state=state_.lock();
+  return state ? EventLoop::submit(state,Clock::time_point::max(),{},std::move(task),priority,true) : Submission{{},SubmitError::stopped};
+}
+bool EventLoop::Sender::signal(TaskToken token,Clock::time_point when) const {
+  const auto state=state_.lock();
+  return state && EventLoop::signal_impl(state,token,when);
+}
 Submission EventLoop::Sender::watch(io::Channel channel,io::Interest interest,IOReady ready,IOWatchOptions options) const {
   const auto state=state_.lock();
   return state ? EventLoop::submit_io(state,std::move(channel),interest,std::move(ready),{},std::monostate{},std::move(options)) : Submission{{},SubmitError::stopped};
 }
 Submission EventLoop::Sender::read(io::Channel channel,io::Read request,IOCompletion completion,Priority priority) const {
   const auto state=state_.lock();
-  IOWatchOptions options{transfer_timeout(request.timeout),request.stop,priority};
+  IOWatchOptions options{transfer_timeout(request.timeout),request.stop,priority,request.polling_interval};
   return state ? EventLoop::submit_io(state,std::move(channel),io::Interest::readable,{},std::move(completion),std::move(request),std::move(options)) : Submission{{},SubmitError::stopped};
 }
 Submission EventLoop::Sender::write(io::Channel channel,io::Write request,IOCompletion completion,Priority priority) const {
   const auto state=state_.lock();
-  IOWatchOptions options{transfer_timeout(request.timeout),request.stop,priority};
+  IOWatchOptions options{transfer_timeout(request.timeout),request.stop,priority,request.polling_interval};
   return state ? EventLoop::submit_io(state,std::move(channel),io::Interest::writable,{},std::move(completion),std::move(request),std::move(options)) : Submission{{},SubmitError::stopped};
 }
 bool EventLoop::Sender::cancel(TaskToken token) const {
@@ -739,11 +1021,67 @@ bool EventLoop::pending_impl(void *owner, const TaskToken &token) {
          impl.slots[token.slot_].generation == token.generation_ &&
          impl.slots[token.slot_].status != Impl::Status::free;
 }
+bool EventLoop::wait_impl(void* owner,const TaskToken& token) {
+  auto& impl=*static_cast<Impl*>(owner);
+  std::unique_lock lock(impl.mutex);
+  const auto retired=[&] {
+    return token.owner_!=impl.owner || token.slot_>=impl.slots.size() ||
+      impl.slots[token.slot_].generation!=token.generation_ ||
+      impl.slots[token.slot_].status==Impl::Status::free;
+  };
+  if(retired()) return true;
+  if(current_dispatch==&impl || HostLoop::is_current_thread()) return false;
+#if defined(__EMSCRIPTEN__)
+  if(emscripten_is_main_browser_thread()) return false;
+#endif
+  auto found=impl.retirement_waiters.find(token.slot_);
+  if (found==impl.retirement_waiters.end()) {
+    auto state=std::make_unique<Impl::RetirementWait>();
+    found=impl.retirement_waiters.emplace(token.slot_,std::move(state)).first;
+  }
+  auto& state=*found->second;
+  ++state.count;
+  struct Waiter final {
+    Impl& impl; std::size_t index; Impl::RetirementWait& state;
+    ~Waiter() { if (--state.count==0) impl.retirement_waiters.erase(index); }
+  } waiter{impl,token.slot_,state};
+  state.changed.wait(lock,retired);
+  return true;
+}
+bool EventLoop::wake_realtime_impl(const std::shared_ptr<Impl>& impl,TaskToken token,Clock::time_point when) {
+  std::unique_lock lock(impl->mutex);
+  if(token.owner_!=impl->owner || token.slot_>=impl->slots.size()) return false;
+  auto& slot=impl->slots[token.slot_];
+  if(impl->state==LoopState::stopped || slot.generation!=token.generation_ || slot.cancelled ||
+     (slot.status!=Impl::Status::queued && slot.status!=Impl::Status::executing) ||
+     !slot.realtime || !slot.realtime->schedule.on_demand) return false;
+  if(slot.has_wake && slot.wake_at<=when) return true;
+  slot.wake_at=when;
+  slot.has_wake=true;
+  if(slot.status==Impl::Status::queued) impl->schedule(token.slot_);
+  impl->notify();
+  auto host=impl->host; lock.unlock(); if(host) host->signal();
+  return true;
+}
+bool EventLoop::signal_impl(const std::shared_ptr<Impl>& impl,TaskToken token,Clock::time_point when) {
+  std::unique_lock lock(impl->mutex);
+  if(token.owner_!=impl->owner || token.slot_>=impl->slots.size()) return false;
+  auto& slot=impl->slots[token.slot_];
+  if(impl->state==LoopState::stopped || slot.generation!=token.generation_ || slot.cancelled || !slot.signaled_task ||
+     (slot.status!=Impl::Status::queued && slot.status!=Impl::Status::executing)) return false;
+  if(slot.has_wake && slot.wake_at<=when) return true;
+  slot.wake_at=when;
+  slot.has_wake=true;
+  if(slot.status==Impl::Status::queued) { slot.deadline=slot.wake_at; impl->schedule(token.slot_); }
+  impl->notify();
+  auto host=impl->host; lock.unlock(); if(host) host->signal();
+  return true;
+}
 bool EventLoop::cancel_impl(void *owner, const TaskToken &token) {
   auto &impl = *static_cast<Impl *>(owner);
   Task retired;
   SliceTask retired_slice;
-  std::optional<Impl::IOOperation> retired_io;
+  std::unique_ptr<Impl::IOOperation> retired_io;
   bool queued = false;
   std::shared_ptr<HostLoop::State> host;
   {
@@ -755,16 +1093,19 @@ bool EventLoop::cancel_impl(void *owner, const TaskToken &token) {
         slot.status == Impl::Status::free ||
         slot.status == Impl::Status::retiring || slot.cancelled)
       return false;
+    const bool was_io=slot.tracked_io;
     slot.cancelled = true;
+    impl.unschedule(token.slot_);
+    if (slot.tracked_io) ++impl.io_probe_revision;
     ++impl.statistics.cancelled;
     if (slot.status == Impl::Status::queued) {
       retired.swap(slot.task);
-      retired_slice.swap(slot.slice);
+      if (slot.realtime) retired_slice.swap(slot.realtime->slice);
       retired_io.swap(slot.io);
       slot.status = Impl::Status::retiring;
       queued = true;
     }
-    impl.notify();
+    impl.notify(was_io);
     host=impl.host;
   }
   if (retired_io)
@@ -772,11 +1113,11 @@ bool EventLoop::cancel_impl(void *owner, const TaskToken &token) {
   retired =
       nullptr; // finish resource destruction before exposing the free slot
   retired_slice = nullptr;
-  retired_io.reset();
+  if (retired_io) { Impl::IOOperation released; retired_io->swap(released); }
   if (queued) {
     std::lock_guard lock(impl.mutex);
+    if (retired_io) impl.io_free.push_back(std::move(retired_io));
     impl.release(token.slot_);
-    impl.changed.notify_all();
   }
   if (host) host->signal();
   return true;
@@ -785,41 +1126,58 @@ bool EventLoop::cancel_impl(void *owner, const TaskToken &token) {
 std::size_t EventLoop::dispatch(PumpBudget budget) {
   const auto end = add_saturated(Clock::now(), budget.max_time);
   std::size_t executed = 0, attempts = 0;
-  while (attempts < budget.max_callbacks && Clock::now() < end) {
+  bool manually_checked_io=false;
+  // A positive budget permits one callback even if bookkeeping consumed its
+  // entire duration; otherwise a due task can spin without ever starting.
+  while (attempts < budget.max_callbacks &&
+         ((attempts == 0 && budget.max_time > Clock::duration::zero()) || Clock::now() < end)) {
     Task task;
     SliceTask slice;
     std::optional<RealtimeSchedule> realtime;
     core::TimeSlice window;
-    std::optional<Impl::IOOperation> operation;
+    std::unique_ptr<Impl::IOOperation> operation;
     Clock::time_point deadline;
     std::size_t index;
     {
       std::lock_guard lock(impl_->mutex);
       if (impl_->state != LoopState::ready)
         break;
-      impl_->refresh_io(Clock::now());
-      const auto chosen = impl_->select(Clock::now());
+      const auto now=Clock::now();
+      const bool monitored=impl_->host && impl_->host->monitor_io;
+      if ((!monitored && !manually_checked_io) ||
+          impl_->io_probed_revision!=impl_->io_probe_revision ||
+          (impl_->io_next_check && now>=*impl_->io_next_check)) {
+        impl_->refresh_io(now);
+      }
+      manually_checked_io=true;
+      const auto chosen=impl_->select(Clock::now());
       if (!chosen)
         break;
       index = *chosen;
       auto &slot = impl_->slots[index];
       slot.status = Impl::Status::executing;
+      if ((slot.realtime && slot.realtime->schedule.on_demand) || slot.signaled_task) slot.has_wake=false;
       // std::function's moved-from state is unspecified: swap with an
       // empty function so reused slots never retain callback captures.
       task.swap(slot.task);
-      slice.swap(slot.slice);
-      realtime = slot.realtime;
+      if (slot.realtime) {
+        slice.swap(slot.realtime->slice);
+        realtime=slot.realtime->schedule;
+      }
       if (realtime) {
         const auto start = Clock::now();
-        const auto remaining = realtime->runtime - slot.spent;
+        const auto remaining = realtime->runtime - slot.realtime->spent;
+        const auto pump_end = attempts == 0 && end <= start
+            ? core::Time::add(start,std::min(remaining,realtime->quantum)) : end;
         window = {
-            slot.deadline, slot.job_deadline, start,
-            std::min({end, slot.job_deadline,
+            slot.deadline, slot.realtime->job_deadline, start,
+            std::min({pump_end, slot.realtime->job_deadline,
                       core::Time::add(start,
                                       std::min(remaining, realtime->quantum))}),
             remaining};
       }
       operation.swap(slot.io);
+      if (operation) ++impl_->io_revision;
       deadline = slot.deadline;
     }
     ++attempts;
@@ -857,16 +1215,23 @@ std::size_t EventLoop::dispatch(PumpBudget budget) {
             (reply.error().code == io::ErrorCode::would_block ||
              reply.error().code == io::ErrorCode::busy)) {
           const auto now = Clock::now();
-          if (now < deadline) {
+          if (now < deadline && !operation->polling_interval &&
+              io::detail::needs_explicit_polling(operation->channel.capabilities())) {
+            if(reply.error().code==io::ErrorCode::would_block)
+              reply=std::unexpected(io::Error{io::ErrorCode::unsupported,reply.error().native});
+          } else if (now < deadline) {
             std::lock_guard lock(impl_->mutex);
             auto &slot = impl_->slots[index];
             if (!slot.cancelled && impl_->state != LoopState::stopped) {
               operation->ready.reset();
-              operation->retry_after =
-                  add_saturated(now, std::chrono::milliseconds(1));
+              if (const auto retry=impl_->io_retries.find(index); retry!=impl_->io_retries.end())
+                retry->second=add_saturated(now,*operation->polling_interval);
               slot.io.swap(operation);
               slot.sequence = ++impl_->sequence;
               slot.status = Impl::Status::queued;
+              impl_->schedule(index);
+              ++impl_->io_revision;
+              ++impl_->io_probe_revision;
               retried = true;
             }
           } else
@@ -888,7 +1253,7 @@ std::size_t EventLoop::dispatch(PumpBudget budget) {
       if (realtime) {
         const auto finished = Clock::now();
         const auto elapsed = core::Time::elapsed(window.started, finished);
-        slot.spent = core::Time::add(Clock::time_point(slot.spent), elapsed)
+        slot.realtime->spent = core::Time::add(Clock::time_point(slot.realtime->spent), elapsed)
                          .time_since_epoch();
         ++impl_->statistics.slices;
         if (finished > window.ends)
@@ -903,23 +1268,31 @@ std::size_t EventLoop::dispatch(PumpBudget budget) {
         }
         if (!failure && !slot.cancelled && result != SliceResult::stop &&
             impl_->state != LoopState::stopped) {
-          if (result != SliceResult::yield || slot.spent >= realtime->runtime ||
+          if ((!realtime->on_demand && result != SliceResult::yield) || slot.realtime->spent >= realtime->runtime ||
               finished >= window.deadline) {
-            if (result == SliceResult::yield && slot.spent >= realtime->runtime)
+            if (result == SliceResult::yield && slot.realtime->spent >= realtime->runtime)
               ++impl_->statistics.budget_exhaustions;
             const auto position =
                 core::Time::period(slot.deadline, realtime->period, finished);
             impl_->statistics.skipped_releases += position.skipped;
             slot.deadline = position.next;
-            slot.job_deadline =
+            slot.realtime->job_deadline =
                 core::Time::add(slot.deadline, realtime->deadline);
-            slot.spent = {};
+            slot.realtime->spent = {};
           }
-          slot.slice.swap(slice);
+          if (realtime->on_demand && result==SliceResult::yield &&
+              (!slot.has_wake || finished<slot.wake_at)) { slot.wake_at=finished; slot.has_wake=true; }
+          slot.realtime->slice.swap(slice);
           slot.sequence = ++impl_->sequence;
           slot.status = Impl::Status::queued;
         } else
           slot.status = Impl::Status::retiring;
+      } else if (!failure && !slot.cancelled && slot.signaled_task &&
+                 impl_->state != LoopState::stopped) {
+        slot.deadline=slot.has_wake ? slot.wake_at : Clock::time_point::max();
+        slot.task.swap(task);
+        slot.sequence=++impl_->sequence;
+        slot.status=Impl::Status::queued;
       } else if (!failure && !slot.cancelled &&
                  slot.interval > Clock::duration::zero() &&
                  impl_->state != LoopState::stopped) {
@@ -934,13 +1307,15 @@ std::size_t EventLoop::dispatch(PumpBudget budget) {
       } else {
         slot.status = Impl::Status::retiring;
       }
+      if (slot.status==Impl::Status::queued) impl_->schedule(index);
     }
     // Non-periodic captures must retire before their slot can be reused.
     if (task || slice || operation) {
       task = nullptr;
       slice = nullptr;
-      operation.reset();
+      if (operation) { Impl::IOOperation released; operation->swap(released); }
       std::lock_guard lock(impl_->mutex);
+      if (operation) impl_->io_free.push_back(std::move(operation));
       impl_->release(index);
     }
     ++executed;
@@ -954,12 +1329,14 @@ std::size_t EventLoop::poll(PumpBudget budget) {
   validate_budget(budget);
   Impl::DispatchGuard guard(*impl_);
   std::shared_ptr<HostLoop::State> host;
-  { std::lock_guard lock(impl_->mutex); host=impl_->host; }
+  std::uint64_t io_revision;
+  { std::lock_guard lock(impl_->mutex); host=impl_->host; io_revision=impl_->io_revision; }
   if (host) host->acknowledge();
   struct Changed final {
     Impl& state;
-    ~Changed() { std::lock_guard lock(state.mutex); state.notify(); }
-  } changed{*impl_};
+    std::uint64_t io_revision;
+    ~Changed() { std::lock_guard lock(state.mutex); if (state.io_revision!=io_revision) state.notify(true); }
+  } changed{*impl_,io_revision};
   return dispatch(budget);
 }
 
@@ -992,14 +1369,14 @@ void EventLoop::run(PumpBudget budget) {
       continue;
     impl_->io_waits.clear();
     if (impl_->state == LoopState::ready) {
-      for (const auto index : impl_->active) {
+      for (const auto index : impl_->io_active) {
         const auto &slot = impl_->slots[index];
         if (slot.status == Impl::Status::queued && slot.io && !slot.io->ready)
-          impl_->io_waits.push_back({slot.io->channel, slot.io->interest});
+          impl_->io_waits.push_back({slot.io->channel, slot.io->interest, slot.io->polling_interval});
       }
     }
     if (!impl_->io_waits.empty()) {
-      auto timeout = std::chrono::milliseconds(20);
+      auto timeout = std::chrono::milliseconds::max();
       if (next)
         timeout = std::min(
             timeout,
@@ -1021,24 +1398,25 @@ void EventLoop::run(PumpBudget budget) {
 
 void EventLoop::suspend() {
   std::unique_lock lock(impl_->mutex);
-  if (impl_->state == LoopState::ready)
-    impl_->state = LoopState::suspended;
-  impl_->notify();
+  if (impl_->state != LoopState::ready) return;
+  impl_->state = LoopState::suspended;
+  impl_->notify(true);
   auto host=impl_->host; lock.unlock(); if (host) host->signal();
 }
 void EventLoop::resume() {
   std::unique_lock lock(impl_->mutex);
-  if (impl_->state == LoopState::suspended)
-    impl_->state = LoopState::ready;
-  impl_->notify();
+  if (impl_->state != LoopState::suspended) return;
+  impl_->state = LoopState::ready;
+  impl_->notify(true);
   auto host=impl_->host; lock.unlock(); if (host) host->signal();
 }
 void EventLoop::request_stop() {
   std::shared_ptr<HostLoop::State> host;
   {
     std::lock_guard lock(impl_->mutex);
+    if (impl_->state == LoopState::stopped) return;
     impl_->state = LoopState::stopped;
-    impl_->notify();
+    impl_->notify(true);
     host=impl_->host;
   }
   for (std::size_t i = 0; i < impl_->slots.size(); ++i) {

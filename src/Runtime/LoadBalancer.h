@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Runtime.h"
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
@@ -106,15 +107,20 @@ public:
     ThreadResult remove_target(LoadTarget target,ShutdownMode mode=ShutdownMode::cancel_pending);
     void request_stop(); // stop admission; retain accepted work for draining
     ThreadResult wait_idle() const;
+    // Wait for one target's in-flight work and reservations to retire.
+    ThreadResult wait_idle(LoadTarget target) const;
     ThreadResult close(ShutdownMode mode=ShutdownMode::cancel_pending);
     LoadBalancerStats stats() const;
     std::optional<LoadTargetStats> target_stats(LoadTarget target) const;
 
 private:
     friend class LoadLease;
+    friend class ComputeRouter;
     struct Impl;
     struct Target;
     struct Ticket;
+    std::shared_ptr<const std::atomic<std::uint64_t>> target_revision(LoadTarget) const;
+    std::optional<std::pair<LoadTargetStats,std::uint64_t>> versioned_target_stats(LoadTarget) const;
     std::shared_ptr<Impl> impl_;
     using SubmitFunction=std::function<Submission(Task,Priority)>;
     std::expected<LoadTarget,SubmitError> add_target_erased(SubmitFunction submit,LoadTargetOptions options);

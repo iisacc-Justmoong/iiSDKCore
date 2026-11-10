@@ -16,6 +16,10 @@ loop.cancel(ticket);
 
 `-DIISDKCORE_EMBEDDED_ONLY=ON`은 이 구성만 빌드·설치한다. `find_package(iiSDKCore CONFIG REQUIRED COMPONENTS Embedded)`와 `iiSDKCore::Embedded`로 소비한다. 일반 구성에도 독립 타겟을 설치한다. 작은 구성에서 Runtime·Values·Contracts가 있다고 표시하지 않는다. 기존 Runtime의 멀티스레드 계약은 그대로 유지한다. 제한된 MCU에 기존 데스크탑 런타임을 자동으로 넣지 않는다.
 
+일반 OS 빌드에서는 `BUILD_SHARED_LIBS` 설정에 따라 Embedded 대상도 공유
+라이브러리로 제공한다. 베어메탈 전용 구성은 동적 로더가 없으므로 정적
+아카이브로 유지한다.
+
 두 구성 모두 원본과 선택한 실제 번역 단위의 전처리 결과를 검사하는 필수 `iiSDKCoreArchitectureCheck`를 실행한다. Arduino CLI는 같은 매크로 독립적인 Embedded 소스를 보드 컴파일러로 다시 컴파일한다. 호스트의 Core 정책 검사를 먼저 수행하며, 보드 CLI의 컴파일 DB argv로 실제 BSP 컴파일러·매크로·옵션의 필수 전처리 검사도 수행한다. 실제 보드 컴파일은 헤더의 C++23 검사와 ELF CPU 검증을 통과해야 한다. 구형 BSP 컴파일러가 C++23을 지원하지 않으면 해당 빌드는 실패하며 표준을 낮추지 않는다.
 
 이 구성은 차량 안전 등급이나 RTOS·MCU 드라이버를 인증하지 않는다. 시작 코드, 링커 스크립트, 인터럽트, 주기 시각과 장치 드라이버는 실제 BSP가 소유한다. `tests/embedded.cpp`는 예산, 취소, 슬롯 한도, 반복 타이머 자기 취소와 시각 순환을 검증한다.

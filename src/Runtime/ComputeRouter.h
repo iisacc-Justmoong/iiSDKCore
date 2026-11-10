@@ -71,9 +71,32 @@ struct ComputeTargetSnapshot final {
     std::uint64_t callbacks_started=0,callbacks_finished=0;
     Clock::duration queue_time{},execution_time{};
 };
+struct ComputeTargetQuery final {
+    LoadTarget target;
+    bool runtime=false,load=false,usage=false,zone=false,observation=false,activity=false,state=false;
+};
+struct ComputeRuntimeView final { RuntimeStats stats; Clock::time_point sampled_at{}; };
+struct ComputeLoadView final { LoadTargetStats stats; Clock::time_point sampled_at{}; };
+struct ComputeObservationView final { std::optional<ComputeObservation> value; bool fresh=false; };
+struct ComputeActivityView final {
+    std::size_t active_callbacks=0,active_processes=0;
+    std::uint64_t callbacks_started=0,callbacks_finished=0;
+    Clock::duration queue_time{},execution_time{};
+};
+struct ComputeStateView final { bool enabled=false,retiring=false; };
+struct ComputeTargetView final {
+    LoadTarget target;
+    std::optional<ComputeRuntimeView> runtime;
+    std::optional<ComputeLoadView> load;
+    std::optional<ComputeUsage> usage;
+    std::optional<AvailabilityZone> zone;
+    std::optional<ComputeObservationView> observation;
+    std::optional<ComputeActivityView> activity;
+    std::optional<ComputeStateView> state;
+};
 struct ComputeSnapshot final {
     Clock::time_point sampled_at{};
-    std::uint64_t revision=0,monitor_samples=0,rejected=0;
+    std::uint64_t revision=0,monitor_samples=0,rejected=0,monitor_target_visits=0;
     bool stopped=false;
     LoadBalancerStats load;
     std::vector<AvailabilityZoneSnapshot> zones;
@@ -141,6 +164,8 @@ public:
     // Reads native Runtime counters now. No OS CPU/RSS values are fabricated;
     // optional external observations retain their timestamp and freshness.
     ComputeSnapshot monitor();
+    // Only explicitly selected fields are sampled and returned.
+    std::expected<ComputeTargetView,SubmitError> query_target(ComputeTargetQuery);
     Submission start_monitoring(EventLoop&,Clock::duration interval=std::chrono::milliseconds(100));
     ThreadResult stop_monitoring();
     ThreadResult remove_target(LoadTarget,ShutdownMode=ShutdownMode::cancel_pending);

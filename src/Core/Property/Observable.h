@@ -2,6 +2,7 @@
 #include "ObservableReadScope.h"
 #include <atomic>
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <exception>
@@ -15,6 +16,12 @@
 #include <vector>
 
 namespace ii::core {
+// Owner-thread diagnostics; counts contain no property values or identifiers.
+struct ObservableStats final {
+    std::uint64_t revision=0;
+    std::size_t pending=0,delivered_in_cycle=0,observers=0;
+    bool dispatching=false;
+};
 namespace detail {
 template<class T>struct ObservableValueOwner final {static std::shared_ptr<const void> get(const T&){return {};}};
 template<class T>struct ObservableValueOwner<std::shared_ptr<T>> final {static std::shared_ptr<const void> get(const std::shared_ptr<T>& value){return std::shared_ptr<const void>(value,nullptr);}};
@@ -46,6 +53,14 @@ public:
         auto state=state_;ObservableReadScope::record(read_dependency());check_state(state);return state->value;
     }
     [[nodiscard]] std::uint64_t revision()const{check();return state_->revision;}
+    [[nodiscard]] ObservableStats stats()const{
+        check();auto state=state_;ObservableStats result;
+        result.revision=state->revision;result.pending=state->pending.size();
+        result.delivered_in_cycle=state->delivered;result.dispatching=state->dispatching;
+        for(const auto& [id,weak]:state->observers)
+            if(auto slot=weak.lock();slot&&slot->lifetime->active)++result.observers;
+        return result;
+    }
     [[nodiscard]] ObservableRead read_dependency()const{
         check();auto state=state_;
         return {state.get(),state->revision,[state](std::function<void()> changed){if(!changed)throw std::invalid_argument("Observable read requires a callback");return observe_state(state,[changed=std::move(changed)](const T&,std::uint64_t){changed();},false);},
@@ -55,8 +70,9 @@ public:
         check();auto state=state_;
         if constexpr(std::equality_comparable<T>)if(state->value==value)return false;
         if(state->revision==UINT64_MAX)throw std::length_error("Observable revision exhausted");
-        if(state->dispatching&&state->delivered+state->pending.size()>=maximum_notifications)
+        if(state->dispatching&&state->delivered+state->pending.size()>=maximum_notifications){
             throw std::length_error("Observable update cycle exceeded its admission bound");
+        }
         state->pending.push_back({value,state->revision+1}); // Allocation precedes the committed mutation.
         state->value=std::move(value);++state->revision;
         if(state->dispatching)return true;
@@ -76,15 +92,20 @@ public:
         if(failure)std::rethrow_exception(failure);return true;
     }
     [[nodiscard]] ObservableSubscription observe(std::function<void(const T&,std::uint64_t)> callback,bool initial=false)const{
-        check();return observe_state(state_,std::move(callback),initial);
+        check();auto state=state_;return observe_state(std::move(state),std::move(callback),initial);
     }
 private:
-    static ObservableSubscription observe_state(const std::shared_ptr<State>& state,std::function<void(const T&,std::uint64_t)> callback,bool initial){
+    static ObservableSubscription observe_state(std::shared_ptr<State> state,std::function<void(const T&,std::uint64_t)> callback,bool initial){
         check_state(state);if(!callback)throw std::invalid_argument("Observable requires a callback");
         for(auto it=state->observers.begin();it!=state->observers.end();)if(it->second.expired())it=state->observers.erase(it);else ++it;
         if(state->observers.size()>=maximum_observers||state->next==UINT64_MAX)throw std::length_error("Observable observer capacity exhausted");
         auto slot=std::make_shared<Slot>();slot->callback=std::move(callback);state->observers.emplace(++state->next,slot);
-        ObservableSubscription lease(slot->lifetime,slot);if(initial)slot->callback(state->value,state->revision);return lease;
+        ObservableSubscription lease(slot->lifetime,slot);
+        if(initial){
+            const auto snapshot=state->value;const auto revision=state->revision;
+            slot->callback(snapshot,revision);
+        }
+        return lease;
     }
     static void check_state(const std::shared_ptr<State>& state){
         if(!state||state->closed)throw std::logic_error("Observable is closed");

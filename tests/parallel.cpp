@@ -2,6 +2,7 @@
 #include <iiSDKCore/Runtime/ObjectProperties.h>
 #include <atomic>
 #include <array>
+#include <algorithm>
 #include <condition_variable>
 #include <iostream>
 #include <mutex>
@@ -30,17 +31,225 @@ struct Gate {
     void release() { std::lock_guard lock(mutex); released = true; changed.notify_all(); }
 };
 
+void distributed_queues() {
+    Runtime runtime({.workers=2,.capacity=12,.queues=4});
+    Gate gate;
+    std::atomic<int> finished=0;
+    const auto first=runtime.post([&]{gate.enter(); ++finished;});
+    const auto second=runtime.post([&]{gate.enter(); ++finished;});
+    const bool both=gate.wait(2);
+    bool accepted=first && second;
+    for(int i=0;i<4;++i) accepted=bool(runtime.post([&]{++finished;})) && accepted;
+    const auto snapshot=runtime.queue_stats();
+    std::size_t capacity=0,pending=0,active=0,ready=0,used=0;
+    for(const auto& queue:snapshot) {
+        capacity+=queue.capacity; pending+=queue.pending; active+=queue.active; ready+=queue.ready;
+        used+=queue.pending!=0;
+    }
+    const auto queues=runtime.stats().queues;
+    gate.release();
+    const auto drained=runtime.wait_idle();
+    const auto settled=runtime.queue_stats();
+    std::uint64_t completed=0;
+    for(const auto& queue:settled) completed+=queue.executed;
+    check(accepted && both && queues==4 && snapshot.size()==4 && capacity==12 &&
+          pending==6 && active==2 && ready==4 && used>=2,
+          "independent tasks occupy multiple queues and execute asynchronously in parallel");
+    check(bool(drained) && finished==6 && completed==6 &&
+          std::ranges::all_of(settled,[](const auto& item){return item.pending==0 && item.active==0 && item.ready==0;}),
+          "all distributed work settles and returns queue capacity");
+}
+
+void hardware_worker_policy() {
+    const auto hint=std::thread::hardware_concurrency();
+    const auto expected=(std::min)(std::size_t{8},hint ? static_cast<std::size_t>(hint) : std::size_t{1});
+    Runtime bounded_auto({.capacity=1,.worker_policy=RuntimeWorkerPolicy::bounded});
+    check(bounded_auto.stats().workers==1,"explicit bounded policy respects configured capacity");
+    Runtime automatic({.capacity=8,.worker_policy=RuntimeWorkerPolicy::hardware});
+    check(automatic.stats().workers==expected && automatic.stats().queues==expected,
+          "hardware policy uses the reported logical concurrency within the slot bound");
+    Runtime explicit_count({.workers=1,.capacity=4,.worker_policy=RuntimeWorkerPolicy::hardware});
+    check(explicit_count.stats().workers==1,"explicit worker count overrides automatic sizing");
+    bool invalid=false;
+    try { Runtime rejected({.capacity=1,.worker_policy=static_cast<RuntimeWorkerPolicy>(255)}); }
+    catch(const std::invalid_argument&) { invalid=true; }
+    check(invalid,"unknown worker policy is rejected before workers start");
+}
+
+void queue_sharing_and_serial_order() {
+    Runtime runtime({.workers=1,.capacity=8,.queues=3});
+    SerialQueue serial(runtime);
+    Gate gate;
+    std::vector<int> order;
+    const auto blocker=serial.post([&]{gate.enter();});
+    const bool entered=gate.wait(1);
+    const auto older=serial.post([&]{order.push_back(1);});
+    const auto ordinary=runtime.post([&]{order.push_back(2);});
+    const auto later=serial.post([&]{order.push_back(3);});
+    gate.release();
+    const auto drained=runtime.wait_idle();
+    const auto snapshot=runtime.queue_stats();
+    std::uint64_t shared=0;
+    for(const auto& queue:snapshot) shared+=queue.cross_queue;
+    check(blocker && entered && older && ordinary && later && drained &&
+          order==std::vector<int>({1,2,3}),
+          "distributed selection preserves oldest-ready order and object FIFO");
+    check(shared>0,"a worker can execute work assigned to a different queue");
+    bool rejected=false;
+    try { Runtime invalid({.workers=1,.capacity=2,.queues=3}); }
+    catch(const std::invalid_argument&) { rejected=true; }
+    check(rejected,"queue count cannot exceed bounded slot capacity");
+}
+
+void serial_drain_and_token_waiters() {
+    Runtime runtime({.workers=4,.capacity=48});
+    SerialQueue serial(runtime);
+    Gate gate;
+    std::vector<int> order;
+    check(bool(serial.post([&]{gate.enter();})),"start the serial lane");
+    check(gate.wait(1),"serial lane reached the gate");
+    std::vector<TaskToken> tokens;
+    for(int i=0;i<32;++i) {
+        const auto item=serial.post([&,i]{order.push_back(i);});
+        check(bool(item),"queue serial work during an active operation");
+        tokens.push_back(item.token);
+    }
+    std::atomic<int> waited=0;
+    std::array<std::thread,3> observers;
+    for(std::size_t i=0;i<observers.size();++i)
+        observers[i]=std::thread([&,i] { if(tokens[10*i].wait()) ++waited; });
+    runtime.request_stop(ShutdownMode::drain);
+    gate.release();
+    const auto result=runtime.join();
+    for(auto& observer:observers) observer.join();
+    bool ordered=order.size()==tokens.size();
+    for(std::size_t i=0;i<order.size();++i) ordered=ordered && order[i]==static_cast<int>(i);
+    check(result && ordered && waited==3 && runtime.stats().pending==0,
+          "draining wakes eligible serial work and all token waiters");
+}
+
+void priority_and_ready_cancellation() {
+    {
+        Runtime runtime({.workers=1,.capacity=24,.queues=4});
+        Gate gate;
+        std::vector<int> order;
+        const auto blocker=runtime.post([&]{gate.enter();},Priority::background);
+        const bool entered=gate.wait(1);
+        bool accepted=bool(blocker);
+        for(int i=0;i<6;++i) accepted=bool(runtime.post([&,i]{order.push_back(100+i);},Priority::high)) && accepted;
+        for(int i=0;i<4;++i) accepted=bool(runtime.post([&,i]{order.push_back(200+i);},Priority::normal)) && accepted;
+        for(int i=0;i<2;++i) accepted=bool(runtime.post([&,i]{order.push_back(300+i);},Priority::background)) && accepted;
+        gate.release();
+        const auto done=runtime.wait_idle();
+        const std::vector<int> expected{100,101,102,103,200,201,300};
+        check(entered && accepted && done && order.size()==12 &&
+              std::equal(expected.begin(),expected.end(),order.begin()),
+              "weighted priority fairness and FIFO hold across all queues");
+    }
+    {
+        Runtime runtime({.workers=1,.capacity=32,.queues=4});
+        SerialQueue serial(runtime);
+        Gate gate;
+        std::vector<int> order;
+        const auto blocker=runtime.post([&]{gate.enter();});
+        const bool entered=gate.wait(1);
+        bool accepted=bool(blocker);
+        std::vector<TaskToken> tokens;
+        for(int i=0;i<24;++i) {
+            const auto task=runtime.post([&,i]{order.push_back(i);});
+            accepted=bool(task) && accepted;
+            tokens.push_back(task.token);
+        }
+        const auto head=serial.post([&]{order.push_back(100);});
+        const auto next=serial.post([&]{order.push_back(101);});
+        bool cancelled=runtime.cancel(head.token);
+        for(const int index:{0,3,7,11,23}) cancelled=runtime.cancel(tokens[static_cast<std::size_t>(index)]) && cancelled;
+        gate.release();
+        const auto done=runtime.wait_idle();
+        std::vector<int> expected;
+        for(int i=0;i<24;++i) if(i!=0 && i!=3 && i!=7 && i!=11 && i!=23) expected.push_back(i);
+        expected.push_back(101);
+        const auto snapshot=runtime.queue_stats();
+        std::uint64_t cancelled_count=0;
+        for(const auto& queue:snapshot) cancelled_count+=queue.cancelled;
+        check(entered && accepted && head && next && cancelled && done && order==expected && cancelled_count==6,
+              "removing arbitrary ready jobs and a serial head preserves remaining order");
+    }
+    Runtime tiny({.workers=4,.capacity=2});
+    check(tiny.stats().queues==2,"automatic queue count stays within slot capacity");
+}
+
+void distributed_scheduler_model() {
+    Runtime runtime({.workers=1,.capacity=192,.queues=7});
+    std::array<std::unique_ptr<SerialQueue>,3> lanes;
+    for(auto& lane:lanes) lane=std::make_unique<SerialQueue>(runtime);
+    Gate gate;
+    std::vector<int> actual;
+    const auto blocker=runtime.post([&]{gate.enter();},Priority::background);
+    const bool entered=gate.wait(1);
+    struct Item final { TaskToken token; Priority priority; int lane; bool removed=false,finished=false; };
+    std::vector<Item> items;
+    bool accepted=bool(blocker),cancelled=true;
+    for(int i=0;i<150;++i) {
+        const auto priority=static_cast<Priority>((i*5+1)%3);
+        const int lane=i%4==0 ? -1 : (i*7)%3;
+        auto task=[&,i]{actual.push_back(i);};
+        const auto submitted=lane<0 ? runtime.post(task,priority) : lanes[static_cast<std::size_t>(lane)]->post(task,priority);
+        accepted=bool(submitted) && accepted;
+        items.push_back({submitted.token,priority,lane});
+    }
+    for(std::size_t i=0;i<items.size();++i) if(i%7==0 || i%23==0) {
+        cancelled=runtime.cancel(items[i].token) && cancelled;
+        items[i].removed=true;
+    }
+    constexpr std::array wheel{Priority::high,Priority::high,Priority::high,Priority::high,
+                               Priority::normal,Priority::normal,Priority::background};
+    std::size_t cursor=0;
+    std::vector<int> expected;
+    const auto remaining=std::ranges::count_if(items,[](const auto& item){return !item.removed;});
+    while(expected.size()<static_cast<std::size_t>(remaining)) {
+        std::size_t chosen=items.size();
+        for(std::size_t attempt=0;attempt<wheel.size() && chosen==items.size();++attempt) {
+            const auto priority=wheel[cursor]; cursor=(cursor+1)%wheel.size();
+            for(std::size_t i=0;i<items.size();++i) {
+                const auto& item=items[i];
+                if(item.removed || item.finished || item.priority!=priority) continue;
+                bool blocked=false;
+                if(item.lane>=0) for(std::size_t j=0;j<i;++j)
+                    if(items[j].lane==item.lane && !items[j].removed && !items[j].finished) { blocked=true; break; }
+                if(!blocked) { chosen=i; break; }
+            }
+        }
+        if(chosen==items.size()) break;
+        items[chosen].finished=true;
+        expected.push_back(static_cast<int>(chosen));
+    }
+    gate.release();
+    const auto done=runtime.wait_idle();
+    check(entered && accepted && cancelled && done && expected.size()==static_cast<std::size_t>(remaining) && actual==expected,
+          "distributed priority queues match the FIFO and cancellation scheduling model");
+}
+
 int main() {
     try {
         if (!Thread::supported()) {
+            Runtime dormant;
+            check(dormant.stats().workers==0 && dormant.post([]{}).error==SubmitError::overloaded,
+                  "threadless target retains a dormant base runtime");
             bool rejected = false;
-            try { Runtime runtime; } catch (const std::exception&) { rejected = true; }
+            try { Runtime runtime({.workers=1}); } catch (const std::exception&) { rejected = true; }
             check(rejected, "parallel runtime never silently falls back to inline execution");
             std::cout << "parallel runtime unsupported contract passed\n";
             return 0;
         }
-        Runtime runtime;
-        check(runtime.stats().workers >= 2, "default runtime owns multiple workers");
+        distributed_queues();
+        hardware_worker_policy();
+        queue_sharing_and_serial_order();
+        serial_drain_and_token_waiters();
+        priority_and_ready_cancellation();
+        distributed_scheduler_model();
+        Runtime runtime({.workers=2});
+        check(runtime.stats().workers == 2, "explicit runtime owns the requested workers");
         Gate parallel;
         const auto caller = Thread::current_id();
         std::atomic<int> background = 0;
@@ -50,7 +259,7 @@ int main() {
         })), "submit parallel work");
         const bool overlap = parallel.wait(2);
         parallel.release();
-        check(bool(runtime.wait_idle()) && overlap && background == 2, "default tasks run concurrently off caller");
+        check(bool(runtime.wait_idle()) && overlap && background == 2, "allocated workers run tasks concurrently off caller");
 
         SerialQueue first(runtime), second(runtime);
         Gate objects;

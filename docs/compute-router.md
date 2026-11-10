@@ -50,7 +50,8 @@ cross_zone은 preferred_zone이 있는 요청에 적용하며 선호 영역을 �
 
 monitor()는 Runtime의 실제 workers·pending·active·executed·failed·cancelled와
 영역/범위/대상별 예약을 복사한다. Router 외부에서 Runtime에 직접 넣은 작업도 포함한다.
-라우팅 직전에도 같은 수집을 수행한다. 자격·예산을 만족하는 대상에서
+변경 revision이 같은 실행기와 대상은 기존 표본을 재사용하고, 바뀐 대상만 다시 읽는다.
+라우팅 직전에도 변경된 상태를 확인한다. 자격·예산을 만족하는 대상에서
 `(max(Runtime pending, 예약 units) + 요청 units) / workers`를 비교하고, 신선한 CPU와
 메모리 관측이 있으면 남은 자원 여유로 보정한다. 정지·실제 큐 포화·비정상·드레이닝과
 CPU ceiling 이상인 대상은 제외한다. 최소 압력 후보 안에서 기존 LoadRequest 정책으로
@@ -69,14 +70,30 @@ valid_for를 가지며 미래·역순·잘못된 입력은 거절한다.
 정보로 판단한다. 값을 0이나 정상으로 위장하지 않는다. runtime_sampled_at은 실제 표본
 시각이다. 전체 종료 뒤에는 Runtime 참조를 끊고 마지막 표본을 보존한다.
 
+`query_target(ComputeTargetQuery)`는 하나의 대상에 필요한 필드만 명시적으로 선택한다.
+선택하지 않은 필드는 optional이 비어 있고, 관측값이 없다는 사실과 관측 필드를
+선택하지 않은 사실도 구분한다. 요청되지 않은 실행기·로드 정보는 수집하지 않는다.
+존재하지 않는 대상은 invalid이며 빈 필드 선택은 대상의 전체 정보를 뜻하지 않는다.
+대상 선택은 현재 등록 표에서 해당 ID를 찾고, 선택한 Runtime/로드 필드의 revision이
+달라졌을 때에만 표본을 다시 읽는다. 전체 `monitor()` 요청은 명시적인 전체 스냅샷을
+구성하므로 모든 영역·범위·대상을 방문한다. 라우팅에도 적격 대상을 비교하는 과정이
+남으며, 불변 표본 재사용이 대상 검색 자체를 없애는 것은 아니다.
+
 대상별 active_callbacks·callbacks_started/finished·queue_time·execution_time과
 active_processes도 제공한다. 시간은 단조 시계의 누적 대기/콜백 벽시계 시간이다.
 CPU 실행 시간이나 네트워크 RTT가 아니다. 무제한 샘플 이력 대신 누적 카운터를 사용한다.
 revision은 설정 변경 버전, monitor_samples는 수집 횟수이다.
 
-start_monitoring(loop, interval)은 기존 EventLoop의 bounded 주기 예약 하나를 사용한다.
-호스트가 loop를 pump해야 한다. stop_monitoring은 타이머와 활성 수집을 정리하며 다시
-시작할 수 있다. 종료도 자동 중지한다. 잠금 안에서 호출하는 Runtime.stats는 Core의
+start_monitoring(loop, interval)은 기존 EventLoop의 bounded 신호 슬롯을 사용한다.
+초기 표본 이후에는 Runtime 작업 상태, 토폴로지·관측값·예약이 변경된 경우에만 수집을
+예약한다. 실행기 또는 대상 로드의 변경 사건은 해당 대상만 중복 없이 대기 집합에 넣어
+처리한다. 등록과 제거가 처리보다 빠르게 반복되어 제한된 대기 집합이 넘치면 다음 수집에서
+전체 대상을 한 번 확인하여 사건 누락을 방지한다. `monitor_target_visits`는 감시 콜백에서
+확인한 대상 수이며 명시적인 `monitor()` 전체 조회의 방문은 포함하지 않는다.
+interval은 변화가 연속될 때의 최소 표본 간격이며 유휴 상태를 주기적으로
+깨우지 않는다. 호스트가 loop를 pump해야 한다. stop_monitoring은 구독과 활성 수집을
+정리하며 다시 시작할 수 있다. Router 종료나 EventLoop의 예약 제거 시에도 구독을 자동
+해제한다. 잠금 안에서 호출하는 Runtime.stats는 Core의
 콜백 없는 함수이며 사용자 작업·캡처 파괴·프로세스 I/O는 잠금 밖에서 실행한다.
 
 ## 예약과 종료
@@ -88,7 +105,9 @@ ComputeLease는 접수 당시 placement를 보존하는 move-only 예약이다. 
 계산하며 실행 전 취소를 성공으로 세지 않는다.
 
 외부 acquire 예약은 소유자가 실제 자원을 먼저 정리한다. 외부 예약이 남은 remove/close는
-would_block을 반환하고 접수 중단을 유지한다. 예약 반환 후 종료 장벽을 재호출한다.
+종료 대기자가 소유할 가능성을 보존하며 would_block을 반환하고 접수 중단을 유지한다.
+예약 반환 후 종료 장벽을 재호출한다. 내부 예약의 최종 반환은 LoadBalancer의 대상별 또는
+전체 유휴 알림을 기다리고, 짧은 간격으로 재검사하지 않는다.
 자기 작업/캡처에서의 종료는 self_join, 겹친 종료·대상 제거는 busy이다. Runtime은 성공한
 대상 제거 또는 전체 종료까지 살아 있어야 한다. 종료 뒤 monitor는 마지막 표본만 읽는다.
 

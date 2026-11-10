@@ -64,6 +64,57 @@ void values_and_lifetime() {
           "moving the producer preserves the future");
 }
 void watchers() {
+    if(Thread::supported())for(int attempt=0;attempt<50;++attempt){
+        EventLoop loop(8);Promise<void> producer;auto future=producer.future();
+        check(producer.start(),"start concurrent watcher producer");
+        std::latch started(1);std::atomic<bool> success{true};
+        std::jthread worker([&]{
+            started.count_down();
+            for(std::size_t i=1;i<=100;++i)if(!producer.set_progress(i))success=false;
+            if(!producer.finish())success=false;
+        });
+        started.wait();
+        FutureSnapshot latest;int delivered=0;
+        FutureWatcher<void> watcher(future,loop,[&](const auto& snapshot){latest=snapshot;++delivered;});
+        worker.join();(void)loop.poll();
+        check(success&&delivered>0&&latest.status==FutureStatus::succeeded&&latest.progress.value==100,
+              "watcher registration racing with updates observes completion");
+    }
+    {
+        EventLoop loop(4);
+        Promise<void> producer;
+        check(producer.start()&&bool(producer.set_progress_range(0,1)),"start bounded progress");
+        FutureWatcher<void> watcher(producer.future(),loop,[](const auto&){});
+        (void)loop.poll();
+        const auto initial=producer.future().snapshot().revision;
+        check(bool(producer.set_progress(0))&&bool(producer.set_progress_range(0,1))&&
+              producer.future().snapshot().revision==initial&&loop.stats().pending==0,
+              "identical progress and range do not publish updates");
+        producer.advance_progress();
+        (void)loop.poll();
+        const auto revision=producer.future().snapshot().revision;
+        producer.advance_progress();
+        check(producer.future().snapshot().revision==revision&&loop.stats().pending==0,
+              "unchanged completed progress does not publish another update");
+    }
+    {
+        EventLoop loop(8);
+        Promise<int> producer({.max_results=2});
+        auto future=producer.future();
+        check(producer.start() && bool(producer.set_progress_range(0,1000)),"start unobserved work");
+        for(std::size_t i=1;i<=500;++i)check(bool(producer.set_progress(i)),"unobserved progress");
+        FutureSnapshot latest;int delivered=0;
+        FutureWatcher<int> late(future,loop,[&](const auto& value){latest=value;++delivered;});
+        (void)loop.poll();
+        check(delivered==1 && latest.progress.value==500,"late watcher sees current progress");
+        check(bool(late.close()),"close late watcher");
+        for(std::size_t i=501;i<=999;++i)check(bool(producer.set_progress(i)),"progress after watcher close");
+        FutureWatcher<int> renewed(future,loop,[&](const auto& value){latest=value;++delivered;});
+        check(bool(producer.add_result(42))&&bool(producer.set_progress(1000))&&producer.finish(),"complete after resubscription");
+        (void)loop.poll();
+        check(delivered==2&&latest.status==FutureStatus::succeeded&&latest.result_count==1&&latest.progress.value==1000,
+              "resubscribed watcher receives the latest result and terminal state");
+    }
     EventLoop replies(4);
     Promise<int> promise;
     auto future = promise.future();

@@ -209,6 +209,35 @@ void bounded_catchup_and_extremes() {
   check(frames.step(origin + 5ms).fixed_steps == 3, "host clock can explicitly rebase");
 }
 
+void incremental_plan() {
+  EventLoop events;
+  FrameLoop frames(events,{.capacity=8,.fixed_step=10ms});
+  int input=0,update=0,fixed=0,disabled=0;
+  take(frames.add([&](const auto&) { ++input; },{.phase=FramePhase::input}));
+  take(frames.add([&](const auto&) { ++update; },{.phase=FramePhase::update}));
+  take(frames.add([&](const auto&) { ++fixed; },{.phase=FramePhase::fixed_update}));
+  auto extra=take(frames.add([&](const auto&) { ++disabled; },{.phase=FramePhase::present,.enabled=false}));
+  frames.step(origin);
+  const auto first=frames.stats();
+  check(first.schedule_rebuilds==1 && first.schedule_candidates==2 && input==1 && update==1,
+        "first frame compiles one plan and visits only active stage candidates");
+  frames.step(origin+10ms);
+  const auto second=frames.stats();
+  check(second.schedule_rebuilds==first.schedule_rebuilds &&
+        second.schedule_candidates-first.schedule_candidates==3 && fixed==1,
+        "unchanged frames reuse the plan and only visit their own stages");
+  check(bool(frames.set_enabled(extra,true)),"enable deferred stage");
+  frames.step(origin+20ms);
+  const auto third=frames.stats();
+  check(third.schedule_rebuilds==second.schedule_rebuilds+1 && disabled==1 &&
+        third.schedule_candidates-second.schedule_candidates==4,
+        "enablement changes rebuild only at the next frame boundary");
+  check(bool(frames.set_enabled(extra,true)),"repeated enablement accepted");
+  frames.step(origin+30ms);
+  check(frames.stats().schedule_rebuilds==third.schedule_rebuilds && disabled==2,
+        "setting the same enablement does not invalidate the plan");
+}
+
 void mutation_and_failure_cleanup() {
   EventLoop events;
   FrameLoop frames(events, {.capacity = 3, .fixed_step = 10ms});
@@ -384,6 +413,7 @@ int main() {
     pause_scale_and_intervals();
     host_cadence_and_display_changes();
     bounded_catchup_and_extremes();
+    incremental_plan();
     mutation_and_failure_cleanup();
     guards_and_frame_boundary();
     capture_retirement_and_options_snapshot();

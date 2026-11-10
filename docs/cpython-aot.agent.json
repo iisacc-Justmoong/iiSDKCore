@@ -1,0 +1,163 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:64ee801a032ab112daea2815e76cb02335e8adacc3524d438895e4f232cc18d3",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSDKCore",
+    "name": "iiSDKCore",
+    "root": "SDK/iiSDKCore",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/cpython-aot.md",
+    "sha256": "f0fa69b73e0f7de2ccfa5fc2488378092ec5a44edbf6a70e1773df374737cf2c",
+    "bytes": 2981,
+    "line_count": 45,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "CPython AOT runtime attachment",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# CPython AOT runtime attachment\n",
+      "level": 1,
+      "title": "CPython AOT runtime attachment"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 8,
+      "raw": "`iiSDKCore::CPython` is an optional adapter between compiled CPython extension\nmodules and a Core `SerialQueue`. The base Runtime, Contracts, and Values\ntargets do not acquire a Python dependency. The host supplies the target's\nCPython development library, module search directories, and optional Python\nhome. AOT generation belongs to iiSDKBuilder; Core does not depend on Builder\nor on an application SDK.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 10,
+      "end_line": 22,
+      "raw": "`CPythonHost::attach(queue, options)` initializes CPython if needed, or joins\nan already initialized CPython interpreter. Its query port invokes a named\nfunction of an AOT extension module in that queue. The entry module must resolve\nto a native CPython extension within a supplied module directory. Imported\ndependencies and dynamic Python features remain CPython's responsibility.\nInputs and outputs cross the native boundary as `core::Value`: null, booleans,\n64-bit signed/unsigned integers, finite doubles, UTF-8 strings, bytes, arrays\nand string-keyed dictionaries. Unsupported or cyclic results and Python\nexceptions are reported as errors rather than converted silently.\nPython integers in the signed 64-bit range return as signed Core values;\nlarger nonnegative values use unsigned 64-bit values. Python does not preserve\nthe original signed/unsigned tag for small nonnegative integers. Conversion\nlimits nesting to 128 levels and rejects non-finite reals and other objects.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 23,
+      "end_line": 23,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 24,
+      "end_line": 35,
+      "raw": "The interpreter is process-wide. Host instances and their `SerialQueue` must\nbe destroyed before the Runtime. The adapter does not finalize or reinitialize\nthe process interpreter, and an external owner must not finalize it while a\nhost is active. Python execution takes the CPython GIL, including when work is\ndispatched to different Core worker threads. `sys.path` and `sys.modules`\nremain interpreter-global; configured directories are added to the shared path.\nThe app owns runtime packaging, module dependencies, and ABI compatibility.\nAn already initialized foreign CPython host must release its GIL while waiting\nfor a Core query, then may finalize CPython only after all attached hosts close.\nVerified entry modules are tracked by weak reference inside the interpreter so\nthat multiple hosts can reuse an AOT module even if its compiler rewrites\n`__spec__.origin`. This registry is not a sandbox or a security boundary.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 36,
+      "end_line": 36,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 37,
+      "end_line": 45,
+      "raw": "Enable with `IISDKCORE_BUILD_CPYTHON=ON` and provide a matching CPython\ninterpreter, headers and embedding library. Installed consumers use\n`find_package(iiSDKCoreCPython CONFIG REQUIRED)` and link\n`iiSDKCore::CPython`. This optional package is distinct from the default\nno-Python Core runtime. Its `IISDK_CPYTHON_EXTENSION_SUFFIX` target property\nidentifies the selected interpreter's extension ABI for build-time checks.\nOn macOS, the imported target adds the discovered\nPython framework directory to the linker's runtime search paths. An app that\nrelocates or bundles that framework must supply suitable deployment paths.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "CPython AOT runtime attachment",
+      "anchor": "cpython-aot-runtime-attachment",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000003",
+        "line": 5,
+        "text": "targets do not acquire a Python dependency. The host supplies the target's",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000005",
+        "line": 12,
+        "text": "function of an AOT extension module in that queue. The entry module must resolve",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000007",
+        "line": 24,
+        "text": "The interpreter is process-wide. Host instances and their `SerialQueue` must",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000007",
+        "line": 26,
+        "text": "the process interpreter, and an external owner must not finalize it while a",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000007",
+        "line": 31,
+        "text": "An already initialized foreign CPython host must release its GIL while waiting",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000009",
+        "line": 39,
+        "text": "`find_package(iiSDKCoreCPython CONFIG REQUIRED)` and link",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000009",
+        "line": 45,
+        "text": "relocates or bundles that framework must supply suitable deployment paths.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

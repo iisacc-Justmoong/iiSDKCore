@@ -1,5 +1,12 @@
 # iiSDKCore
 
+[App-specific static plugins](docs/static-plugins.md) place compiled plugin
+entries inside a private Core archive without runtime plugin loading.
+
+[Query-backed values](docs/query-values.md) connect typed read and validated
+write ports to selective reactive consumers without moving model ownership into
+the UI or polling for changes.
+
 Typed observable read scopes collect dependencies inside ordinary native C++
 getters without exposing private fields or depending on a GUI framework.
 Link `iiSDKCore::Observation` to share that execution state across hosted modules;
@@ -10,7 +17,13 @@ nesting, execution-domain isolation and bounded admission.
 Native applications can now use [Core-owned application lifetime and executable entry](docs/application.md).
 `Application` owns the event loop, shared workers and native attachment lifecycle;
 `iisdkcore_add_application` supplies Core's main and links the final C++23 program.
+Windows entry arguments use strict UTF-16 to UTF-8 conversion; other platforms
+retain the bytes supplied by `main`. Applications interpret options and files.
 GUI modules provide an upper-layer driver without adding a GUI dependency to Core.
+After its native callbacks drain, a driver can signal `driver_stopped()` to retire
+owned work and views before an operating-system event loop returns.
+`Application::configure_atomically` rolls back a failed group of driver and
+attachment registrations while preserving previously configured owners.
 `Application::frame_loop()` supplies the same ordered native frame phases to apps
 and games. A display host drives its timestamps; headless drivers can use timer
 or manual stepping. Core retires frame captures before detaching application owners.
@@ -42,11 +55,13 @@ for package selection, ownership and the 0.12 migration.
 
 ## Provided Features
 
+- [Elastic compute resources](docs/elastic-compute.md): resize or release owned Runtime workers, allocate and transfer bounded host-memory blocks, and hand cooperative work checkpoints to another executor. A C ABI and Python wrapper expose worker and memory ownership.
+- [Session and object lifetimes](docs/session-lifetime.md): independent session and Runtime ownership, weak typed object handles, cooperative task cancellation, access and removal barriers, and ordered resource destruction after work retires.
 - [Concurrent computations](docs/concurrent.md): instance-owned `Concurrent` work on existing Runtime workers, `Future`/`Promise` results and progress, cooperative cancellation and suspension, coalescing `FutureWatcher` delivery, explicit `FutureSynchronizer` waits, configurable `TaskBuilder`, ordered parallel map/filter and sequential reductions. Inputs are owned standard vectors; Qt and global thread pools are not required. See the [runnable example](examples/concurrent.cpp).
 - [Native compute load balancing](docs/load-balancer.md): bounded dispatch across existing TaskExecutor instances, capacity-normalized load or round-robin routing, declared memory/capability admission, health thresholds, draining, cancellation-safe cleanup and per-target statistics. No AWS, Qt, remote protocol or extra worker dependency is introduced. See the [two-Runtime example](examples/load_balancer.cpp).
 - [Application and Classic load routing](docs/load-routing.md): priority-ordered host/path/method/header/query routing, independent target groups, least-outstanding HTTP requests, round-robin TCP/TLS admission and asynchronous `LoadLease` ownership through response completion. Network flow keys and backend endpoints belong to [iiNetwork](../iiNetwork/docs/LoadBalancer.md). See the [runnable example](example/load_routing.cpp).
 - [Dynamic compute routing](docs/compute-router.md): reconfigurable availability zones and execution scopes, shared budgets, live worker queue/processing snapshots, freshness-aware resource observations, periodic monitoring on an existing EventLoop and structured native-process routing through existing workers. See the [runnable example](example/compute_router.cpp).
-- [Selective live query streams](docs/query-stream.md): typed filter/projection queries, independent subscribers, query revisions, bounded output rings, executor backpressure/retry and removal barriers. Existing Runtime workers, EventLoop/HostLoop and QueryPort supply execution and control.
+- [Selective live query streams](docs/query-stream.md): typed filter/projection queries, change-aware publication, independent subscribers, query revisions, bounded output rings, executor backpressure/retry and removal barriers. Existing Runtime workers, EventLoop/HostLoop and QueryPort supply execution and control.
 - [Native resources](docs/resources.md): deterministic indexed packs, 64-byte-aligned shared payloads, immutable embedded/owned/native-mapped views, explicit integrity/paging hints and native lifetime after channel/pack removal. iiSDKBuilder supplies the build-host compiler and target selection; iiFileProvider owns outputs. Core imports neither module.
 
 - [External hosts](docs/host-loop.md): coalesced wake notifications from all EventLoop mutation paths, owner-thread dispatch, native readiness waiting with completion on the host thread, disconnect barriers, weak producer endpoints and host-context diagnostics. iiGUI consumes this foundation; Core has no iiGUI/window/GPU/font dependency.
@@ -56,7 +71,7 @@ for package selection, ownership and the 0.12 migration.
 - [Tracked operations](docs/operation.md): immediate admission errors, immutable results, cooperative cancellation/deadlines, owner/executor removal, side-effect state and one receiver-scoped completion on an explicit reply executor. Serial execution and fixed OS-thread execution remain distinct.
 - [Qt migration P0](docs/qt-migration-p0.md): the independent [iiJson](../iiJson/README.md) codec consumes Contracts, and [iiCSMIDI](../iiCSMIDI/README.md) uses Native storage and optional Runtime decoding. Core imports neither feature module.
 
-- `FrameLoop`: ten ordered app/game stages, bounded fixed-step catch-up and interpolation, scaled/unscaled clocks, pause, per-tick intervals/enablement, acyclic prerequisites and frame diagnostics. Native `run()`, host-driven `poll()/step()` and `BrowserLoop(frames)` use the same C++ implementation. See the [contract](docs/frame-loop.md) and [app/game example](examples/frame_loop.cpp). Unity and Unreal documentation inform requirements without adding engine dependencies.
+- `FrameLoop`: ten ordered app/game stages, bounded fixed-step catch-up and interpolation, scaled/unscaled clocks, pause, per-tick intervals/enablement, acyclic prerequisites and frame diagnostics. Unchanged execution plans are reused and each stage visits its own callbacks. Native `run()`, host-driven `poll()/step()` and `BrowserLoop(frames)` use the same C++ implementation. See the [contract](docs/frame-loop.md) and [app/game example](examples/frame_loop.cpp). Unity and Unreal documentation inform requirements without adding engine dependencies.
 
 - [Implicit sharing](docs/implicit-sharing.md): normal value copies share storage; `SharedValue::modify` automatically separates writes and reuses unique private data for noexcept edits. Published snapshots and weak aliases remain immutable. An optional standard-only serialization bridge persists logical data and restores a fresh sharing owner. Shared values also compose with DynamicValue and typed runtime queries.
 
@@ -71,14 +86,15 @@ for package selection, ownership and the 0.12 migration.
 - Provides path, file, binary cursor, job bundle, service reference, diagnostics, dependency graph, Scene, script binding, host pump, and timeline object based on 18 folders. [based object contract](docs/foundations.md), [sensor value asynchronous processing example](examples/foundations.cpp)define responsibility and lifecycle rules.
 - `ii::io::Channel`, `AsyncIO`, `Buffer`: Native file, serial byte I/O, prepared wait, timeout, cancel, reusable buffer, and asynchronous query. OS hides handles and specifies the support difference between WASM virtual files and real devices. Defined in [I/O contract](docs/io.md).
 - `DynamicValue`, `value_cast<T>()`, `value_ref<T>()`: Dynamic C++ values and explicit type conversion and reference access. Supports number range and precision check, string conversion, dynamic type policy of properties, and casting at query time. Defined in [dynamic type contract](docs/dynamic-value.md).
-- The default execution model is `Runtime`'s multi-threaded, parallel, and asynchronous processing. Start workers at creation and reuse work slots. `SerialQueue` processes queries of the same object in order and executes different objects in parallel. Defined in [default runtime contract](docs/parallel-runtime.md)and [object asynchronous example](examples/parallel.cpp).
+- `Runtime` starts without workers or worker task slots; objects explicitly request the workers they need. Allocated persistent workers share bounded execution queues and reuse work slots, while `queue_stats()` exposes their load. The optional hardware policy sizes a requested pool from the OS logical-concurrency hint, subject to capacity. `SerialQueue` processes queries of the same object in order and executes different objects in parallel when workers are allocated. See the [runtime contract](docs/parallel-runtime.md) and [object asynchronous example](examples/parallel.cpp).
 - `Thread`: Platform independent thread ownership, start, cooperative cancellation, wait for termination, status, and exception delivery. EventLoop connects execution and cancellation and reuses the instance after join. Defined in [thread contract](docs/thread.md), [query execution example](examples/thread.cpp).
 - `ObjectProperties` : Defines, replaces, and deletes per-instance values, methods, and child trees at creation and after creation. It supports queryable/designable policies, private path protection, selective queries, type and value validation, and change queries. [Dynamic property contracts](docs/object-properties.md)and [execution examples](examples/properties.cpp)are defined.
 - Object member tree: Constructs values, general methods, and query ports for each node of nested instances, preserving per-level public/private access control. [Tree contracts and implementation examples](docs/member-tree.md)are defined.
 - `QueryPort<Request, Response>` : Queries between objects that pass only required inputs and selected response fields. Passing the entire object is an explicit option, and it supports synchronous/queued delivery, value/void responses, and closed receiver/handling failures. Removal cancels queued completions and waits for active delivery.
+- `QueryPeer<Incoming, IncomingReply, Outgoing, OutgoingReply>`: A paired, non-owning route that lets both object nodes independently initiate typed queries, including different contracts in each direction. See the [peer lifetime and execution contract](docs/query.md#대등한-양방향-연결).
 - `EventLoop` : Multi-producer/single-executor work queues, immediate/scheduled/periodic tasks, cancel tokens, 4:2:1 weighted priority, callback count/time budget, suspend/resume/terminate, and statistics.
 - `Stream<T>` : Preallocated circular buffer, FIFO , rejection or discarding of old data, consumption of remaining data after termination, and backpressure/discard statistics.
-- `BrowserLoop` : An instance that drives the event loop as `requestAnimationFrame` in Emscripten.
+- `BrowserLoop`: Emscripten event loops wake on work or deadlines; frame loops use `requestAnimationFrame`.
 - `run()` : A native independent loop. It waits on a condition variable when there is no work and wakes up on new work, timers, or termination.
 - `poll()` : Non-blocking execution units that insert into UIKit where the host owns the loop, Android , desktop GUI , and browsers.
 
@@ -93,7 +109,7 @@ Public objects are composed of instances and callbacks without inheritance. Depe
 
 int main() {
     using namespace ii::runtime;
-    Runtime runtime;             // The default 2~4 workers start automatically.
+    Runtime runtime({.workers=2}); // Explicitly allocate this object's workers.
     SerialQueue object(runtime);
     QueryPort<int, int> calculate(object, [](const int& value) { return value * 2; });
     int answer = 0;
@@ -171,6 +187,8 @@ weights retain their respective licenses.
 ## Freestanding Embedded component
 
 `iiSDKCore::Embedded` provides bounded native C++23 callbacks, timers, cancellation and dispatch budgets without allocation, threads, OS services or an interpreter. `IISDKCORE_EMBEDDED_ONLY=ON` builds this component with the mandatory architecture policy check. See [the Embedded contract](docs/embedded.md).
+
+Runtime examples are opt-in: configure with `-DIISDKCORE_BUILD_EXAMPLES=ON` to build them. The default build contains the module and enabled tests.
 
 <!-- workspace-docs:readme:start -->
 ## Documentation entry points

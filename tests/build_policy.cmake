@@ -1,0 +1,11 @@
+if(NOT BUILD_DIR)
+    message(FATAL_ERROR "BUILD_DIR is required")
+endif()
+execute_process(COMMAND "${CMAKE_COMMAND}" --build "${BUILD_DIR}" --target help
+    RESULT_VARIABLE result OUTPUT_VARIABLE targets ERROR_VARIABLE error)
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "Cannot inspect build targets: ${error}")
+endif()
+if(targets MATCHES "iiSDKCore[A-Za-z0-9_]*Example" OR targets MATCHES "iiSDKCoreLive")
+    message(FATAL_ERROR "Examples must be opt-in for the default build")
+endif()

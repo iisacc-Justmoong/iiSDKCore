@@ -46,6 +46,7 @@ public:
     QueryPort(QueryPort&&) = delete;
     QueryPort& operator=(QueryPort&&) = delete;
     [[nodiscard]] ThreadResult close() const { return lifetime_.close(); }
+    [[nodiscard]] ThreadResult try_close() const { return lifetime_.try_close(); }
     [[nodiscard]] bool is_current() const noexcept { return lifetime_.is_current(); }
 
     // Process on the caller's thread, borrowing the request for this call.

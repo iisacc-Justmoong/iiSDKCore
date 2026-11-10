@@ -101,11 +101,11 @@ template <class In, class Map>
   } else {
     try {
       const auto count = state->input.size();
-      const auto capacity = std::max(std::size_t{1}, runtime.stats().capacity);
-      grain = std::max(grain, count / capacity + (count % capacity != 0));
+      const auto capacity = (std::max)(std::size_t{1}, runtime.stats().capacity);
+      grain = (std::max)(grain, count / capacity + (count % capacity != 0));
       result.tokens.reserve(count / grain + (count % grain != 0));
       for (std::size_t begin = 0; begin < count;) {
-        const auto end = begin + std::min(grain, count - begin);
+        const auto end = begin + (std::min)(grain, count - begin);
         auto ticket = std::make_shared<detail::ParallelTicket<State>>(state);
         {
           std::lock_guard lock(state->mutex);

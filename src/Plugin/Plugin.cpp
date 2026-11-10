@@ -1,9 +1,14 @@
 #include "Plugin.h"
 #include "../Runtime/TaskScope.h"
+#include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <mutex>
 #include <type_traits>
-#if defined(_WIN32)
+#if defined(IISDKCORE_STATIC_PLUGINS)
+#include "StaticCatalog.h"
+#endif
+#if defined(_WIN32) && !defined(IISDKCORE_STATIC_PLUGINS)
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
@@ -16,7 +21,7 @@ static_assert(std::is_standard_layout_v<Descriptor> &&
               std::is_trivially_copyable_v<Descriptor>);
 namespace {
 struct Module final {
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(IISDKCORE_STATIC_PLUGINS)
   HMODULE handle = nullptr;
   ~Module() {
     if (handle)
@@ -111,6 +116,31 @@ core::Result<Plugin> Plugin::attach(Entry entry) {
     return std::unexpected(state.error());
   return Plugin(std::make_unique<Impl>(std::move(*state)));
 }
+core::Result<Plugin> Plugin::open_static(std::string_view identifier) {
+  if (identifier.empty() || identifier.size() > 256 ||
+      identifier.find('\0') != std::string_view::npos)
+    return core::fail(core::ErrorCode::invalid_argument, "Invalid static plugin identifier");
+#if defined(IISDKCORE_STATIC_PLUGINS)
+  Entry found = nullptr;
+  for (const auto entry : detail::embedded_entries()) {
+    if (!entry) continue;
+    const auto *descriptor = entry();
+    if (!descriptor || descriptor->size < sizeof(Descriptor) ||
+        descriptor->version != abi_version || !descriptor->identifier ||
+        !descriptor->identifier_size || descriptor->identifier_size > 256)
+      continue;
+    if (std::string_view(descriptor->identifier, descriptor->identifier_size) != identifier)
+      continue;
+    if (found)
+      return core::fail(core::ErrorCode::already_exists, "Duplicate static plugin identifier");
+    found = entry;
+  }
+  if (!found) return core::fail(core::ErrorCode::not_found, "Static plugin is not registered");
+  return attach(found);
+#else
+  return core::fail(core::ErrorCode::unsupported, "Static plugin catalog is not enabled");
+#endif
+}
 core::Result<Plugin> Plugin::load(const std::filesystem::path &path) {
   if (!path.is_absolute() ||
       path.native().find(typename std::filesystem::path::value_type{}) !=
@@ -118,8 +148,27 @@ core::Result<Plugin> Plugin::load(const std::filesystem::path &path) {
     return core::fail(core::ErrorCode::invalid_argument,
                       "Plugin requires an absolute path without NUL");
 #if defined(__EMSCRIPTEN__) || defined(IISDKCORE_STATIC_PLUGINS)
-  return core::fail(core::ErrorCode::unsupported,
-                    "Use a statically registered plugin on this platform");
+#if defined(IISDKCORE_STATIC_PLUGINS)
+  const auto filename_utf8 = path.filename().u8string();
+  const std::string filename(reinterpret_cast<const char *>(filename_utf8.data()), filename_utf8.size());
+  const auto version = filename.rfind(".so.");
+  std::string name;
+  if (version != std::string::npos && version + 4 < filename.size() &&
+      std::ranges::all_of(std::string_view(filename).substr(version + 4),
+                          [](unsigned char c) { return std::isdigit(c) || c == '.'; }))
+    name = filename.substr(0, version);
+  else {
+    const auto stem_utf8 = path.stem().u8string();
+    name.assign(reinterpret_cast<const char *>(stem_utf8.data()), stem_utf8.size());
+  }
+  auto result = open_static(name);
+  if (result || result.error().code != core::ErrorCode::not_found ||
+      !name.starts_with("lib") || name.size() <= 3)
+    return result;
+  return open_static(std::string_view(name).substr(3));
+#else
+  return core::fail(core::ErrorCode::unsupported, "Use a statically registered plugin on this platform");
+#endif
 #else
   auto module = std::make_shared<Module>();
   Entry entry = nullptr;

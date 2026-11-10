@@ -64,6 +64,8 @@ bool fresh(const std::optional<ComputeObservation>& observation,Clock::time_poin
 struct ComputeRouter::Impl final {
     struct Zone final { AvailabilityZone id; AvailabilityZoneOptions options; ComputeUsage usage; };
     struct Scope final { ComputeScope id; ComputeScopeOptions options; ComputeUsage usage; };
+    struct Target;
+    struct DirtyTarget final { std::weak_ptr<Target> target; bool queued=false; };
     struct Target final {
         LoadTarget id;
         Runtime* runtime=nullptr;
@@ -72,14 +74,60 @@ struct ComputeRouter::Impl final {
         ComputeUsage usage;
         RuntimeStats sample;
         Clock::time_point sampled_at{};
+        std::uint64_t runtime_revision=0,load_revision=0;
+        std::shared_ptr<const std::atomic<std::uint64_t>> load_version;
+        Clock::time_point load_sampled_at{};
         LoadTargetStats load;
         std::optional<ComputeObservation> observation;
-        bool enabled=true,retiring=false;
+        bool enabled=true,retiring=false,registered=false;
         std::size_t external=0,active_callbacks=0,active_processes=0;
         std::uint64_t callbacks_started=0,callbacks_finished=0;
         Clock::duration queue_time{},execution_time{};
+        std::shared_ptr<Runtime::StatsSubscription> subscription;
+        std::shared_ptr<DirtyTarget> dirty;
     };
-    struct Monitor final { TaskScope calls; TaskToken token; };
+    struct Monitor final {
+        TaskScope calls;
+        TaskToken token;
+        EventLoop::Sender sender;
+        std::mutex mutex;
+        Clock::duration interval{};
+        std::optional<Clock::time_point> sampled;
+        std::vector<std::shared_ptr<DirtyTarget>> pending,processing;
+        bool stopped=false,overflow=false;
+        explicit Monitor(std::size_t capacity) {
+            pending.reserve(capacity);
+            processing.reserve(capacity);
+        }
+        void queue(const std::shared_ptr<DirtyTarget>& target) {
+            std::lock_guard lock(mutex);
+            if(stopped || !target || target->queued) return;
+            if(pending.size()==pending.capacity()) { overflow=true; return; }
+            pending.push_back(target);
+            target->queued=true;
+        }
+        void notify() {
+            Clock::time_point when;
+            {
+                std::lock_guard lock(mutex);
+                if(stopped) return;
+                when=sampled ? std::max(Clock::now(),core::Time::add(*sampled,interval)) : Clock::now();
+            }
+            (void)sender.signal(token,when);
+        }
+        void mark(const std::shared_ptr<DirtyTarget>& target) { queue(target); notify(); }
+        bool take() {
+            std::lock_guard lock(mutex);
+            processing.swap(pending);
+            for(const auto& target:processing) target->queued=false;
+            return std::exchange(overflow,false);
+        }
+        void sample_finished() {
+            processing.clear();
+            std::lock_guard lock(mutex); sampled=Clock::now();
+        }
+        void stop() { std::lock_guard lock(mutex); stopped=true; }
+    };
     const ComputeRouterOptions options;
     mutable std::mutex mutex;
     std::mutex lifecycle;
@@ -92,7 +140,7 @@ struct ComputeRouter::Impl final {
     ComputeScope default_scope;
     bool stopped=false;
     std::size_t external=0,internal=0;
-    std::uint64_t revision=0,samples=0,rejected=0;
+    std::uint64_t revision=0,samples=0,rejected=0,monitor_target_visits=0;
     LoadBalancer balance;
     TaskScope work;
     OperationOwner processes;
@@ -121,23 +169,72 @@ struct ComputeRouter::Impl final {
     bool covers(const Scope& scope,AvailabilityZone zone) const {
         return scope.options.zones.empty() || std::find(scope.options.zones.begin(),scope.options.zones.end(),zone)!=scope.options.zones.end();
     }
-    void refresh_locked() {
-        const auto now=Clock::now();
-        for(const auto& target:targets) if(target) {
-            // Only the built-in Runtime is sampled here. Its stats() takes no
-            // callbacks and Runtime retires captures outside its own mutex.
-            if(target->runtime) { target->sample=target->runtime->stats(); target->sampled_at=now; }
-            if(const auto load=balance.target_stats(target->id)) target->load=*load;
-            else {
-                target->load.in_flight=target->usage.in_flight; target->load.units=target->usage.units;
-                target->load.memory_bytes=target->usage.memory_bytes; target->load.reservations=target->usage.in_flight;
-                target->load.submitted=target->usage.acquired; target->load.completed=target->usage.completed;
-                target->load.failed=target->usage.failed; target->load.cancelled=target->usage.cancelled;
-            }
+    void refresh_runtime(Target& target) {
+        if(!target.runtime) return;
+        const auto version=target.runtime->stats_revision();
+        if(version==target.runtime_revision && version!=(std::numeric_limits<std::uint64_t>::max)()) return;
+        auto [sample,revision]=target.runtime->versioned_stats();
+        target.sample=std::move(sample); target.runtime_revision=revision; target.sampled_at=Clock::now();
+    }
+    void refresh_load(Target& target) {
+        const auto version=target.load_version ? target.load_version->load(std::memory_order_acquire) : 0;
+        if(version==target.load_revision && version!=(std::numeric_limits<std::uint64_t>::max)()) return;
+        if(const auto current=balance.versioned_target_stats(target.id)) {
+            target.load=current->first; target.load_revision=current->second;
+        } else {
+            target.load.in_flight=target.usage.in_flight; target.load.units=target.usage.units;
+            target.load.memory_bytes=target.usage.memory_bytes; target.load.reservations=target.usage.in_flight;
+            target.load.submitted=target.usage.acquired; target.load.completed=target.usage.completed;
+            target.load.failed=target.usage.failed; target.load.cancelled=target.usage.cancelled;
+            target.load_revision=version;
         }
+        target.load_sampled_at=Clock::now();
+    }
+    void refresh_locked() {
+        for(const auto& target:targets) if(target) { refresh_runtime(*target); refresh_load(*target); }
         ++samples;
     }
-    void rejected_request() { std::lock_guard lock(mutex); ++rejected; }
+    void rejected_request() {
+        { std::lock_guard lock(mutex); ++rejected; }
+        notify_monitor();
+    }
+    void notify_monitor(const std::shared_ptr<Target>& target={}) {
+        std::shared_ptr<Monitor> monitor;
+        std::shared_ptr<DirtyTarget> dirty;
+        { std::lock_guard lock(mutex); monitor=monitoring; if(target) dirty=target->dirty; }
+        if(monitor) { if(dirty) monitor->mark(dirty); else monitor->notify(); }
+    }
+    void bind(const std::shared_ptr<Target>& target,const std::shared_ptr<Monitor>& monitor) {
+        auto dirty=std::make_shared<DirtyTarget>();
+        dirty->target=target;
+        target->dirty=dirty;
+        target->subscription=target->runtime->observe_stats([weak=std::weak_ptr<Monitor>(monitor),item=std::weak_ptr<DirtyTarget>(dirty)] {
+            if(const auto active=weak.lock()) if(const auto changed=item.lock()) active->mark(changed);
+        });
+        monitor->queue(dirty);
+    }
+    void unbind(const std::shared_ptr<Target>& target) {
+        if(target->runtime && target->subscription)
+            target->runtime->remove_stats_observer(target->subscription);
+        target->subscription.reset();
+        target->dirty.reset();
+    }
+    void retire_monitor(const std::shared_ptr<Monitor>& expected) {
+        {
+            std::lock_guard lock(mutex);
+            if(monitoring!=expected) return;
+            monitoring.reset();
+            for(const auto& target:targets) if(target) unbind(target);
+        }
+        expected->stop();
+        expected->calls.request_close();
+    }
+    struct Change final {
+        Impl& owner;
+        bool changed=false;
+        std::shared_ptr<Target> target;
+        ~Change() { if(changed) owner.notify_monitor(target); }
+    };
 };
 
 struct ComputeLease::State final {
@@ -160,16 +257,19 @@ struct ComputeLease::State final {
         if(result==Outcome::completed) lease.complete();
         else if(result==Outcome::failed) lease.fail(cause);
         else lease.cancel();
-        std::lock_guard lock(owner->mutex);
-        for(auto* usage:{&zone->usage,&scope->usage,&target->usage}) {
-            --usage->in_flight; usage->units-=resources.units; usage->memory_bytes-=resources.memory_bytes;
-            if(result==Outcome::completed) ++usage->completed;
-            else if(result==Outcome::failed) ++usage->failed;
-            else ++usage->cancelled;
+        {
+            std::lock_guard lock(owner->mutex);
+            for(auto* usage:{&zone->usage,&scope->usage,&target->usage}) {
+                --usage->in_flight; usage->units-=resources.units; usage->memory_bytes-=resources.memory_bytes;
+                if(result==Outcome::completed) ++usage->completed;
+                else if(result==Outcome::failed) ++usage->failed;
+                else ++usage->cancelled;
+            }
+            if(external) { --owner->external; --target->external; }
+            else --owner->internal;
+            owner->changed.notify_all();
         }
-        if(external) { --owner->external; --target->external; }
-        else --owner->internal;
-        owner->changed.notify_all();
+        owner->notify_monitor(target);
     }
     void complete() noexcept {
         auto expected=Outcome::cancelled;
@@ -215,6 +315,7 @@ ComputeRouter::~ComputeRouter() {
 }
 ComputeScope ComputeRouter::default_scope() const noexcept { return impl_->default_scope; }
 std::expected<AvailabilityZone,SubmitError> ComputeRouter::add_zone(AvailabilityZoneOptions options) {
+    Impl::Change change{*impl_};
     std::lock_guard lock(impl_->mutex);
     if(impl_->stopped) return std::unexpected(SubmitError::stopped);
     if(!name_valid(options.name)) return std::unexpected(SubmitError::invalid);
@@ -222,17 +323,19 @@ std::expected<AvailabilityZone,SubmitError> ComputeRouter::add_zone(Availability
     const auto slot=std::find(impl_->zones.begin(),impl_->zones.end(),nullptr);
     if(slot==impl_->zones.end()) return std::unexpected(SubmitError::full);
     auto zone=std::make_shared<Impl::Zone>(); zone->id={identity()}; zone->options=std::move(options);
-    *slot=zone; ++impl_->revision; return zone->id;
+    *slot=zone; ++impl_->revision; change.changed=true; return zone->id;
 }
 std::expected<void,SubmitError> ComputeRouter::configure_zone(AvailabilityZone id,AvailabilityZoneOptions options) {
+    Impl::Change change{*impl_};
     std::lock_guard lock(impl_->mutex);
     if(impl_->stopped) return std::unexpected(SubmitError::stopped);
     const auto zone=Impl::find(impl_->zones,id);
     if(!zone || !name_valid(options.name)) return std::unexpected(SubmitError::invalid);
     for(const auto& other:impl_->zones) if(other && other!=zone && other->options.name==options.name) return std::unexpected(SubmitError::invalid);
-    zone->options=std::move(options); ++impl_->revision; return {};
+    zone->options=std::move(options); ++impl_->revision; change.changed=true; return {};
 }
 std::expected<void,SubmitError> ComputeRouter::remove_zone(AvailabilityZone id) {
+    Impl::Change change{*impl_};
     std::lock_guard lock(impl_->mutex);
     if(impl_->stopped) return std::unexpected(SubmitError::stopped);
     const auto zone=Impl::find(impl_->zones,id);
@@ -242,41 +345,46 @@ std::expected<void,SubmitError> ComputeRouter::remove_zone(AvailabilityZone id) 
     for(const auto& scope:impl_->scopes) if(scope && !scope->options.zones.empty() && impl_->covers(*scope,id))
         return std::unexpected(SubmitError::overloaded);
     for(auto& slot:impl_->zones) if(slot==zone) { slot.reset(); break; }
-    ++impl_->revision; return {};
+    ++impl_->revision; change.changed=true; return {};
 }
 std::expected<ComputeScope,SubmitError> ComputeRouter::add_scope(ComputeScopeOptions options) {
+    Impl::Change change{*impl_};
     std::lock_guard lock(impl_->mutex);
     if(impl_->stopped) return std::unexpected(SubmitError::stopped);
     if(!impl_->scope_valid(options)) return std::unexpected(SubmitError::invalid);
     const auto slot=std::find(impl_->scopes.begin(),impl_->scopes.end(),nullptr);
     if(slot==impl_->scopes.end()) return std::unexpected(SubmitError::full);
     auto scope=std::make_shared<Impl::Scope>(); scope->id={identity()}; scope->options=std::move(options);
-    *slot=scope; ++impl_->revision; return scope->id;
+    *slot=scope; ++impl_->revision; change.changed=true; return scope->id;
 }
 std::expected<void,SubmitError> ComputeRouter::configure_scope(ComputeScope id,ComputeScopeOptions options) {
+    Impl::Change change{*impl_};
     std::lock_guard lock(impl_->mutex);
     if(impl_->stopped) return std::unexpected(SubmitError::stopped);
     const auto scope=Impl::find(impl_->scopes,id);
     if(!scope || !impl_->scope_valid(options,scope)) return std::unexpected(SubmitError::invalid);
-    scope->options=std::move(options); ++impl_->revision; return {};
+    scope->options=std::move(options); ++impl_->revision; change.changed=true; return {};
 }
 std::expected<void,SubmitError> ComputeRouter::remove_scope(ComputeScope id) {
+    Impl::Change change{*impl_};
     std::lock_guard lock(impl_->mutex);
     if(impl_->stopped) return std::unexpected(SubmitError::stopped);
     const auto scope=Impl::find(impl_->scopes,id);
     if(!scope || id==impl_->default_scope) return std::unexpected(SubmitError::invalid);
     if(scope->usage.in_flight) return std::unexpected(SubmitError::overloaded);
     for(auto& slot:impl_->scopes) if(slot==scope) { slot.reset(); break; }
-    ++impl_->revision; return {};
+    ++impl_->revision; change.changed=true; return {};
 }
 std::expected<LoadTarget,SubmitError> ComputeRouter::add_target(Runtime& runtime,AvailabilityZone id,ComputeTargetOptions options) {
-    const auto sample=runtime.stats();
+    Impl::Change change{*impl_};
+    const auto [sample,sample_revision]=runtime.versioned_stats();
     if(!options.load.capacity) options.load.capacity=sample.capacity;
     if(!std::isfinite(options.cpu_ceiling) || options.cpu_ceiling<=0 || options.cpu_ceiling>1 ||
        (!options.load.name.empty() && !name_valid(options.load.name)))
         return std::unexpected(SubmitError::invalid);
     auto target=std::make_shared<Impl::Target>();
-    target->runtime=&runtime; target->sample=sample; target->sampled_at=Clock::now(); target->options=options;
+    target->runtime=&runtime; target->sample=sample; target->runtime_revision=sample_revision;
+    target->sampled_at=Clock::now(); target->options=options;
     std::lock_guard lock(impl_->mutex);
     if(impl_->stopped) return std::unexpected(SubmitError::stopped);
     target->zone=Impl::find(impl_->zones,id);
@@ -284,33 +392,43 @@ std::expected<LoadTarget,SubmitError> ComputeRouter::add_target(Runtime& runtime
     for(const auto& other:impl_->targets) if(other && other->runtime==&runtime) return std::unexpected(SubmitError::invalid);
     const auto slot=std::find(impl_->targets.begin(),impl_->targets.end(),nullptr);
     if(slot==impl_->targets.end()) return std::unexpected(SubmitError::full);
+    if(impl_->monitoring) impl_->bind(target,impl_->monitoring);
     const auto registered=impl_->balance.add_target(runtime,std::move(options.load));
-    if(!registered) return std::unexpected(registered.error());
-    target->id=*registered; target->load=*impl_->balance.target_stats(*registered); *slot=target;
-    ++impl_->revision; return *registered;
+    if(!registered) { impl_->unbind(target); return std::unexpected(registered.error()); }
+    target->id=*registered;
+    target->load_version=impl_->balance.target_revision(*registered);
+    const auto load=impl_->balance.versioned_target_stats(*registered);
+    target->load=load->first; target->load_revision=load->second; target->load_sampled_at=Clock::now();
+    *slot=target; target->registered=true;
+    ++impl_->revision; change.changed=true; change.target=target; return *registered;
 }
 std::expected<void,SubmitError> ComputeRouter::assign_target(LoadTarget id,AvailabilityZone zone_id) {
+    Impl::Change change{*impl_};
     std::lock_guard lock(impl_->mutex);
     if(impl_->stopped) return std::unexpected(SubmitError::stopped);
     const auto target=Impl::find(impl_->targets,id); const auto zone=Impl::find(impl_->zones,zone_id);
     if(!target || !zone) return std::unexpected(SubmitError::invalid);
     if(target->retiring) return std::unexpected(SubmitError::overloaded);
-    target->zone=zone; ++impl_->revision; return {};
+    target->zone=zone; ++impl_->revision; change.changed=true; return {};
 }
 std::expected<void,SubmitError> ComputeRouter::enable_target(LoadTarget id,bool enabled) {
+    Impl::Change change{*impl_};
     std::lock_guard lock(impl_->mutex);
     if(impl_->stopped) return std::unexpected(SubmitError::stopped);
     const auto target=Impl::find(impl_->targets,id);
     if(!target) return std::unexpected(SubmitError::invalid);
     if(target->retiring) return std::unexpected(SubmitError::overloaded);
-    target->enabled=enabled; ++impl_->revision; return {};
+    target->enabled=enabled; ++impl_->revision; change.changed=true; return {};
 }
 bool ComputeRouter::report_health(LoadTarget id,bool healthy) {
+    Impl::Change change{*impl_};
     std::lock_guard lock(impl_->mutex);
-    if(impl_->stopped || !Impl::find(impl_->targets,id) || !impl_->balance.report_health(id,healthy)) return false;
-    ++impl_->revision; return true;
+    const auto target=Impl::find(impl_->targets,id);
+    if(impl_->stopped || !target || !impl_->balance.report_health(id,healthy)) return false;
+    ++impl_->revision; change.changed=true; change.target=target; return true;
 }
 bool ComputeRouter::report_load(LoadTarget id,ComputeObservation observation) {
+    Impl::Change change{*impl_};
     const auto now=Clock::now();
     if(observation.sampled_at==Clock::time_point{}) observation.sampled_at=now;
     if(observation.sampled_at>now || observation.valid_for<=Clock::duration::zero() ||
@@ -318,12 +436,13 @@ bool ComputeRouter::report_load(LoadTarget id,ComputeObservation observation) {
     std::lock_guard lock(impl_->mutex);
     const auto target=Impl::find(impl_->targets,id);
     if(impl_->stopped || !target || target->retiring || (target->observation && observation.sampled_at<target->observation->sampled_at)) return false;
-    target->observation=observation; ++impl_->revision; return true;
+    target->observation=observation; ++impl_->revision; change.changed=true; return true;
 }
 std::expected<ComputeLease,SubmitError> ComputeRouter::allocate(ComputeScope scope_id,ComputeRequest request,bool external) {
     auto state=std::make_shared<ComputeLease::State>(impl_);
+    Impl::Change change{*impl_};
     std::lock_guard lock(impl_->mutex);
-    const auto reject=[&](SubmitError code) -> std::expected<ComputeLease,SubmitError> { ++impl_->rejected; return std::unexpected(code); };
+    const auto reject=[&](SubmitError code) -> std::expected<ComputeLease,SubmitError> { ++impl_->rejected; change.changed=true; return std::unexpected(code); };
     if(impl_->stopped) return reject(SubmitError::stopped);
     const auto scope=Impl::find(impl_->scopes,scope_id);
     const auto policy=request.work.policy.value_or(BalancePolicy::least_loaded);
@@ -381,6 +500,7 @@ std::expected<ComputeLease,SubmitError> ComputeRouter::allocate(ComputeScope sco
     state->external=external; state->accounted=true;
     if(external) { ++impl_->external; ++state->target->external; }
     else ++impl_->internal;
+    change.changed=true; change.target=state->target;
     return ComputeLease(std::move(state));
 }
 std::expected<ComputeLease,SubmitError> ComputeRouter::acquire(ComputeScope scope,ComputeRequest request) { return allocate(scope,request,true); }
@@ -438,6 +558,7 @@ ComputeSnapshot ComputeRouter::monitor() {
     impl_->refresh_locked();
     ComputeSnapshot snapshot;
     snapshot.sampled_at=Clock::now(); snapshot.revision=impl_->revision; snapshot.monitor_samples=impl_->samples;
+    snapshot.monitor_target_visits=impl_->monitor_target_visits;
     snapshot.rejected=impl_->rejected; snapshot.stopped=impl_->stopped; snapshot.load=impl_->balance.stats();
     for(const auto& zone:impl_->zones) if(zone) {
         AvailabilityZoneSnapshot value; value.zone=zone->id; value.options=zone->options; value.usage=zone->usage;
@@ -458,29 +579,108 @@ ComputeSnapshot ComputeRouter::monitor() {
     }
     return snapshot;
 }
+std::expected<ComputeTargetView,SubmitError> ComputeRouter::query_target(ComputeTargetQuery query) {
+    std::lock_guard lock(impl_->mutex);
+    const auto target=Impl::find(impl_->targets,query.target);
+    if(!target) return std::unexpected(SubmitError::invalid);
+    ComputeTargetView result{};
+    result.target=target->id;
+    if(query.runtime) {
+        impl_->refresh_runtime(*target);
+        result.runtime=ComputeRuntimeView{target->sample,target->sampled_at};
+    }
+    if(query.load) {
+        impl_->refresh_load(*target);
+        result.load=ComputeLoadView{target->load,target->load_sampled_at};
+    }
+    if(query.usage) result.usage=target->usage;
+    if(query.zone) result.zone=target->zone->id;
+    if(query.observation) result.observation=ComputeObservationView{target->observation,fresh(target->observation,Clock::now())};
+    if(query.activity) result.activity=ComputeActivityView{
+        target->active_callbacks,target->active_processes,target->callbacks_started,target->callbacks_finished,
+        target->queue_time,target->execution_time};
+    if(query.state) result.state=ComputeStateView{target->enabled,target->retiring};
+    return result;
+}
 Submission ComputeRouter::start_monitoring(EventLoop& loop,Clock::duration interval) {
     if(interval<=Clock::duration::zero()) return {{},SubmitError::invalid};
     std::unique_lock lifecycle(impl_->lifecycle,std::try_to_lock);
     if(!lifecycle.owns_lock()) return {{},SubmitError::overloaded};
-    auto monitor=std::make_shared<Impl::Monitor>();
-    std::lock_guard lock(impl_->mutex);
-    if(impl_->stopped) return {{},SubmitError::stopped};
-    if(impl_->monitoring) return {{},SubmitError::overloaded};
-    const auto submitted=loop.every(interval,[owner=std::weak_ptr<Impl>(impl_),weak=std::weak_ptr<Impl::Monitor>(monitor)] {
-        const auto state=owner.lock(); const auto active=weak.lock();
-        if(state && active) (void)active->calls.run([&] { std::lock_guard guard(state->mutex); state->refresh_locked(); });
+    auto monitor=std::make_shared<Impl::Monitor>(impl_->options.max_targets);
+    {
+        std::lock_guard lock(impl_->mutex);
+        if(impl_->stopped) return {{},SubmitError::stopped};
+        if(impl_->monitoring) return {{},SubmitError::overloaded};
+    }
+    monitor->sender=loop.sender(); monitor->interval=interval;
+    const auto owner=std::weak_ptr<Impl>(impl_);
+    const auto weak=std::weak_ptr<Impl::Monitor>(monitor);
+    const auto binding=std::shared_ptr<int>(new int, [owner,weak](int* value) {
+        delete value;
+        if(const auto state=owner.lock()) if(const auto active=weak.lock()) state->retire_monitor(active);
     });
-    if(submitted) { monitor->token=submitted.token; impl_->monitoring=monitor; }
+    const auto submitted=loop.on_signal([owner,weak,binding] {
+        (void)binding; // Retiring the executor slot also detaches the subscriptions.
+        const auto state=owner.lock(); const auto active=weak.lock();
+        if(state && active) (void)active->calls.run([&] {
+            const bool overflow=active->take();
+            {
+                std::lock_guard guard(state->mutex);
+                if(overflow) {
+                    for(const auto& target:state->targets) if(target) {
+                        ++state->monitor_target_visits;
+                        state->refresh_runtime(*target); state->refresh_load(*target);
+                    }
+                } else for(const auto& item:active->processing) {
+                    if(const auto target=item->target.lock(); target && target->registered) {
+                        ++state->monitor_target_visits;
+                        state->refresh_runtime(*target); state->refresh_load(*target);
+                    }
+                }
+                ++state->samples;
+            }
+            active->sample_finished();
+        });
+    });
+    if(submitted) {
+        monitor->token=submitted.token;
+        SubmitError rejected=SubmitError::none;
+        std::exception_ptr binding_failure;
+        {
+            std::lock_guard lock(impl_->mutex);
+            if(impl_->stopped || impl_->monitoring) {
+                rejected=impl_->stopped ? SubmitError::stopped : SubmitError::overloaded;
+            } else {
+                impl_->monitoring=monitor;
+                try {
+                    for(const auto& target:impl_->targets) if(target) impl_->bind(target,monitor);
+                } catch (...) {
+                    binding_failure=std::current_exception();
+                    for(const auto& target:impl_->targets) if(target) impl_->unbind(target);
+                    impl_->monitoring.reset();
+                }
+            }
+        }
+        if(rejected!=SubmitError::none) { (void)submitted.token.cancel(); return {{},rejected}; }
+        if(binding_failure) { (void)submitted.token.cancel(); std::rethrow_exception(binding_failure); }
+        monitor->notify();
+    }
     return submitted;
 }
 ThreadResult ComputeRouter::stop_monitoring() {
     std::shared_ptr<Impl::Monitor> monitor;
-    { std::lock_guard lock(impl_->mutex); monitor=std::exchange(impl_->monitoring,{}); }
+    {
+        std::lock_guard lock(impl_->mutex);
+        monitor=std::exchange(impl_->monitoring,{});
+        if(monitor) for(const auto& target:impl_->targets) if(target) impl_->unbind(target);
+    }
     if(!monitor) return {};
+    monitor->stop();
     (void)monitor->token.cancel();
     return monitor->calls.close();
 }
 ThreadResult ComputeRouter::remove_target(LoadTarget id,ShutdownMode mode) {
+    Impl::Change change{*impl_};
     if(mode!=ShutdownMode::drain && mode!=ShutdownMode::cancel_pending) return error(ThreadErrorCode::invalid_work);
     if(Activity::contains(impl_.get())) return error(ThreadErrorCode::self_join);
     std::unique_lock lifecycle(impl_->lifecycle,std::try_to_lock);
@@ -491,6 +691,7 @@ ThreadResult ComputeRouter::remove_target(LoadTarget id,ShutdownMode mode) {
         target=Impl::find(impl_->targets,id);
         if(!target) return error(ThreadErrorCode::invalid_work);
         target->retiring=true; target->enabled=false; target->load.draining=true; ++impl_->revision;
+        change.changed=true; change.target=target;
         (void)impl_->balance.request_drain(id);
     }
     for(;;) {
@@ -502,13 +703,17 @@ ThreadResult ComputeRouter::remove_target(LoadTarget id,ShutdownMode mode) {
         auto result=impl_->balance.remove_target(id,mode);
         if(result || result.error().code==ThreadErrorCode::work_failed) {
             std::lock_guard lock(impl_->mutex);
+            target->registered=false;
+            impl_->unbind(target);
             for(auto& slot:impl_->targets) if(slot==target) { slot.reset(); break; }
             return result;
         }
         if(result.error().code!=ThreadErrorCode::would_block) return result;
         std::unique_lock lock(impl_->mutex);
         if(target->external || cannot_block()) return result;
-        impl_->changed.wait_for(lock,std::chrono::milliseconds(1));
+        lock.unlock();
+        const auto idle=impl_->balance.wait_idle(id);
+        if(!idle && idle.error().code!=ThreadErrorCode::work_failed) return idle;
     }
 }
 ThreadResult ComputeRouter::close(ShutdownMode mode) {
@@ -535,7 +740,9 @@ ThreadResult ComputeRouter::close(ShutdownMode mode) {
         if(result.error().code!=ThreadErrorCode::would_block) return result;
         std::unique_lock lock(impl_->mutex);
         if(impl_->external || cannot_block()) return result;
-        impl_->changed.wait_for(lock,std::chrono::milliseconds(1));
+        lock.unlock();
+        const auto idle=impl_->balance.wait_idle();
+        if(!idle && idle.error().code!=ThreadErrorCode::work_failed) return idle;
     }
     if(const auto closed=impl_->processes.close();!closed) return closed;
     if(const auto closed=impl_->work.close();!closed) return closed;

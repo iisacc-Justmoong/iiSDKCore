@@ -32,6 +32,21 @@ struct Fixture final {
         ("loop-io-"+std::to_string(Clock::now().time_since_epoch().count()));
     ~Fixture() { std::error_code ignored; std::filesystem::remove(path, ignored); }
 };
+void selective_io_candidates() {
+    Fixture fixture;
+    auto channel=open_file(fixture.path,{.access=Access::read_write,.creation=Creation::create_new}).value();
+    EventLoop loop(16);
+    for(int i=0;i<8;++i) check(bool(loop.post([]{})),"queue a non-I/O task");
+    check(loop.poll({1,1s})==1 && loop.stats().io_candidates==0,
+          "ordinary work is never scanned for I/O readiness");
+    auto pending=loop.watch(channel,Interest::readable,[](Result<void>){});
+    check(bool(pending) && loop.poll({1,1s})==1 && loop.stats().io_candidates==1,
+          "only the registered I/O slot is a readiness candidate");
+    check(pending.token.cancel(),"retire the I/O slot before reuse");
+    check(loop.poll({1,1s})==1 && loop.stats().io_candidates==1,
+          "cancelled I/O is removed from the candidate set");
+    check(bool(channel.close()),"close the selective I/O fixture");
+}
 void file_contracts() {
     Fixture fixture;
     auto channel=open_file(fixture.path, {.access=Access::read_write, .creation=Creation::create_new}).value();
@@ -72,6 +87,12 @@ void file_contracts() {
     })) && loop.poll(generous)==2 && queried, "I/O and typed object queries share dispatch");
     check(loop.read(channel, Read{readback,9}, [](IOResult){}).error==SubmitError::invalid,
           "loop rejects invalid buffer range before admission");
+    Read invalid_poll{readback,0,1,1s}; invalid_poll.polling_interval=0ms;
+    check(loop.read(channel,invalid_poll,[](IOResult){}).error==SubmitError::invalid,
+          "loop rejects an invalid explicit polling interval");
+    IOWatchOptions invalid_watch; invalid_watch.polling_interval=0ms;
+    check(loop.watch(channel,Interest::readable,[](Result<void>){},invalid_watch).error==SubmitError::invalid,
+          "watch rejects an invalid explicit polling interval");
     check(loop.write(channel, Write{readback,0,1,-1ms}, [](IOResult){}).error==SubmitError::invalid,
           "loop rejects negative timeout");
     check(loop.read(channel,Read{readback,0,1,std::chrono::milliseconds::min()},[](IOResult){}).error==SubmitError::invalid,
@@ -133,6 +154,34 @@ void file_contracts() {
 }
 
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+void unrelated_work_does_not_reprobe_every_watch() {
+    Fixture fixture;
+    check(::mkfifo(fixture.path.c_str(),0600)==0, "create idle FIFO fixture");
+    auto channel=open_device(fixture.path,{.access=Access::read_write}).value();
+    EventLoop loop(24);
+    std::array<TaskToken,4> watches;
+    for (auto& token:watches) {
+        auto watch=loop.watch(channel,Interest::readable,[](Result<void>){});
+        check(bool(watch),"register idle watch");
+        token=watch.token;
+    }
+    check(loop.poll(generous)==0,"idle watches have no completion");
+    const auto before=loop.stats().io_candidates;
+    for (int i=0;i<8;++i) check(bool(loop.post([]{})),"post unrelated work");
+    check(loop.poll({8,1s})==8,"unrelated work dispatches");
+    check(loop.stats().io_candidates-before<=watches.size(),
+          "one explicit pump does not recheck every idle watch for each callback");
+    for (const auto& token:watches) check(token.cancel(),"retire idle watch");
+    bool expired=false;
+    IOWatchOptions options; options.timeout=1ms;
+    check(bool(loop.watch(channel,Interest::readable,[&](Result<void> ready) {
+        expired=!ready && ready.error().code==ErrorCode::timed_out;
+    },options)),"register a short I/O deadline");
+    check(bool(loop.post([]{std::this_thread::sleep_for(3ms);})),"post work crossing the deadline");
+    check(loop.poll({2,1s})==2 && expired,
+          "a deadline reached during dispatch is delivered in the same pump");
+    check(bool(channel.close()),"close idle FIFO fixture");
+}
 void fifo_contracts() {
     Fixture fixture;
     check(::mkfifo(fixture.path.c_str(),0600)==0, "create FIFO fixture");
@@ -291,8 +340,10 @@ void serial_contracts() {
 }
 int main() {
     try {
+        selective_io_candidates();
         file_contracts();
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+        unrelated_work_does_not_reprobe_every_watch();
         fifo_contracts();
 #else
         check(!open_device("device") && open_device("device").error().code==ErrorCode::unsupported,

@@ -10,11 +10,11 @@
   },
   "source": {
     "path": "docs/frame-loop.md",
-    "sha256": "186f138207f34d5cb261bd9dc7b257fb474868de480ddcce0a37d0b1bffc5a06",
-    "bytes": 12507,
-    "line_count": 193,
+    "sha256": "a09ebbe3533880d57b1d9cf13ab93511fb6116126ccc92a9ad7dfc2fe23e2fae",
+    "bytes": 13028,
+    "line_count": 199,
     "encoding": "utf-8",
-    "language": "en"
+    "language": "ko"
   },
   "document": {
     "title": "App and game frame loop (0.11.0)",
@@ -458,37 +458,51 @@
       "id": "b000049",
       "kind": "paragraph",
       "start_line": 156,
-      "end_line": 168,
-      "raw": "Each frame snapshots order/options. Additions, dependency/enable changes and clock\ncontrols apply next frame. Removal immediately suppresses deliveries not started;\nself removal retires after return. Captures are destroyed before returning slot\ncapacity. Capture destructors may adjust other registrations but cannot advance\nor destroy the loop. Throwing ticks retire before their exception propagates.\nReferenced consumer state must outlive its callbacks; remove those registrations\non the host thread before destroying that state.\nRemaining fixed backlog is discarded; other registrations survive, without\nreplaying failed frames or rolling back consumer effects. `end` can be skipped on\nfailure/suspend/stop and is not an exception finalizer. Stats still finalize.\nStopping EventLoop suppresses subsequent frame callbacks. Destroy FrameLoop after\nstopping its driver to release captures. It does not stop the external EventLoop\nor remove other owners' work. Self/concurrent destruction during dispatch is invalid.\n"
+      "end_line": 160,
+      "raw": "Order and options are fixed for each frame. Additions, dependency/enable changes and clock\ncontrols apply next frame. Removal immediately suppresses deliveries not started;\nself removal retires after return. Captures are destroyed before returning slot\ncapacity. Capture destructors may adjust other registrations but cannot advance\nor destroy the loop. Throwing ticks retire before their exception propagates.\n"
     },
     {
       "id": "b000050",
       "kind": "blank",
-      "start_line": 169,
-      "end_line": 169,
+      "start_line": 161,
+      "end_line": 161,
       "raw": "\n"
     },
     {
       "id": "b000051",
+      "kind": "paragraph",
+      "start_line": 162,
+      "end_line": 174,
+      "raw": "프레임 실행 계획은 등록·삭제·의존성·활성 상태가 바뀐 경우에만 다음 프레임 경계에서\n갱신한다. 의존 관계가 그대로인 활성 상태 변경은 위상 순서를 다시 계산하지 않는다.\n각 단계는 그 단계의 활성 항목만 방문하며, 시뮬레이션과 표시를 위한 실제 프레임\n콜백은 기존 주기대로 실행한다. 통계의 계획 갱신 횟수와 단계별 후보 방문 횟수는\n실제로 수행한 관리 작업을 나타낸다.\nReferenced consumer state must outlive its callbacks; remove those registrations\non the host thread before destroying that state.\nRemaining fixed backlog is discarded; other registrations survive, without\nreplaying failed frames or rolling back consumer effects. `end` can be skipped on\nfailure/suspend/stop and is not an exception finalizer. Stats still finalize.\nStopping EventLoop suppresses subsequent frame callbacks. Destroy FrameLoop after\nstopping its driver to release captures. It does not stop the external EventLoop\nor remove other owners' work. Self/concurrent destruction during dispatch is invalid.\n"
+    },
+    {
+      "id": "b000052",
+      "kind": "blank",
+      "start_line": 175,
+      "end_line": 175,
+      "raw": "\n"
+    },
+    {
+      "id": "b000053",
       "kind": "heading",
-      "start_line": 170,
-      "end_line": 170,
+      "start_line": 176,
+      "end_line": 176,
       "raw": "## Drivers\n",
       "level": 2,
       "title": "Drivers"
     },
     {
-      "id": "b000052",
+      "id": "b000054",
       "kind": "blank",
-      "start_line": 171,
-      "end_line": 171,
+      "start_line": 177,
+      "end_line": 177,
       "raw": "\n"
     },
     {
-      "id": "b000053",
+      "id": "b000055",
       "kind": "list",
-      "start_line": 172,
-      "end_line": 182,
+      "start_line": 178,
+      "end_line": 188,
       "raw": "- Native `frames.run()` reserves one periodic EventLoop slot and uses existing\n  waiting/wakeup scheduling without busy spinning. Failed reservation is an error;\n  the timer retires on return/exception. Stop via `events.request_stop()`.\n- Existing UIKit, Android or desktop GUI frame callbacks call `frames.poll()`\n  after collecting input. Event/I/O work executes before the frame. It never\n  sleeps or creates another platform main loop.\n- Inside EventLoop dispatch, use `frames.step(timestamp)` for frame-only work,\n  avoiding recursive event polling.\n- Emscripten `BrowserLoop browser(frames)` uses requestAnimationFrame. Exceptions\n  are stored for `rethrow_if_failed()` and never cross the browser C boundary.\n  All three objects outlive the browser callback. Hidden-tab throttling applies.\n",
       "items": [
         {
@@ -514,47 +528,47 @@
       ]
     },
     {
-      "id": "b000054",
-      "kind": "blank",
-      "start_line": 183,
-      "end_line": 183,
-      "raw": "\n"
-    },
-    {
-      "id": "b000055",
-      "kind": "paragraph",
-      "start_line": 184,
-      "end_line": 189,
-      "raw": "The five OS targets use compiled native C++. WASM is a separate WebAssembly target\nexecuted by its host, not native-machine-code proof for those OSes. No common VM\nis required for native builds. Compile/link, Node, browser and device execution\nare different evidence. `examples/frame_loop.cpp` composes real-time UI, fixed\nsimulation, interpolation and stop. `tests/frame_loop.cpp` covers these contracts\nand runs against both source and installed packages.\n"
-    },
-    {
       "id": "b000056",
       "kind": "blank",
-      "start_line": 190,
-      "end_line": 190,
+      "start_line": 189,
+      "end_line": 189,
       "raw": "\n"
     },
     {
       "id": "b000057",
+      "kind": "paragraph",
+      "start_line": 190,
+      "end_line": 195,
+      "raw": "The five OS targets use compiled native C++. WASM is a separate WebAssembly target\nexecuted by its host, not native-machine-code proof for those OSes. No common VM\nis required for native builds. Compile/link, Node, browser and device execution\nare different evidence. `examples/frame_loop.cpp` composes real-time UI, fixed\nsimulation, interpolation and stop. `tests/frame_loop.cpp` covers these contracts\nand runs against both source and installed packages.\n"
+    },
+    {
+      "id": "b000058",
+      "kind": "blank",
+      "start_line": 196,
+      "end_line": 196,
+      "raw": "\n"
+    },
+    {
+      "id": "b000059",
       "kind": "heading",
-      "start_line": 191,
-      "end_line": 191,
+      "start_line": 197,
+      "end_line": 197,
       "raw": "## External-host binding (0.16)\n",
       "level": 2,
       "title": "External-host binding (0.16)"
     },
     {
-      "id": "b000058",
+      "id": "b000060",
       "kind": "blank",
-      "start_line": 192,
-      "end_line": 192,
+      "start_line": 198,
+      "end_line": 198,
       "raw": "\n"
     },
     {
-      "id": "b000059",
+      "id": "b000061",
       "kind": "paragraph",
-      "start_line": 193,
-      "end_line": 193,
+      "start_line": 199,
+      "end_line": 199,
       "raw": "HostLoop pins EventLoop dispatch to the external owner and forwards direct Core submissions/cancellation to its native wake gate. For iiGUI, borrow Host::event_loop on the open UI owner, construct FrameLoop there, and drive step from UiExecutor timers or the host frame callback. Never invoke FrameLoop::poll inside existing dispatch or start another run driver. Keep Host alive until FrameLoop is destroyed; remove/destroy frame captures after run returns, not from inside their own tick. Window/GPU presentation remains in iiGUI. See [host-loop.md](host-loop.md).\n"
     }
   ],
@@ -608,20 +622,20 @@
       "start_line": 146
     },
     {
-      "block_id": "b000051",
+      "block_id": "b000053",
       "parent_id": "b000001",
       "level": 2,
       "title": "Drivers",
       "anchor": "drivers",
-      "start_line": 170
+      "start_line": 176
     },
     {
-      "block_id": "b000057",
+      "block_id": "b000059",
       "parent_id": "b000001",
       "level": 2,
       "title": "External-host binding (0.16)",
       "anchor": "external-host-binding-016",
-      "start_line": 191
+      "start_line": 197
     }
   ],
   "indexes": {
@@ -683,36 +697,43 @@
         "context": "paragraph"
       },
       {
-        "block_id": "b000049",
-        "line": 161,
+        "block_id": "b000051",
+        "line": 163,
+        "text": "갱신한다. 의존 관계가 그대로인 활성 상태 변경은 위상 순서를 다시 계산하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000051",
+        "line": 167,
         "text": "Referenced consumer state must outlive its callbacks; remove those registrations",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000053",
-        "line": 176,
+        "block_id": "b000055",
+        "line": 182,
         "text": "after collecting input. Event/I/O work executes before the frame. It never",
         "basis": "lexical_match",
         "context": "list"
       },
       {
-        "block_id": "b000053",
-        "line": 181,
+        "block_id": "b000055",
+        "line": 187,
         "text": "are stored for `rethrow_if_failed()` and never cross the browser C boundary.",
         "basis": "lexical_match",
         "context": "list"
       },
       {
-        "block_id": "b000055",
-        "line": 186,
+        "block_id": "b000057",
+        "line": 192,
         "text": "is required for native builds. Compile/link, Node, browser and device execution",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000059",
-        "line": 193,
+        "block_id": "b000061",
+        "line": 199,
         "text": "HostLoop pins EventLoop dispatch to the external owner and forwards direct Core submissions/cancellation to its native wake gate. For iiGUI, borrow Host::event_loop on the open UI owner, construct FrameLoop there, and drive step from UiExecutor timers or the host frame callback. Never invoke FrameLoop::poll inside existing dispatch or start another run driver. Keep Host alive until FrameLoop is destroyed; remove/destroy frame captures after run returns, not from inside their own tick. Window/GPU presentation remains in iiGUI. See [host-loop.md](host-loop.md).",
         "basis": "lexical_match",
         "context": "paragraph"
@@ -749,11 +770,11 @@
         "line": 32
       },
       {
-        "block_id": "b000059",
+        "block_id": "b000061",
         "label": "host-loop.md",
         "target": "host-loop.md",
         "kind": "relative",
-        "line": 193
+        "line": 199
       }
     ],
     "tables": [

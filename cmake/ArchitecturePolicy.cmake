@@ -1,4 +1,4 @@
-# The policy is a host build check; Python is never a runtime dependency.
+# The policy is a host build check; the base Core runtime does not depend on Python.
 find_package(Python3 3.9 REQUIRED COMPONENTS Interpreter)
 
 function(_iisdkcore_json_array result)

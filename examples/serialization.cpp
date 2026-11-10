@@ -12,7 +12,7 @@ int main() {
   wire::Result<wire::Bytes> result = std::unexpected(
       wire::Error{wire::ErrorCode::codec_failed, 0, "No result", {}});
   if (ii::runtime::Thread::supported()) {
-    ii::runtime::Runtime runtime;
+    ii::runtime::Runtime runtime({.workers=1});
     ii::runtime::SerialQueue queue(runtime);
     ii::runtime::QueryPort<Payload, wire::Result<wire::Bytes>> port(queue,
                                                                     encode);

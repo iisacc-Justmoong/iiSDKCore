@@ -47,6 +47,8 @@ struct CommunicationOptions final {
     // Runs on the calling thread; bytes are borrowed only during this call.
     // Must return promptly to preserve deadline/cancellation responsiveness.
     std::function<void(Stream, core::ByteView)> receive;
+    // Optional explicit opt-in for non-overlapped Windows pipe readiness.
+    std::optional<std::chrono::milliseconds> polling_interval;
 };
 struct Communication final {
     Exit exit;

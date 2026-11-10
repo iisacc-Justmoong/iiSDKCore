@@ -76,6 +76,22 @@ signal exits are outcomes, while validation/spawn/wait/pipe failures are
 Windows exit codes retain all 32 bits. `id()` is diagnostic, not a transferable
 ownership capability. An already observed exit wins over later cancellation.
 
+macOS에서는 프로세스 종료 알림과 파이프 준비 이벤트를 네이티브 대기로 결합하고,
+Linux에서는 pidfd를 사용한다. Windows에서는 프로세스 핸들 종료를 기다린다.
+통신 취소는 대기 중인 실행을 직접 깨운다. 종료 알림을 만들 수 없고 자식이 아직
+실행 중이면 대기나 통신은 오류를 반환하며, 짧은 간격의 반복 조회로 대체하지 않는다.
+`wait_for` 실패는 소유 프로세스를 계속 실행한 상태로 둔다. `communicate`가 이미
+통신을 인수한 뒤 실패하면 기존 오류 계약에 따라 소유 트리를 정리한다.
+명시적인 `poll()`과 0초 대기는 한 번만 상태를 확인한다. Windows의 기존 비동기 미지원
+파이프를 `communicate`로 사용하려면 `CommunicationOptions::polling_interval`에 양의
+주기를 명시한다. 지정하지 않으면 통신을 시작하지 않고 `unsupported`를 반환하므로
+호출자가 다른 I/O 방식을 선택하거나 같은 자식에 명시적으로 다시 요청할 수 있다.
+`CommunicationOptions`의 공개 데이터 구성이 바뀌었으므로 C++ 소비자는 Core와
+함께 다시 빌드해야 한다.
+iiSDKBuilder는 현재 Windows에서 일반 명령 실행과 HLS 프런트엔드에 한해 20ms
+확인을 명시적으로 요청한다. 이는 현재 파이프 구현을 위한 호환 정책이며
+이벤트 기반 Windows 파이프를 구현했다는 뜻은 아니다.
+
 Destruction and move-assignment retire the previous owned tree, reap the direct
 child and close all standard-channel aliases. A normal root exit also kills
 remaining owned descendants: this is a structured lifetime, not detached launch.

@@ -3,6 +3,7 @@
 #include "HostLoop.h"
 #include "../Core/Result/Result.h"
 #include <array>
+#include <atomic>
 #include <concepts>
 #include <condition_variable>
 #include <functional>
@@ -57,16 +58,25 @@ struct Control final {
     std::stop_token owner;
     std::vector<TaskToken> tokens;
     std::array<std::weak_ptr<Notification>, 16> observers;
+    std::atomic<bool> has_observers{false};
 
     bool interrupted() const {
         return snapshot.cancellation_requested || owner.stop_requested();
     }
-    void notify() {
-        changed.notify_all();
+    // Result/progress updates cannot satisfy terminal or suspension waits;
+    // lifecycle changes still wake them and every change reaches watchers.
+    void notify(bool wake_waiters = true) {
+        if (wake_waiters) changed.notify_all();
+        if (!has_observers.load(std::memory_order_acquire)) return;
         std::array<std::shared_ptr<Notification>, 16> ready;
         {
             std::lock_guard lock(mutex);
-            for (std::size_t i = 0; i < observers.size(); ++i) ready[i] = observers[i].lock();
+            bool any = false;
+            for (std::size_t i = 0; i < observers.size(); ++i) {
+                ready[i] = observers[i].lock();
+                any = any || bool(ready[i]);
+            }
+            has_observers.store(any, std::memory_order_release);
         }
         // Observers schedule onto their own executors; no callback runs under
         // the future lock, and observer admission cannot fail the computation.
@@ -225,7 +235,11 @@ private:
     bool observe(const std::shared_ptr<future_detail::Notification>& observer) const {
         if (!state_) return false;
         std::lock_guard lock(state_->control.mutex);
-        for (auto& slot : state_->control.observers) if (slot.expired()) { slot = observer; return true; }
+        for (auto& slot : state_->control.observers) if (slot.expired()) {
+            slot = observer;
+            state_->control.has_observers.store(true, std::memory_order_release);
+            return true;
+        }
         return false;
     }
     std::shared_ptr<future_detail::State<T>> state_;
@@ -284,7 +298,7 @@ public:
             state_->values[at] = std::move(stored);
             ++control.snapshot.result_count; ++control.snapshot.revision;
         }
-        control.notify(); return {};
+        control.notify(false); return {};
     }
     [[nodiscard]] bool is_cancelled() const {
         std::lock_guard lock(state_->control.mutex); return state_->control.interrupted();
@@ -324,10 +338,13 @@ public:
             std::lock_guard lock(control.mutex);
             if (future_detail::terminal(control.snapshot.status))
                 return core::fail(core::ErrorCode::closed, "Future progress is final");
+            const auto& progress = control.snapshot.progress;
+            if (progress.minimum == minimum && progress.maximum == maximum &&
+                progress.value == minimum && progress.text.empty()) return {};
             control.snapshot.progress = {minimum, maximum, minimum, {}};
             ++control.snapshot.revision;
         }
-        control.notify(); return {};
+        control.notify(false); return {};
     }
     [[nodiscard]] core::Result<void> set_progress(std::size_t value, std::string text = {}) {
         auto& control = state_->control;
@@ -338,9 +355,10 @@ public:
             auto& progress = control.snapshot.progress;
             if (value < progress.minimum || value > progress.maximum)
                 return core::fail(core::ErrorCode::out_of_range, "Future progress is outside its range");
+            if (progress.value == value && progress.text == text) return {};
             progress.value = value; progress.text = std::move(text); ++control.snapshot.revision;
         }
-        control.notify(); return {};
+        control.notify(false); return {};
     }
     bool finish() { return state_->control.finish(FutureStatus::succeeded); }
     bool fail(core::Error error) { return state_->control.finish(FutureStatus::failed, std::move(error)); }
@@ -348,12 +366,12 @@ public:
         auto& control = state_->control;
         {
             std::lock_guard lock(control.mutex);
-            if (future_detail::terminal(control.snapshot.status)) return;
-            if (control.snapshot.progress.value < control.snapshot.progress.maximum)
-                ++control.snapshot.progress.value;
+            if (future_detail::terminal(control.snapshot.status) ||
+                control.snapshot.progress.value >= control.snapshot.progress.maximum) return;
+            ++control.snapshot.progress.value;
             ++control.snapshot.revision;
         }
-        control.notify();
+        control.notify(false);
     }
 private:
     friend class Concurrent;

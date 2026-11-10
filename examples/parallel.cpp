@@ -8,7 +8,7 @@ int main() {
         std::cout << "parallel runtime requires workers\n";
         return 0;
     }
-    Runtime runtime;
+    Runtime runtime({.workers=2});
     SerialQueue device_queue(runtime), calculation_queue(runtime);
     ObjectProperties device(device_queue, {{.name = "level", .value = 0,
         .policy = {.queryable = true, .writable = true}}});

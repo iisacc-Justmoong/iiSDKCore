@@ -4,6 +4,7 @@
 #include <iiSDKCore/Runtime/LiveStream.h>
 #include <iiSDKCore/Runtime/Thread.h>
 #include <iostream>
+#include <future>
 #include <latch>
 #include <stdexcept>
 #include <thread>
@@ -83,6 +84,19 @@ void scheduling() {
                 .error == SubmitError::invalid,
         "invalid quantum");
 }
+void realtime_precedes_normal_backlog() {
+  EventLoop loop(4097);
+  int ordinary=0,realtime=0;
+  for (int i=0;i<4096;++i)
+    check(bool(loop.post([&]{++ordinary;})),"admit ordinary backlog");
+  RealtimeSchedule plan{10s,1s,100ms,10ms,Clock::now()};
+  check(bool(loop.realtime(plan,[&](const auto&) {++realtime;return SliceResult::stop;})),
+        "admit realtime work behind ordinary backlog");
+  check(loop.poll({1,1s})==1 && realtime==1 && ordinary==0,
+        "a ready realtime reservation precedes a large ordinary backlog");
+  loop.request_stop();
+  check(loop.stats().pending==0,"backlog cancellation returns every slot");
+}
 void live_stream() {
   EventLoop loop(4);
   LiveStream<int> stream(3, 50ms);
@@ -111,6 +125,73 @@ void live_stream() {
         "live overflow keeps bounded recent frames");
   check(recent.take(now)->value == 2, "live FIFO after overflow");
   check(bool(recent.close()), "unstarted stream clean close");
+}
+void live_demand() {
+  EventLoop loop(4);
+  LiveStream<int> stream(4, 1h);
+  std::vector<int> received;
+  RealtimeSchedule plan{10ms, 10ms, 2ms, 1ms, Clock::now()};
+  const auto playback = stream.start(loop, plan, [&](auto frame) {
+    received.push_back(frame.value);
+  });
+  check(bool(playback), "demand stream reservation admitted");
+  check(loop.poll({10, 50ms}) == 0 && !loop.next_deadline() &&
+            loop.stats().slices == 0,
+        "empty stream does not schedule recurring callbacks");
+  check(stream.push(Clock::now(), 1), "push wakes parked playback");
+  check(loop.poll({10, 50ms}) == 1 && received == std::vector<int>{1},
+        "data is delivered when pushed");
+  check(!loop.next_deadline(), "drained stream returns to idle");
+  const auto future = Clock::now() + 1h;
+  check(stream.push(future, 2), "accept future data");
+  check(loop.next_deadline() && *loop.next_deadline() >= future &&
+            loop.poll({10, 50ms}) == 0,
+        "future data arms its presentation time, not periodic polling");
+  check(bool(stream.close()) && !playback.token.pending(),
+        "parked reservation closes and releases its slot");
+}
+void signal_delivery() {
+  EventLoop loop(4);
+  auto sender=loop.sender();
+  int calls=0;
+  TaskToken token;
+  auto subscription=loop.on_signal([&] {
+    if (++calls==1) {
+      check(sender.signal(token,Clock::now()),"signal during callback");
+      check(sender.signal(token,Clock::now()),"coalesce concurrent signals");
+    }
+  });
+  token=subscription.token;
+  check(subscription && !loop.next_deadline() && loop.poll()==0,
+        "signal callback remains dormant before notification");
+  check(sender.signal(token,Clock::now()) && sender.signal(token,Clock::now()),
+        "signal callback is triggered by state change");
+  check(loop.poll({10,50ms})==2 && calls==2 && !loop.next_deadline(),
+        "signals coalesce and a signal during delivery is preserved");
+  check(token.cancel() && !sender.signal(token,Clock::now()),
+        "cancel retires the reusable signal slot");
+  auto failing=loop.on_signal([] { throw std::runtime_error("signal failure"); });
+  check(failing && sender.signal(failing.token,Clock::now()),"throwing signal admitted");
+  bool raised=false;
+  try { loop.poll(); } catch(const std::runtime_error&) { raised=true; }
+  check(raised && !failing.token.pending(),"throwing signal retires its slot and propagates");
+  int extreme_calls=0;
+  const auto extreme=loop.on_signal([&] { ++extreme_calls; });
+  check(extreme && sender.signal(extreme.token,Clock::time_point::max()) &&
+        loop.next_deadline()==Clock::time_point::max() && loop.poll()==0,
+        "a maximum-time wake remains distinct from a parked binding");
+  check(sender.signal(extreme.token,Clock::time_point::min()) && loop.poll()==1 &&
+        extreme_calls==1 && extreme.token.cancel(),"an earlier extreme wake replaces the maximum deadline");
+}
+void tiny_pump_budget() {
+  EventLoop loop(2);
+  int calls=0;
+  check(bool(loop.post([&] { ++calls; })),"tiny-budget work admitted");
+  check(loop.poll({1,1ns})==1 && calls==1,
+        "positive pump budget makes progress instead of spinning");
+  check(bool(loop.post([&] { ++calls; })) && loop.poll({1,0ns})==0,
+        "zero time budget still admits no callback");
+  loop.request_stop();
 }
 void continuations_and_removal() {
   EventLoop loop(4);
@@ -174,6 +255,29 @@ void continuations_and_removal() {
         "reuse reservation after full removal");
 }
 #if !defined(__EMSCRIPTEN__) || defined(__EMSCRIPTEN_PTHREADS__)
+void live_concurrent_push() {
+  EventLoop loop(4);
+  LiveStream<int> stream(4, 1h);
+  std::latch entered(1), release(1);
+  std::promise<void> delivered;
+  auto done=delivered.get_future();
+  std::atomic<int> count=0;
+  check(bool(stream.start(loop,RealtimeSchedule{},[&](auto) {
+    if (++count==1) { entered.count_down(); release.wait(); }
+    else delivered.set_value();
+  })),"start demand playback for concurrent producer");
+  check(stream.push(Clock::now(),1),"queue first frame");
+  Thread runner;
+  check(bool(runner.start(loop)),"start demand playback driver");
+  entered.wait();
+  const bool accepted=stream.push(Clock::now(),2);
+  release.count_down();
+  const bool received=done.wait_for(2s)==std::future_status::ready;
+  loop.request_stop();
+  check(bool(runner.join()),"join demand playback driver");
+  check(accepted && received && count==2 && bool(stream.close()),
+        "a push during delivery cannot lose its wakeup");
+}
 void active_live_removal() {
   EventLoop loop(4);
   LiveStream<std::shared_ptr<int>> stream(2, 1h);
@@ -238,9 +342,14 @@ int main() {
   try {
     time_arithmetic();
     scheduling();
+    realtime_precedes_normal_backlog();
     live_stream();
+    live_demand();
+    signal_delivery();
+    tiny_pump_budget();
     continuations_and_removal();
 #if !defined(__EMSCRIPTEN__) || defined(__EMSCRIPTEN_PTHREADS__)
+    live_concurrent_push();
     active_live_removal();
     native_driver();
 #endif

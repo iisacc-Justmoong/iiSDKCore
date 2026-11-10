@@ -1,5 +1,58 @@
 # 플랫폼 독립 I/O
 
+## 터치 표본과 제스처
+
+`ii::runtime::touch::TouchRouter`는 표면 좌표·시간·필압·펜 기울기와 식별자를
+가진 입력 표본을 순서대로 처리한다. 기기 접근과 화면 획득은 플랫폼 백엔드가
+담당하며 Core는 UIKit이나 다른 GUI 모듈에 의존하지 않는다. iPadOS의 일반 앱은
+운영체제가 전달한 터치 표본을 사용한다. DriverKit의 외장 장치 지원을 내장
+터치스크린에 대한 직접 접근으로 표현하지 않는다.
+
+스크롤 가능한 영역에서 한 손가락이 주로 세로로 움직이면 내용이 손가락과 같은
+방향으로 움직이는 `pan`을 방출한다. 가로 움직임은 슬라이더 등의 포인터 입력으로
+되돌리며 대기 중 보관한 표본을 순서대로 전달한다. 일반 그리기 영역의 펜 표본은
+대기 없이 전달한다. 두 손가락의 중심 이동과 거리 비율은 각각 증분 `pan`과
+`pinch`로 방출한다. 제스처가 시작되면 기존 포인터를 취소하고, 한 손가락만 남아도
+새 그리기를 시작하지 않는다. 펜이 입력 중일 때 닿은 손가락은 해당 획이 끝날 때까지
+무시하며, 펜이 이미 닿은 손가락보다 나중에 시작되면 포인터를 취소하고 펜이
+입력을 이어받는다. 이동 임계값은 생성 시 지정할 수 있다. 관성·회전
+제스처는 이 계약에 포함하지 않는다.
+
+라우터는 표면별로 소유하며 한 입력 스레드에서 호출한다. 결과는 고정 크기 묶음이고
+재진입 시 `revision()`으로 오래된 전달을 중단할 수 있다. 유효하지 않은 표본은
+거부하며 상태를 새 제스처로 변경하지 않는다.
+
+## 터치 이동과 관성 계약
+
+`TouchMotion`은 운영체제나 위젯에 의존하지 않는 표본 기반 속도 추정과 프레임 기반
+감속을 제공한다. 입력 이동량은 표면의 논리 좌표를 따르며, 최근 표본과 놓는 시각을
+이용해 속도를 구한다. 오래 정지한 뒤 놓거나 시각이 역행하는 표본으로는 관성을
+시작하지 않는다. 감속은 경과 시간에 따라 적분해 60Hz와 120Hz에서 같은 시간 동안
+같은 거리를 이동한다. 새 터치, 취소, 이동 불가능한 축 및 긴 프레임 중단은 해당
+움직임을 중지한다. 속도 추정과 감속은 표면의 이벤트 스레드에서 소유하고,
+스케줄링과 실제 콘텐츠 경계는 호출자가 맡는다.
+
+기본 정책은 최근 약 120ms의 표본과 100ms의 놓기 유효 시간을 사용한다. 감속률과
+최소·최대 속도, 프레임 중단 허용 시간은 `MotionPolicy`로 교체할 수 있다. 다음
+예제에서 이벤트 시각과 프레임 시각은 각각 단조 증가하는 초 단위 값이며, 두 시계가
+동일한 원점을 가질 필요는 없다.
+
+```cpp
+#include <iiSDKCore/Runtime/TouchMotion.h>
+using namespace ii::runtime::touch;
+PanVelocity samples;
+KineticMotion motion;
+samples.begin(event_start_seconds);
+samples.add({dx, dy}, event_seconds);
+if (motion.start(samples.release(release_seconds), frame_seconds)) {
+    auto frame = motion.advance(next_frame_seconds);
+    // frame.delta를 대상에 적용하고 막힌 축은 motion.block(x, y)로 중단한다.
+}
+```
+
+`PanVelocity`는 고정 크기 이력과 방향별 속도를 보유한다. `KineticMotion`은
+디스플레이 타이머를 만들지 않으며, 입력 취소에는 `cancel()`을 사용한다.
+
 0.13부터 일반 파일 열기·생성은 Core 바깥의 iiFileProvider CoreIO 어댑터가 담당한다.
 이 어댑터로 연 쓰기 가능한 Channel은 성공적으로 닫힐 때 iiFileProvider Native 0.7에
 최종 파일 경로를 전달한다. 마지막 소유 참조의 정리에도 같은 처리를 적용한다.
@@ -62,9 +115,13 @@ open_serial은 명시한 경로만 열고 raw binary 8N1, flow control 없음으
 
 Channel::wait(Interest, timeout, CancellationToken)는 읽기/쓰기 준비를 기다린다. timeout=0은 probe이며 준비되지 않으면 would_block, 양수 대기의 만료는 timed_out이다. 음수는 invalid_argument이다. 일반 파일은 즉시 준비된 것으로 처리한다. 준비 완료가 후속 I/O의 전체 길이 성공을 보장하지는 않는다.
 
-POSIX 시리얼은 nonblocking read/write와 poll을 사용한다. Windows는 즉시 반환하는 시리얼 읽기 설정과 통신 큐 상태 조회를 사용하고, 쓰기에는 드라이버 타임아웃 50ms를 설정한다. CancellationToken 대기 확인 간격은 최대 20ms 단위이나 OS 스케줄링 지연까지 상한으로 보장하지 않는다. Windows 쓰기는 드라이버 동작에 영향을 받으며 완전한 nonblocking 전송 계약이 아니다.
+Windows의 현재 비동기 미지원 파이프·시리얼 핸들은 이벤트를 제공하지 않으므로 준비되지 않은 양수 대기는 `unsupported`를 반환한다. 호출자가 반복 확인을 명시적으로 선택한 경우에만 `wait_polling(interest, timeout, interval, stop)`을 사용한다. interval은 양수여야 한다. POSIX에서는 같은 요청을 네이티브 준비 이벤트로 처리한다.
 
-CancellationSource는 한 번 할당한 atomic 취소 상태를 소유하며 token()으로 요청에 전달하고 cancel()로 취소한다. 토큰 복사·검사는 할당하지 않는다. 기본 토큰은 취소되지 않고, 취소된 상태는 재설정하지 않는다. 새 작업 묶음에는 새 소스를 만든다. std::stop_token이 없는 WASM 도구 체인에서도 같은 계약을 유지하기 위한 최소 기능이다.
+`Read`·`Write`와 `IOWatchOptions`의 공개 데이터 구성이 바뀌었으므로 이 버전을 사용하는 C++ 소비자는 Core와 함께 다시 빌드해야 한다. 기존에 컴파일된 바이너리와 구조체 ABI가 같다고 가정하지 않는다.
+
+POSIX 시리얼은 nonblocking read/write와 poll을 사용하며 취소 신호는 대기 전용 파이프로 전달한다. 준비·취소·기한까지 주기적 재검사 없이 기다린다. Windows는 즉시 반환하는 시리얼 읽기 설정과 통신 큐 상태 조회를 사용하고, 쓰기에는 드라이버 타임아웃 50ms를 설정한다. 호출자가 선택한 polling interval은 OS 스케줄링 지연까지 상한으로 보장하지 않는다. Windows 쓰기는 드라이버 동작에 영향을 받으며 완전한 nonblocking 전송 계약이 아니다.
+
+CancellationSource는 공유 취소 상태를 소유하며 token()으로 요청에 전달하고 cancel()로 취소한다. CancellationToken::native_token()은 같은 상태의 C++23 std::stop_token을 제공한다. 토큰 복사·검사는 할당하지 않는다. 기본 토큰은 취소되지 않고, 취소된 상태는 재설정하지 않는다. 새 작업 묶음에는 새 소스를 만든다. WASM에서도 표준 stop_token을 제공하는 도구 체인과 프로젝트의 C++ 라이브러리 설정이 필요하다.
 
 Read/Write.timeout은 **워커에서 시작한 준비 대기 시간**이다. 큐 대기 시간, 이미 시작한 파일 시스템 호출, 실제 Windows 쓰기 시간을 포함한 전체 작업 deadline이 아니다. CancellationToken은 준비 대기와 전송 직전까지 취소를 검사한다. 이미 시작된 OS 전송을 강제로 중단하거나 그 부작용을 되돌리지 않는다. 실행 대기 중 요청은 기존 Runtime::cancel(token)로 취소할 수도 있으며 이 경우 completion은 호출하지 않는다. CancellationToken 취소는 IOResult의 cancelled로 완료된다.
 

@@ -10,8 +10,11 @@ template<class Query> IOResult transfer(const Channel& channel, const Query& que
     if (query.stop.cancelled()) return std::unexpected(Error{ErrorCode::cancelled, {}});
     constexpr bool reading=std::is_same_v<Query, Read>;
     // An empty operation does not wait for data, but still validates the channel.
-    auto ready=channel.wait(reading ? Interest::readable : Interest::writable,
-        range.empty() ? std::chrono::milliseconds(0) : query.timeout, query.stop);
+    const auto interest=reading ? Interest::readable : Interest::writable;
+    const auto timeout=range.empty() ? std::chrono::milliseconds(0) : query.timeout;
+    auto ready=query.polling_interval
+        ? channel.wait_polling(interest,timeout,*query.polling_interval,query.stop)
+        : channel.wait(interest,timeout,query.stop);
     if (!ready && !(range.empty() && ready.error().code == ErrorCode::would_block)) return std::unexpected(ready.error());
     return detail::transfer_now(channel,query);
 }

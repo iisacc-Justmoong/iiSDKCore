@@ -7,7 +7,11 @@
 using namespace ii::runtime;
 using namespace std::chrono_literals;
 struct Observe final { int device; bool level = false, label = false; };
-struct Measurement final { int device, level; std::string label; };
+struct Measurement final {
+    int device, level;
+    std::string label;
+    bool level_changed = false, label_changed = false;
+};
 struct Selected final { std::optional<int> level; std::optional<std::string> label; };
 
 int main() {
@@ -19,8 +23,8 @@ int main() {
         [&](const Observe& query, const Measurement& source) -> std::optional<Selected> {
             if (query.device != source.device) return {};
             Selected fields;
-            if (query.level) fields.level = source.level;
-            if (query.label) { fields.label = source.label; ++label_reads; }
+            if (query.level && source.level_changed) fields.level = source.level;
+            if (query.label && source.label_changed) { fields.label = source.label; ++label_reads; }
             return fields;
         });
     int last = 0;
@@ -43,7 +47,11 @@ int main() {
         }
         const auto submitted = producer.post([&, value] {
             // Example measurements; a product can publish native I/O or game state here.
-            auto result = stream.publish({value >= 3 ? 2 : 1, value, "unselected label"});
+            auto result = stream.publish_changed({value >= 3 ? 2 : 1, value, "unselected label", true, false},
+                [](const Observe& query, const Measurement& change) {
+                    return query.device == change.device &&
+                           ((query.level && change.level_changed) || (query.label && change.label_changed));
+                });
             if (!result || result->projection_failed || result->rejected || result->dispatch_failed) {
                 failed = true; ui.request_stop();
             }

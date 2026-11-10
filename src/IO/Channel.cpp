@@ -2,14 +2,17 @@
 #include "NativePipe.h"
 #include "Channel.h"
 #include "Poller.h"
+#include "ReadinessPolicy.h"
 #include "MemoryMap.h"
 
 #include <algorithm>
 #include <array>
 #include <cerrno>
+#include <climits>
 #include <limits>
 #include <mutex>
 #include <condition_variable>
+#include <functional>
 #include <stdexcept>
 #include <vector>
 #if defined(_WIN32)
@@ -71,6 +74,58 @@ bool valid_path(const std::filesystem::path& path) {
 bool valid_baud(unsigned baud) {
     return baud == 9600 || baud == 19200 || baud == 38400 || baud == 57600 || baud == 115200;
 }
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+struct WakePipe final {
+    int read=-1,write=-1;
+    WakePipe() {
+        int handles[2];
+        if (::pipe(handles)!=0) throw std::system_error(errno,std::generic_category(),"I/O wake pipe");
+        read=handles[0]; write=handles[1];
+        if (fcntl(read,F_SETFD,FD_CLOEXEC)<0 || fcntl(write,F_SETFD,FD_CLOEXEC)<0 ||
+            fcntl(read,F_SETFL,O_NONBLOCK)<0 || fcntl(write,F_SETFL,O_NONBLOCK)<0) {
+            const int error=errno; ::close(read); ::close(write);
+            throw std::system_error(error,std::generic_category(),"I/O wake pipe flags");
+        }
+    }
+    ~WakePipe() { ::close(read); ::close(write); }
+    void signal() const noexcept {
+        const char byte=1; ssize_t count;
+        do { count=::write(write,&byte,1); } while(count<0 && errno==EINTR);
+    }
+};
+
+// A failed readiness lease subscribes before trying the lock, so release
+// cannot be lost between the failed attempt and the native wait.
+class ChannelMutex final {
+public:
+    void lock() { mutex_.lock(); }
+    bool try_lock() { return mutex_.try_lock(); }
+    void unlock() noexcept {
+        mutex_.unlock();
+        std::vector<std::weak_ptr<WakePipe>> pending;
+        {
+            std::lock_guard lock(watchers_mutex_);
+            pending.swap(watchers_);
+        }
+        for (const auto& weak:pending) if (const auto wake=weak.lock()) wake->signal();
+    }
+    void subscribe(const std::shared_ptr<WakePipe>& wake) {
+        std::lock_guard lock(watchers_mutex_);
+        std::erase_if(watchers_,[](const auto& weak) { return weak.expired(); });
+        for (const auto& weak:watchers_) if (weak.lock()==wake) return;
+        watchers_.push_back(wake);
+    }
+    void unsubscribe(const std::shared_ptr<WakePipe>& wake) {
+        std::lock_guard lock(watchers_mutex_);
+        std::erase_if(watchers_,[&](const auto& weak) { auto item=weak.lock(); return !item || item==wake; });
+    }
+private:
+    std::mutex mutex_,watchers_mutex_;
+    std::vector<std::weak_ptr<WakePipe>> watchers_;
+};
+#else
+using ChannelMutex=std::mutex;
+#endif
 }
 
 PlatformCapabilities platform_capabilities() noexcept {
@@ -86,7 +141,7 @@ PlatformCapabilities platform_capabilities() noexcept {
 }
 
 struct Channel::State {
-    mutable std::mutex mutex;
+    mutable ChannelMutex mutex;
     Capabilities caps;
     std::filesystem::path notificationPath;
     NativeFile::Closed closed = nullptr;
@@ -104,7 +159,7 @@ struct Channel::State {
     int release() { auto old=handle; handle=-1; return completedClose(::close(old)); } // Never retry close after EINTR.
 #endif
     ~State() { if (valid()) (void)release(); }
-    Result<std::unique_lock<std::mutex>> lock() {
+    Result<std::unique_lock<ChannelMutex>> lock() {
         std::unique_lock held(mutex, std::try_to_lock);
         if (!held) return failure(ErrorCode::busy);
         if (!valid()) return failure(ErrorCode::closed);
@@ -545,18 +600,68 @@ Result<void> Channel::close() const {
     return {};
 }
 Result<void> Channel::wait(Interest interest, std::chrono::milliseconds timeout, CancellationToken stop) const {
+    return wait_impl(interest,timeout,std::move(stop),std::nullopt);
+}
+Result<void> Channel::wait_polling(Interest interest, std::chrono::milliseconds timeout,
+                                   std::chrono::milliseconds interval, CancellationToken stop) const {
+    if(interval<=std::chrono::milliseconds::zero()) return failure(ErrorCode::invalid_argument);
+    return wait_impl(interest,timeout,std::move(stop),interval);
+}
+Result<void> Channel::wait_impl(Interest interest, std::chrono::milliseconds timeout, CancellationToken stop,
+                                std::optional<std::chrono::milliseconds> polling_interval) const {
     if (!state_) return failure(ErrorCode::closed);
-    if (timeout.count() < 0 || (interest != Interest::readable && interest != Interest::writable)) return failure(ErrorCode::invalid_argument);
+    if (timeout.count() < 0 || !detail::valid_polling_interval(polling_interval) ||
+        (interest != Interest::readable && interest != Interest::writable)) return failure(ErrorCode::invalid_argument);
     auto held=state_->lock(); if (!held) return std::unexpected(held.error());
     if (stop.cancelled()) return failure(ErrorCode::cancelled);
     if ((interest == Interest::readable && !state_->caps.readable) || (interest == Interest::writable && !state_->caps.writable)) return failure(ErrorCode::permission_denied);
     if (state_->caps.kind == ChannelKind::file) return {};
+#if defined(_WIN32)
+    struct CancellationEvent final {
+        HANDLE handle=nullptr;
+        ~CancellationEvent() { if(handle) CloseHandle(handle); }
+    } wake;
+    std::unique_ptr<std::stop_callback<std::function<void()>>> cancelled;
+    if (polling_interval && timeout.count()>0 && stop.native_token().stop_possible()) {
+        wake.handle=CreateEventW(nullptr,TRUE,FALSE,nullptr);
+        if (!wake.handle) return native_failure();
+        cancelled=std::make_unique<std::stop_callback<std::function<void()>>>(stop.native_token(),[handle=wake.handle] {
+            (void)SetEvent(handle);
+        });
+    }
+#endif
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+    struct CancellationPipe final {
+        int read=-1,write=-1;
+        ~CancellationPipe() { if(read>=0) ::close(read); if(write>=0) ::close(write); }
+    } wake;
+    std::unique_ptr<std::stop_callback<std::function<void()>>> cancelled;
+    if (timeout.count()>0 && stop.native_token().stop_possible()) {
+        int handles[2];
+        if (::pipe(handles)!=0) return native_failure();
+        wake.read=handles[0]; wake.write=handles[1];
+        if (fcntl(wake.read,F_SETFD,FD_CLOEXEC)<0 || fcntl(wake.write,F_SETFD,FD_CLOEXEC)<0 ||
+            fcntl(wake.read,F_SETFL,O_NONBLOCK)<0 || fcntl(wake.write,F_SETFL,O_NONBLOCK)<0)
+            return native_failure();
+        cancelled=std::make_unique<std::stop_callback<std::function<void()>>>(stop.native_token(),[fd=wake.write] {
+            const char byte=1;
+            ssize_t result;
+            do { result=::write(fd,&byte,1); } while(result<0 && errno==EINTR);
+        });
+    }
+#endif
     const auto start=std::chrono::steady_clock::now();
     for (;;) {
         if (stop.cancelled()) return failure(ErrorCode::cancelled);
         const auto elapsed=std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-start);
         const auto remaining=elapsed >= timeout ? std::chrono::milliseconds(0) : timeout-elapsed;
-        const auto slice=std::min(remaining, std::chrono::milliseconds(20));
+#if defined(_WIN32)
+        const auto slice=polling_interval ? std::min(remaining,*polling_interval) : remaining;
+#elif defined(__EMSCRIPTEN__)
+        const auto slice=std::min(remaining, std::chrono::milliseconds(INT_MAX));
+#else
+        const auto slice=std::min(remaining, std::chrono::milliseconds(INT_MAX));
+#endif
 #if defined(_WIN32)
         if (state_->caps.kind==ChannelKind::pipe) {
             // Byte-mode PIPE_NOWAIT writes are the authoritative readiness
@@ -575,9 +680,17 @@ Result<void> Channel::wait(Interest interest, std::chrono::milliseconds timeout,
             if (interest == Interest::readable ? status.cbInQue > 0 : status.cbOutQue == 0) return {};
         }
 #else
-        pollfd descriptor{state_->handle, static_cast<short>(interest == Interest::readable ? POLLIN : POLLOUT), 0};
-        const auto ready=::poll(&descriptor, 1, static_cast<int>(slice.count()));
+        pollfd descriptors[2]{{state_->handle, static_cast<short>(interest == Interest::readable ? POLLIN : POLLOUT), 0},
+#if !defined(__EMSCRIPTEN__)
+                              {wake.read,POLLIN,0}
+#else
+                              {-1,0,0}
+#endif
+        };
+        const auto ready=::poll(descriptors, 2, static_cast<int>(slice.count()));
         if (ready < 0) { if (errno == EINTR) continue; return native_failure(); }
+        if (stop.cancelled()) return failure(ErrorCode::cancelled);
+        const auto& descriptor=descriptors[0];
         if (descriptor.revents & POLLNVAL) return failure(ErrorCode::closed);
         if (descriptor.revents & (descriptor.events | (interest == Interest::readable ? POLLHUP : 0))) return {};
         if (descriptor.revents & (POLLERR | POLLHUP)) return failure(ErrorCode::system_error);
@@ -585,7 +698,11 @@ Result<void> Channel::wait(Interest interest, std::chrono::milliseconds timeout,
         if (stop.cancelled()) return failure(ErrorCode::cancelled);
         if (remaining.count() == 0) return failure(timeout.count() == 0 ? ErrorCode::would_block : ErrorCode::timed_out);
 #if defined(_WIN32)
-        Sleep(static_cast<DWORD>(slice.count()));
+        if (!polling_interval) return failure(ErrorCode::unsupported);
+        const auto millis=static_cast<DWORD>(std::min<std::chrono::milliseconds::rep>(slice.count(),INFINITE-1));
+        if (wake.handle) {
+            if (WaitForSingleObject(wake.handle,millis)==WAIT_FAILED) return native_failure();
+        } else Sleep(millis);
 #endif
     }
 }
@@ -598,15 +715,8 @@ struct ReadinessPoller::Impl {
         event=CreateEventW(nullptr,FALSE,FALSE,nullptr);
         if (!event) throw std::system_error(static_cast<int>(GetLastError()),std::system_category(),"I/O wake event");
 #elif !defined(__EMSCRIPTEN__)
-        leases.reserve(capacity); descriptors.reserve(capacity+1);
-        int pipe_handles[2];
-        if (::pipe(pipe_handles)!=0) throw std::system_error(errno,std::generic_category(),"I/O wake pipe");
-        wake_read=pipe_handles[0]; wake_write=pipe_handles[1];
-        if (fcntl(wake_read,F_SETFD,FD_CLOEXEC)<0 || fcntl(wake_write,F_SETFD,FD_CLOEXEC)<0 ||
-            fcntl(wake_read,F_SETFL,O_NONBLOCK)<0 || fcntl(wake_write,F_SETFL,O_NONBLOCK)<0) {
-            const int error=errno; ::close(wake_read); ::close(wake_write);
-            throw std::system_error(error,std::generic_category(),"I/O wake pipe flags");
-        }
+        leases.reserve(capacity); descriptors.reserve(capacity+2); ordered.reserve(capacity);
+        wake=std::make_shared<WakePipe>();
 #else
         (void)capacity;
 #endif
@@ -614,8 +724,6 @@ struct ReadinessPoller::Impl {
     ~Impl() {
 #if defined(_WIN32)
         if (event) CloseHandle(event);
-#elif !defined(__EMSCRIPTEN__)
-        ::close(wake_read); ::close(wake_write);
 #endif
     }
     void finish() {
@@ -631,46 +739,68 @@ struct ReadinessPoller::Impl {
     std::condition_variable changed;
     std::atomic<bool> active{false};
     std::uint64_t prepared=0, finished=0;
-    std::chrono::milliseconds timeout{20};
+    std::chrono::milliseconds timeout{std::chrono::milliseconds::max()};
 #if defined(_WIN32)
     HANDLE event=nullptr;
+    HANDLE native_signal=nullptr;
 #elif !defined(__EMSCRIPTEN__)
     struct Lease {
         std::shared_ptr<Channel::State> state;
-        std::unique_lock<std::mutex> lock;
+        std::unique_lock<ChannelMutex> lock;
     };
     std::vector<Lease> leases;
     std::vector<pollfd> descriptors;
-    int wake_read=-1,wake_write=-1;
+    // Borrowed only during prepare(); reusable storage avoids one allocation
+    // per watch while ordering equal channels together.
+    std::vector<const WatchEntry*> ordered;
+    std::shared_ptr<WakePipe> wake;
 #else
     bool signaled=false;
 #endif
 };
 ReadinessPoller::ReadinessPoller(std::size_t capacity) : impl_(std::make_unique<Impl>(capacity)) {}
 ReadinessPoller::~ReadinessPoller()=default;
-void ReadinessPoller::prepare(std::span<const WatchEntry> watches,std::chrono::milliseconds timeout) {
+void ReadinessPoller::prepare(std::span<const WatchEntry> watches,std::chrono::milliseconds timeout,
+                              std::intptr_t native_signal) {
     auto& impl=*impl_;
-    impl.timeout=std::clamp(timeout,std::chrono::milliseconds(0),std::chrono::milliseconds(20));
+#if defined(_WIN32)
+    impl.timeout=std::max(timeout,std::chrono::milliseconds(0));
+    // The caller alone may opt into polling non-overlapped handles.
+    for (const auto& watch:watches) if(watch.polling_interval)
+        impl.timeout=std::min(impl.timeout,*watch.polling_interval);
+    impl.native_signal=native_signal==-1 ? nullptr : reinterpret_cast<HANDLE>(native_signal);
+#else
+    impl.timeout=std::max(timeout,std::chrono::milliseconds(0));
+#endif
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
-    impl.descriptors.clear(); impl.leases.clear();
-    impl.descriptors.push_back({impl.wake_read,POLLIN,0});
-    for (const auto& watch:watches) {
-        const auto state=watch.channel.state_;
-        if (!state) continue;
-        const short interest=watch.interest==Interest::readable ? POLLIN : POLLOUT;
-        const auto existing=std::find_if(impl.leases.begin(),impl.leases.end(),
-            [&](const auto& lease){return lease.state==state;});
-        if (existing!=impl.leases.end()) {
-            impl.descriptors[static_cast<std::size_t>(existing-impl.leases.begin())+1].events|=interest;
-            continue;
-        }
+    impl.descriptors.clear(); impl.leases.clear(); impl.ordered.clear();
+    impl.descriptors.push_back({impl.wake->read,POLLIN,0});
+    for (const auto& watch:watches) if (watch.channel.state_) impl.ordered.push_back(&watch);
+    std::sort(impl.ordered.begin(),impl.ordered.end(),[](const auto* left,const auto* right) {
+        return std::less<>{}(left->channel.state_.get(),right->channel.state_.get());
+    });
+    for (std::size_t index=0;index<impl.ordered.size();) {
+        const auto state=impl.ordered[index]->channel.state_;
+        short interest=0;
+        do {
+            interest|=impl.ordered[index]->interest==Interest::readable ? POLLIN : POLLOUT;
+            ++index;
+        } while(index<impl.ordered.size()&&impl.ordered[index]->channel.state_==state);
+        state->mutex.subscribe(impl.wake);
         std::unique_lock held(state->mutex,std::try_to_lock);
-        if (!held || !state->valid()) continue;
+        if (!held) continue;
+        state->mutex.unsubscribe(impl.wake);
+        if (!state->valid()) { impl.wake->signal(); continue; }
         impl.descriptors.push_back({state->handle,interest,0});
         impl.leases.push_back({state,std::move(held)});
     }
+    impl.ordered.clear();
+    if (native_signal!=-1) impl.descriptors.push_back({static_cast<int>(native_signal),POLLIN,0});
 #else
     (void)watches;
+#if defined(__EMSCRIPTEN__)
+    (void)native_signal;
+#endif
 #endif
     { std::lock_guard lock(impl.mutex); ++impl.prepared; }
     impl.active.store(true,std::memory_order_release);
@@ -679,35 +809,42 @@ void ReadinessPoller::wait() {
     auto& impl=*impl_;
     try {
 #if defined(_WIN32)
-        if (WaitForSingleObject(impl.event,static_cast<DWORD>(impl.timeout.count()))==WAIT_FAILED)
+        const HANDLE handles[]{impl.event,impl.native_signal};
+        const auto timeout=impl.timeout==std::chrono::milliseconds::max() ? INFINITE :
+            static_cast<DWORD>(std::min<std::chrono::milliseconds::rep>(impl.timeout.count(),INFINITE-1));
+        if (WaitForMultipleObjects(impl.native_signal ? 2 : 1,handles,FALSE,timeout)==WAIT_FAILED)
             throw std::system_error(static_cast<int>(GetLastError()),std::system_category(),"I/O event wait");
 #elif !defined(__EMSCRIPTEN__)
-        const auto result=::poll(impl.descriptors.data(),static_cast<nfds_t>(impl.descriptors.size()),
-            static_cast<int>(impl.timeout.count()));
+        const auto timeout=impl.timeout==std::chrono::milliseconds::max() ? -1 :
+            static_cast<int>(std::min<std::chrono::milliseconds::rep>(impl.timeout.count(),INT_MAX));
+        const auto result=::poll(impl.descriptors.data(),static_cast<nfds_t>(impl.descriptors.size()),timeout);
         if (result<0 && errno!=EINTR) throw std::system_error(errno,std::generic_category(),"I/O poll");
         std::array<char,64> bytes{};
         for (;;) {
-            const auto count=::read(impl.wake_read,bytes.data(),bytes.size());
+            const auto count=::read(impl.wake->read,bytes.data(),bytes.size());
             if (count<0 && errno==EINTR) continue;
             if (count<=0) break;
         }
 #else
         std::unique_lock lock(impl.mutex);
-        impl.changed.wait_for(lock,impl.timeout,[&]{return impl.signaled;});
+        if (impl.timeout==std::chrono::milliseconds::max())
+            impl.changed.wait(lock,[&]{return impl.signaled;});
+        else impl.changed.wait_for(lock,impl.timeout,[&]{return impl.signaled;});
         impl.signaled=false;
 #endif
     } catch (...) { impl.finish(); throw; }
     impl.finish();
 }
 void ReadinessPoller::wake() noexcept {
+    if (!impl_->active.load(std::memory_order_acquire)) return;
+    wake_persistent();
+}
+void ReadinessPoller::wake_persistent() noexcept {
     auto& impl=*impl_;
-    if (!impl.active.load(std::memory_order_acquire)) return;
 #if defined(_WIN32)
     (void)SetEvent(impl.event);
 #elif !defined(__EMSCRIPTEN__)
-    const char byte=1;
-    ssize_t count;
-    do { count=::write(impl.wake_write,&byte,1); } while (count<0 && errno==EINTR);
+    impl.wake->signal();
 #else
     { std::lock_guard lock(impl.mutex); impl.signaled=true; }
     impl.changed.notify_all();

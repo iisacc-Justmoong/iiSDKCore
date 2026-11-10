@@ -3,3 +3,8 @@ cmake-build-*/
 .idea/
 .DS_Store
 __pycache__/
+
+/resources/.state/
+/resources/.recovery/
+**/.iisacc-temporary.lock
+**/.*.iisacc-preview
