@@ -22,6 +22,10 @@
 #include <unistd.h>
 #endif
 namespace {
+#if !defined(_WIN32)
+volatile sig_atomic_t user_signal_received = 0;
+void on_user_signal(int) { user_signal_received = 1; }
+#endif
 int run(std::vector<std::string> args) {
     if(args.size()<2) return 99;
     const auto& mode=args[1];
@@ -132,6 +136,20 @@ int run(std::vector<std::string> args) {
         raise(SIGTERM); return 93;
 #endif
     }
+#if !defined(_WIN32)
+    if(mode=="wait-user-signal") {
+        sigset_t blocked, previous;
+        sigemptyset(&blocked); sigaddset(&blocked,SIGUSR1);
+        if(sigprocmask(SIG_BLOCK,&blocked,&previous)!=0) return 92;
+        struct sigaction action{}; action.sa_handler=on_user_signal; sigemptyset(&action.sa_mask);
+        if(sigaction(SIGUSR1,&action,nullptr)!=0) return 92;
+        std::cout<<"ready"<<std::flush;
+        while(!user_signal_received) sigsuspend(&previous);
+        sigprocmask(SIG_SETMASK,&previous,nullptr);
+        std::cout<<"received"<<std::flush;
+        return 0;
+    }
+#endif
 #endif
     return 98;
 }

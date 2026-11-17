@@ -7,6 +7,9 @@
 #include <limits>
 #include <stdexcept>
 #include <thread>
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+#include <signal.h>
+#endif
 
 using namespace ii::runtime;
 using namespace std::chrono_literals;
@@ -285,6 +288,19 @@ void native_processes(const std::string& fixture) {
     check(result && result->value && result->value->exit.code==0 && child.native_id()!=0 && child.placement().target==id,"process result retains native identity and placement");
     const auto& bytes=result->value->output;
     check(std::string(reinterpret_cast<const char*>(bytes.data()),bytes.size())=="routed","real child output crosses the routed operation");
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+    std::atomic<bool> ready=false;
+    ii::process::CommunicationOptions signal_options;
+    signal_options.receive=[&](ii::process::Stream stream,ii::core::ByteView chunk) {
+        if(stream==ii::process::Stream::output && !chunk.empty())ready=true;
+    };
+    launch.arguments={fixture,"wait-user-signal"};
+    auto signaled=router.route_process(router.default_scope(),launch,{},signal_options).value();
+    until([&]{return ready.load();});
+    check(bool(signaled.send_signal(SIGUSR1)),"router could not signal its live child");
+    check(signaled.operation().wait_for(5s)==OperationWait::ready,"signaled routed child did not finish");
+    check(!signaled.send_signal(SIGUSR1),"router signaled a completed child");
+#endif
     launch.arguments={fixture,"sleep"};
     auto cancelled=router.route_process(router.default_scope(),launch).value();
     until([&]{return cancelled.native_id()!=0;});

@@ -8,6 +8,8 @@ from collections import namedtuple
 
 LIMIT_EXCEEDED = 2
 CLOSED = 4
+BUSY = 5
+UNSUPPORTED = 8
 Stats = namedtuple("Stats", "limit used peak allocations")
 
 
@@ -67,6 +69,14 @@ class Library:
         handle = ctypes.c_void_p()
         self._call("runtime_create", _size(workers), _size(capacity), ctypes.byref(handle))
         return Runtime(self, handle)
+
+    def chunk_queue(self, *, cpu_workers=1, capacity=64, devices=()):
+        from iisdkcore_chunks import ChunkQueue
+        return ChunkQueue(self, cpu_workers=cpu_workers, capacity=capacity, devices=devices)
+
+    def start_process(self, arguments):
+        from iisdkcore_process import Process
+        return Process(self, arguments)
 
 
 class _Owner:

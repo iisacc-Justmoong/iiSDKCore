@@ -180,3 +180,7 @@ registration order, activation failure and reverse cleanup, absent drivers,
 duplicate names, transaction rollback and wrong-thread registration. The same
 two installation tests and three build/policy tests remained excluded; the
 existing install manifest was preserved.
+
+Emscripten에서 `iisdkcore_add_application`은 `CMAKE_CXX_SCAN_FOR_MODULES`가
+설정되지 않았다면 생성 대상의 C++ 모듈 스캔을 끈다. 모듈을 쓰는 앱은 이를
+명시적으로 켜고 호환되는 스캐너를 제공해야 한다. 지정한 ON/OFF 값은 유지한다.

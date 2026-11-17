@@ -130,13 +130,17 @@ public:
     ComputePlacement placement() const noexcept { return placement_; }
     std::uint64_t native_id() const noexcept { return native_id_->load(); }
     const Operation<process::Communication>& operation() const noexcept { return operation_; }
+    // Works only while the owned child is live. Native signals are POSIX-only.
+    [[nodiscard]] core::Result<void> send_signal(int,process::SignalTarget=process::SignalTarget::child) const;
 private:
     friend class ComputeRouter;
-    RoutedProcess(ComputePlacement placement,Operation<process::Communication> operation,std::shared_ptr<std::atomic<std::uint64_t>> id)
-        :placement_(placement),operation_(std::move(operation)),native_id_(std::move(id)) {}
+    struct Control;
+    RoutedProcess(ComputePlacement placement,Operation<process::Communication> operation,std::shared_ptr<std::atomic<std::uint64_t>> id,std::shared_ptr<Control> control)
+        :placement_(placement),operation_(std::move(operation)),native_id_(std::move(id)),control_(std::move(control)) {}
     ComputePlacement placement_;
     Operation<process::Communication> operation_;
     std::shared_ptr<std::atomic<std::uint64_t>> native_id_;
+    std::shared_ptr<Control> control_;
 };
 class ComputeRouter final {
 public:

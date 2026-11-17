@@ -158,3 +158,11 @@ build/compute-router-20261025/stage/iiSDKCore, XML·로그와 최종 verificatio
 build/compute-router-20261025에 둔다. iiNetwork의 로컬 소켓 fixture는 macOS의 경로
 길이 제한을 넘지 않도록 해당 저장소 build/cr20/build에서 검증했다. Network 소스나
 프로토콜의 검사를 완화하지 않았다. 기본 설치본과 실행 중 앱은 교체하지 않았다.
+
+## 소유한 자식에 네이티브 신호 전달
+
+`RoutedProcess::send_signal`은 실행 중인 소유 자식에 `Process::send_signal`을 연결한다.
+POSIX에서는 자식 또는 생성한 프로세스 그룹을 선택해 네이티브 신호 번호를 보낸다.
+성공은 OS의 신호 접수이며 종료 완료는 `operation()`의 결과로 따로 확인한다. 자식이 아직
+시작되지 않았거나 끝났으면 오류다. Windows의 임의 POSIX 신호 전달은 미지원이며 기존
+작업 취소는 소유 Job Object 트리를 종료한다. PID만 저장해 재사용하지 않는다.

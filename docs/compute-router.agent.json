@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/compute-router.md",
-    "sha256": "8d7d93e751e82b397ac81737ff755ec3d5a0729a2707ad8883540acf094baccc",
-    "bytes": 12701,
-    "line_count": 160,
+    "sha256": "64dd08f341d9affaf9aef739f17db1e80b4931037b1c58d591f1b0a5d6d1d1eb",
+    "bytes": 13304,
+    "line_count": 168,
     "encoding": "utf-8",
     "language": "ko"
   },
@@ -473,6 +473,36 @@
       "start_line": 156,
       "end_line": 160,
       "raw": "교차 검사는 -fsyntax-only이며 링크나 대상 기기 실행이 아니다. 설치 검증 패키지는\nbuild/compute-router-20261025/stage/iiSDKCore, XML·로그와 최종 verification.json은\nbuild/compute-router-20261025에 둔다. iiNetwork의 로컬 소켓 fixture는 macOS의 경로\n길이 제한을 넘지 않도록 해당 저장소 build/cr20/build에서 검증했다. Network 소스나\n프로토콜의 검사를 완화하지 않았다. 기본 설치본과 실행 중 앱은 교체하지 않았다.\n"
+    },
+    {
+      "id": "b000056",
+      "kind": "blank",
+      "start_line": 161,
+      "end_line": 161,
+      "raw": "\n"
+    },
+    {
+      "id": "b000057",
+      "kind": "heading",
+      "start_line": 162,
+      "end_line": 162,
+      "raw": "## 소유한 자식에 네이티브 신호 전달\n",
+      "level": 2,
+      "title": "소유한 자식에 네이티브 신호 전달"
+    },
+    {
+      "id": "b000058",
+      "kind": "blank",
+      "start_line": 163,
+      "end_line": 163,
+      "raw": "\n"
+    },
+    {
+      "id": "b000059",
+      "kind": "paragraph",
+      "start_line": 164,
+      "end_line": 168,
+      "raw": "`RoutedProcess::send_signal`은 실행 중인 소유 자식에 `Process::send_signal`을 연결한다.\nPOSIX에서는 자식 또는 생성한 프로세스 그룹을 선택해 네이티브 신호 번호를 보낸다.\n성공은 OS의 신호 접수이며 종료 완료는 `operation()`의 결과로 따로 확인한다. 자식이 아직\n시작되지 않았거나 끝났으면 오류다. Windows의 임의 POSIX 신호 전달은 미지원이며 기존\n작업 취소는 소유 Job Object 트리를 종료한다. PID만 저장해 재사용하지 않는다.\n"
     }
   ],
   "outline": [
@@ -523,6 +553,14 @@
       "title": "2026-10-25 검증",
       "anchor": "2026-10-25-검증",
       "start_line": 140
+    },
+    {
+      "block_id": "b000057",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "소유한 자식에 네이티브 신호 전달",
+      "anchor": "소유한-자식에-네이티브-신호-전달",
+      "start_line": 162
     }
   ],
   "indexes": {
@@ -638,6 +676,13 @@
         "text": "work_failed는 실패가 기록된 정리 완료 결과이다. 소멸 전 다른 종료 오류를 해결해야 한다.",
         "basis": "lexical_match",
         "context": "paragraph"
+      },
+      {
+        "block_id": "b000059",
+        "line": 168,
+        "text": "작업 취소는 소유 Job Object 트리를 종료한다. PID만 저장해 재사용하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
       }
     ],
     "commands": [],
@@ -679,7 +724,7 @@
     ]
   },
   "provenance": {
-    "generator": "workspace-docs",
+    "generator": "codex-lossless-projection",
     "version": "1.0.0",
     "profile": "lossless-blocks-v1",
     "derived": true

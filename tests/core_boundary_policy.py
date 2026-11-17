@@ -14,7 +14,12 @@ with tempfile.TemporaryDirectory(prefix='boundary-policy-',dir=source/'build') a
         (build/'core-boundary-Release.txt').write_text(''.join('['+name+']\n'+value+'\n' for name,value in values.items()))
         verify(fake,build)
     run(base)
-    for section,dependency in [('Contracts','iiSDKCore::Observation'),('Observation','iiSDKCore::Runtime'),('ObservationInterface','Threads::Threads'),('Runtime','Qt6::Core')]:
+    cmake_std='$<BUILD_LOCAL_INTERFACE:@cmake_cxx_std>'
+    generated=dict(base)
+    generated['Runtime']+=';'+cmake_std
+    generated['Observation']+=';'+cmake_std
+    run(generated)
+    for section,dependency in [('Contracts','iiSDKCore::Observation'),('Observation','iiSDKCore::Runtime'),('ObservationInterface','Threads::Threads'),('Runtime','Qt6::Core'),('Runtime','$<BUILD_LOCAL_INTERFACE:Qt6::Core>'),('Contracts',cmake_std)]:
         changed=dict(base);changed[section]=dependency
         try:run(changed)
         except RuntimeError:pass
@@ -23,4 +28,4 @@ with tempfile.TemporaryDirectory(prefix='boundary-policy-',dir=source/'build') a
     try:run(missing)
     except RuntimeError:pass
     else:raise RuntimeError('An incomplete dependency manifest was accepted')
-print('Core dependency roles: valid composition accepted, five invalid boundaries rejected')
+print('Core dependency roles: valid composition accepted, invalid boundaries rejected')

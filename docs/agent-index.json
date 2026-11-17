@@ -63,7 +63,14 @@
       "document_id": "urn:iisacc:document:ea3b93ff74ef4f02253a1b7f951ff13d15877ee6b77f8a2e70b40da6587cd5ca",
       "source": "docs/application.md",
       "agent_json": "docs/application.agent.json",
-      "source_sha256": "c0d2cacf78883050ebc769a86cd63a7e35cfce4a3d9367aa1c50b21a59e79d4b",
+      "source_sha256": "0d049535cf1d013b11ef9b4b242ec35458eaa27faf5557ace21667a223667113",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:d1b9727a8a45bf9401b2644cbf46c028ea9a00f6d016bc0eb3aa2b30f051ff6f",
+      "source": "docs/chunk-queue.md",
+      "agent_json": "docs/chunk-queue.agent.json",
+      "source_sha256": "32b7367cfaec8c9e65d11428f39ad8d548c3b642d2ca3a6a96c27a79ae28ee7a",
       "role": "guide"
     },
     {
@@ -77,7 +84,7 @@
       "document_id": "urn:iisacc:document:17afbe057089940b93ca5059671448844a3957f229747c8f4a7df5848320a753",
       "source": "docs/compute-router.md",
       "agent_json": "docs/compute-router.agent.json",
-      "source_sha256": "8d7d93e751e82b397ac81737ff755ec3d5a0729a2707ad8883540acf094baccc",
+      "source_sha256": "64dd08f341d9affaf9aef739f17db1e80b4931037b1c58d591f1b0a5d6d1d1eb",
       "role": "guide"
     },
     {
@@ -147,7 +154,7 @@
       "document_id": "urn:iisacc:document:de2c9cdadc4fd775e67d1114bdb70fd4a1212724817f9a67a26a69b74c8416e3",
       "source": "docs/foundation-architecture.md",
       "agent_json": "docs/foundation-architecture.agent.json",
-      "source_sha256": "d0c3de3478fd79d2d9d383ebe6efb73624c0a8028eb1b1b3589800a9d806b69b",
+      "source_sha256": "9569eea72db87b948dcf15c52a67cba72734d4042a121277d8594c52c3804e8f",
       "role": "reference"
     },
     {
@@ -280,7 +287,7 @@
       "document_id": "urn:iisacc:document:17056c6bc11af547f0814368229417124d2ccb9b76fac5f100fe286c14dd8c08",
       "source": "docs/process.md",
       "agent_json": "docs/process.agent.json",
-      "source_sha256": "1bd20f948cb1fcb6c1fb2a8743541ef69d8834b450a45c3790c335171623470f",
+      "source_sha256": "903ea39726d2a3b101d46061bca403ed17dd0e5ccce2a7a3591d1e45e360c9e3",
       "role": "guide"
     },
     {

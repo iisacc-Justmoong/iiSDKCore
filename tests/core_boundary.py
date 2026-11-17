@@ -23,9 +23,14 @@ def verify(source, build=None):
             raise RuntimeError("Core target dependency manifest missing")
         for path in manifests:
             contracts={"iiSDKCore::Contracts","iiSDKCoreContracts"}
+            # CMake 4.5 adds this private, generated standard-library feature
+            # target to compiled targets. It is not an SDK dependency.
+            cmake_standard={"$<BUILD_LOCAL_INTERFACE:@cmake_cxx_std>"}
             runtime=contracts|{"Threads::Threads","dl","iiSDKCore::Observation","iiSDKCoreObservation"}
             allowed={"Runtime":runtime,"RuntimeInterface":runtime,"Contracts":set(),"Values":contracts,
                      "Observation":contracts,"ObservationInterface":contracts}
+            allowed["Runtime"] = runtime | cmake_standard
+            allowed["Observation"] = contracts | cmake_standard
             sections={};current=None
             for line in path.read_text().splitlines():
                 if re.fullmatch(r'\[[A-Za-z]+\]',line):

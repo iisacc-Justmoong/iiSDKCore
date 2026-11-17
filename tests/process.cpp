@@ -140,6 +140,48 @@ void contracts(const std::string& fixture) {
     std::string expected; for(const auto& a:args) expected+=std::to_string(a.size())+":"+a+"\n";
     check(text(basic.output)==expected,"empty arguments quoting Unicode and shell literals preserved");
     check(run(launch(fixture,{"exit","42"})).exit.code==42,"nonzero exit is an outcome");
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__) && !(defined(__APPLE__) && TARGET_OS_IPHONE)
+    for(auto target:{SignalTarget::child,SignalTarget::group}) {
+        auto signaled=take(Process::start(launch(fixture,{"wait-user-signal"})));
+        check(!signaled.send_signal(0,target),"signal zero is not an interrupt");
+        check(!signaled.send_signal(SIGUSR1,static_cast<SignalTarget>(99)),"unknown signal target is rejected");
+        bool delivered=false;
+        CommunicationOptions interrupt_options;
+        interrupt_options.deadline=ii::core::Deadline::after(5s);
+        interrupt_options.receive=[&](Stream stream,ii::core::ByteView bytes) {
+            if(stream==Stream::output && !delivered && !bytes.empty()) {
+                delivered=bool(signaled.send_signal(SIGUSR1,target));
+            }
+        };
+        auto observed=take(signaled.communicate({},interrupt_options));
+        check(delivered && observed.exit.reason==ExitReason::exited && text(observed.output)=="readyreceived",
+              "native signal reaches owned child while communication is active");
+        auto after=signaled.send_signal(SIGUSR1,target);
+        check(!after && after.error().code==ii::core::ErrorCode::closed,"reaped child is not signaled");
+    }
+    auto control=take(Process::start(launch(fixture,{"sleep"})));
+    check(bool(control.send_signal(SIGSTOP)),"native stop signal accepted");
+    siginfo_t stop_info{};int stop_wait;
+    do {stop_wait=waitid(P_PID,static_cast<id_t>(control.id()),&stop_info,WSTOPPED|WNOWAIT);} while(stop_wait<0 && errno==EINTR);
+    check(stop_wait==0 && stop_info.si_code==CLD_STOPPED,"fixture actually stopped");
+    check(!take(control.poll()),"stopped child remains alive and owned");
+    check(bool(control.send_signal(SIGCONT)) && bool(control.send_signal(SIGTERM)),
+          "native continue and termination signals are accepted");
+    auto signaled_exit=take(control.wait_for(5s));
+    check(signaled_exit && signaled_exit->reason==ExitReason::signaled && signaled_exit->signal==SIGTERM,
+          "OS signal acceptance and child exit are observed separately");
+    auto stopped_cancel=take(Process::start(launch(fixture,{"sleep"})));
+    check(bool(stopped_cancel.send_signal(SIGSTOP)),"second child stop accepted");
+    do {stop_wait=waitid(P_PID,static_cast<id_t>(stopped_cancel.id()),&stop_info,WSTOPPED|WNOWAIT);} while(stop_wait<0 && errno==EINTR);
+    check(stop_wait==0 && stop_info.si_code==CLD_STOPPED,"second fixture actually stopped");
+    check(take(stopped_cancel.cancel()).reason==ExitReason::cancelled,"stopped child cancellation reaps the tree");
+#elif defined(_WIN32)
+    auto signal_unsupported=take(Process::start(launch(fixture,{"sleep"})));
+    auto signal_result=signal_unsupported.send_signal(1);
+    check(!signal_result && signal_result.error().code==ii::core::ErrorCode::unsupported,
+          "Windows rejects POSIX signals explicitly");
+    (void)take(signal_unsupported.cancel());
+#endif
     auto streams=run(launch(fixture,{"streams"}));
     check(streams.exit.code==7 && text(streams.output)=="out\n" && text(streams.error)=="err\n","independent stdout/stderr");
     auto merged=launch(fixture,{"streams"}); merged.error=ErrorOutput::merge_output;

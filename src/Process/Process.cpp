@@ -101,6 +101,11 @@ struct Handle final {
     ~Handle() { reset(); }
 };
 #elif defined(IISDKCORE_PROCESS_POSIX)
+bool child_exited(const siginfo_t& info) {
+    // Darwin can report CLD_STOPPED even when waitid requests only WEXITED.
+    // A stopped child still owns its PID and must remain signalable.
+    return info.si_pid!=0 && (info.si_code==CLD_EXITED || info.si_code==CLD_KILLED || info.si_code==CLD_DUMPED);
+}
 struct Descriptor final {
     int value=-1;
     Descriptor()=default;
@@ -260,7 +265,8 @@ struct Process::State final {
             pid=-1;
             return native_error("observe owned child (host must not reap it)",errno);
         }
-        if(info.si_pid==0 && !terminate) return std::optional<Exit>{};
+        const bool exited=child_exited(info);
+        if(!exited && !terminate) return std::optional<Exit>{};
         if (::kill(-pid,SIGKILL)!=0 && errno!=ESRCH) {
             const auto number=errno;
 #if defined(__APPLE__)
@@ -272,7 +278,7 @@ struct Process::State final {
                 return native_error("terminate process group",number);
         }
         // The root itself remains owned even if it changed process group.
-        if(info.si_pid==0 && ::kill(pid,SIGKILL)!=0 && errno!=ESRCH) return native_error("terminate process root",errno);
+        if(!exited && ::kill(pid,SIGKILL)!=0 && errno!=ESRCH) return native_error("terminate process root",errno);
         int status=0;
         pid_t waited;
         do { waited=waitpid(pid,&status,0); } while(waited<0 && errno==EINTR);
@@ -341,6 +347,34 @@ Result<Exit> Process::cancel() {
     auto result=state_->observe(ExitReason::cancelled);
     if(!result) return std::unexpected(result.error());
     return **result;
+}
+Result<void> Process::send_signal(int native_signal,SignalTarget target) {
+    if(!state_) return failure(ErrorCode::closed,"No owned process");
+    if(target!=SignalTarget::child && target!=SignalTarget::group)
+        return failure(ErrorCode::invalid_argument,"Invalid signal target");
+    if(native_signal<=0) return failure(ErrorCode::invalid_argument,"A positive native signal is required");
+#if defined(IISDKCORE_PROCESS_POSIX)
+    sigset_t valid{};
+    if(sigemptyset(&valid)!=0 || sigaddset(&valid,native_signal)!=0)
+        return failure(ErrorCode::invalid_argument,"Invalid native signal");
+    std::lock_guard lock(state_->control);
+    if(state_->exit || state_->pid<=0) return failure(ErrorCode::closed,"Owned process is no longer running");
+    siginfo_t info{};
+    int result;
+    do { result=waitid(P_PID,static_cast<id_t>(state_->pid),&info,WEXITED|WNOHANG|WNOWAIT); } while(result<0 && errno==EINTR);
+    if(result<0) {
+        const auto number=errno;
+        if(number==ECHILD)state_->pid=-1; // A foreign reaper invalidated identity; never signal a reused PID.
+        return native_error("observe owned child before signal",number);
+    }
+    if(child_exited(info)) return failure(ErrorCode::closed,"Owned process has exited");
+    const pid_t destination=target==SignalTarget::group?-state_->pid:state_->pid;
+    if(::kill(destination,native_signal)!=0) return native_error("signal owned child",errno);
+    return {};
+#else
+    (void)target;
+    return failure(ErrorCode::unsupported,"Native POSIX signals are unavailable on this target");
+#endif
 }
 
 Result<Process> Process::start(const Launch& launch) {

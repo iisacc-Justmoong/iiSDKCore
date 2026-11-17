@@ -33,6 +33,8 @@ struct Capabilities final { bool launch; bool pipes; bool working_directory; boo
 // setenv/putenv/environ writers in the host before taking a snapshot/launching.
 [[nodiscard]] Result<Environment> current_environment();
 enum class ExitReason { exited, signaled, cancelled, timed_out, owner_removed };
+// A group is the process group created for this owned child on POSIX.
+enum class SignalTarget { child, group };
 struct Exit final {
     ExitReason reason = ExitReason::exited;
     std::uint32_t code = 0; // Windows DWORD is retained without signed narrowing.
@@ -77,6 +79,9 @@ public:
     // A wait timeout leaves the process running; it does not drain its pipes.
     [[nodiscard]] Result<std::optional<Exit>> wait_for(std::chrono::milliseconds timeout);
     [[nodiscard]] Result<Exit> cancel();
+    // Native POSIX signal number; success acknowledges OS delivery, not exit.
+    // Windows and targets without POSIX child ownership return unsupported.
+    [[nodiscard]] Result<void> send_signal(int native_signal, SignalTarget target = SignalTarget::child);
     // Pumps all three nonblocking pipes, closes stdin after input, drains both
     // outputs even after capture limits, and reaps. Cancellation/deadline are
     // terminal Exit reasons with partial output retained, not spawn failures.

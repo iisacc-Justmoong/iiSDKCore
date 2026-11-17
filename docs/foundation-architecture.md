@@ -151,3 +151,7 @@ Core는 메모리 내 자원 팩, 불변 공유 뷰와 네이티브 읽기 전�
 이들을 연결하거나 가져오지 않는다. 준비한 코덱·GPU payload는 불투명한 바이트로 유지하며
 네이티브 형식 변환은 해당 기능 모듈에 둔다. Contracts·Values만 가져오는 소비자는
 Runtime과 자원 구현을 가져오지 않는다. 상세 계약은 [resources.md](resources.md)를 따른다.
+
+CMake 4.5가 컴파일 대상에 생성하는 내부 C++ 표준 타깃 표기 `$<BUILD_LOCAL_INTERFACE:@cmake_cxx_std>`는 Runtime과 Observation 구현의 표준 기능으로만 인정한다. 다른 표현식이나 외부 의존성은 여전히 거부한다.
+
+Emscripten 빌드는 헤더 기반 Core에 C++ 모듈 스캐너를 기본 요구하지 않는다. CMake의 `CMAKE_CXX_SCAN_FOR_MODULES`를 직접 지정한 경우 그 선택을 따른다.

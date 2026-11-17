@@ -12,6 +12,11 @@ function(iisdkcore_add_application target)
         set(_entry "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../src/Runtime/ApplicationEntry.cpp")
     endif()
     add_executable(${target} "${_entry}" ${ARG_SOURCES})
+    if(EMSCRIPTEN AND NOT DEFINED CMAKE_CXX_SCAN_FOR_MODULES)
+        # Ordinary header-based apps should not require clang-scan-deps from
+        # the Emscripten SDK. Applications using C++ modules can opt in.
+        set_property(TARGET ${target} PROPERTY CXX_SCAN_FOR_MODULES OFF)
+    endif()
     target_compile_features(${target} PRIVATE cxx_std_23)
     target_link_libraries(${target} PRIVATE iiSDKCore::Runtime ${ARG_LIBRARIES})
     if(WIN32)

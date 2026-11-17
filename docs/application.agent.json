@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/application.md",
-    "sha256": "c0d2cacf78883050ebc769a86cd63a7e35cfce4a3d9367aa1c50b21a59e79d4b",
-    "bytes": 11314,
-    "line_count": 182,
+    "sha256": "0d049535cf1d013b11ef9b4b242ec35458eaa27faf5557ace21667a223667113",
+    "bytes": 11606,
+    "line_count": 186,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -396,6 +396,20 @@
       "start_line": 177,
       "end_line": 182,
       "raw": "After adding before-driver owners, the Core build and 70 selected headless tests\npassed, including nine application tests. The new phase test covers mixed\nregistration order, activation failure and reverse cleanup, absent drivers,\nduplicate names, transaction rollback and wrong-thread registration. The same\ntwo installation tests and three build/policy tests remained excluded; the\nexisting install manifest was preserved.\n"
+    },
+    {
+      "id": "b000052",
+      "kind": "blank",
+      "start_line": 183,
+      "end_line": 183,
+      "raw": "\n"
+    },
+    {
+      "id": "b000053",
+      "kind": "paragraph",
+      "start_line": 184,
+      "end_line": 186,
+      "raw": "Emscripten에서 `iisdkcore_add_application`은 `CMAKE_CXX_SCAN_FOR_MODULES`가\n설정되지 않았다면 생성 대상의 C++ 모듈 스캔을 끈다. 모듈을 쓰는 앱은 이를\n명시적으로 켜고 호환되는 스캐너를 제공해야 한다. 지정한 ON/OFF 값은 유지한다.\n"
     }
   ],
   "outline": [

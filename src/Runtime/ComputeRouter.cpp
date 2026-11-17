@@ -515,15 +515,29 @@ Submission ComputeRouter::submit(ComputeScope scope,Task task,ComputeRequest req
     lease->state_.reset();
     return submitted;
 }
+struct RoutedProcess::Control final {
+    std::mutex mutex;
+    std::weak_ptr<process::Process> child;
+};
+core::Result<void> RoutedProcess::send_signal(int signal,process::SignalTarget target) const {
+    std::shared_ptr<process::Process> child;
+    { std::lock_guard lock(control_->mutex);child=control_->child.lock(); }
+    if(!child) {
+        if(operation_.result())return core::fail(core::ErrorCode::closed,"Routed child has finished");
+        return core::fail(core::ErrorCode::busy,"Routed child has not started or has already exited");
+    }
+    return child->send_signal(signal,target);
+}
 std::expected<RoutedProcess,SubmitError> ComputeRouter::route_process(ComputeScope scope,process::Launch launch,
     core::Bytes input,process::CommunicationOptions communication,ComputeRequest request) {
     auto lease=allocate(scope,request,false);
     if(!lease) return std::unexpected(lease.error());
     const auto placement=lease->placement(); const auto state=lease->state_;
     auto native_id=std::make_shared<std::atomic<std::uint64_t>>(0);
+    auto process_control=std::make_shared<RoutedProcess::Control>();
     const auto deadline=communication.deadline;
     auto operation=impl_->processes.submit<process::Communication>(*lease,
-        [state,native_id,launch=std::move(launch),input=std::move(input),communication=std::move(communication)](WorkContext& context) mutable -> core::Result<process::Communication> {
+        [state,native_id,process_control,launch=std::move(launch),input=std::move(input),communication=std::move(communication)](WorkContext& context) mutable -> core::Result<process::Communication> {
             std::stop_source stop;
             const auto request_stop=[&]{stop.request_stop();};
             std::stop_callback user(context.stop_token(),request_stop),owner(context.owner_stop_token(),request_stop),
@@ -536,11 +550,13 @@ std::expected<RoutedProcess,SubmitError> ComputeRouter::route_process(ComputeSco
             } active{*state};
             auto child=process::Process::start(launch);
             if(!child) { state->fail(child.error().cause); return std::unexpected(child.error()); }
+            auto owned=std::make_shared<process::Process>(std::move(*child));
+            { std::lock_guard lock(process_control->mutex);process_control->child=owned; }
             { std::lock_guard lock(state->owner->mutex); ++state->target->active_processes; active.started=true; }
-            native_id->store(child->id());
+            native_id->store(owned->id());
             context.mark_effects(SideEffects::possible);
             communication.stop=stop.get_token(); communication.deadline=context.deadline();
-            auto result=child->communicate(core::ByteView(input.data(),input.size()),communication);
+            auto result=owned->communicate(core::ByteView(input.data(),input.size()),communication);
             if(!result) { state->fail(result.error().cause); return std::unexpected(result.error()); }
             if(context.owner_stop_token().stop_requested() && result->exit.reason==process::ExitReason::cancelled)
                 result->exit.reason=process::ExitReason::owner_removed;
@@ -551,7 +567,7 @@ std::expected<RoutedProcess,SubmitError> ComputeRouter::route_process(ComputeSco
     const auto admission=operation.admission();
     lease->state_.reset();
     if(admission!=SubmitError::none) { impl_->rejected_request(); return std::unexpected(admission); }
-    return RoutedProcess(placement,std::move(operation),std::move(native_id));
+    return RoutedProcess(placement,std::move(operation),std::move(native_id),std::move(process_control));
 }
 ComputeSnapshot ComputeRouter::monitor() {
     std::lock_guard lock(impl_->mutex);

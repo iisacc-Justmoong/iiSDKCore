@@ -12,7 +12,8 @@ enum iisdkcore_resource_error {
     IISDKCORE_RESOURCE_OK=0, IISDKCORE_RESOURCE_INVALID=1,
     IISDKCORE_RESOURCE_LIMIT=2, IISDKCORE_RESOURCE_OUT_OF_MEMORY=3,
     IISDKCORE_RESOURCE_CLOSED=4, IISDKCORE_RESOURCE_BUSY=5,
-    IISDKCORE_RESOURCE_WOULD_BLOCK=6, IISDKCORE_RESOURCE_FAILED=7
+    IISDKCORE_RESOURCE_WOULD_BLOCK=6, IISDKCORE_RESOURCE_FAILED=7,
+    IISDKCORE_RESOURCE_UNSUPPORTED=8
 };
 int iisdkcore_resource_pool_create(size_t limit,iisdkcore_resource_pool** out);
 void iisdkcore_resource_pool_destroy(iisdkcore_resource_pool* pool);

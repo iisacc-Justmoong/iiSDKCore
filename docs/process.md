@@ -189,3 +189,38 @@ asynchronously submitted caller must capture owning input bytes for that lifetim
 ## 빠른 자식 종료와 출력 감시 취소
 
 출력을 관측한 콜백이 취소를 요청하는 동안 자식이 먼저 종료할 수 있다. Darwin에서는 `waitid`가 실행 중을 반환한 직후 그룹이 좀비만 남은 상태가 되어 `killpg`가 `EPERM`을 반환할 수 있다. 이 경우 재사용되지 않은 소유 PID를 유지한 채 모든 그룹 구성원이 종료되었음을 확인해야 한다. 초기 관측이 실행 중이었다는 이유만으로 이 확인을 생략하지 않는다. 살아 있는 구성원, 열거 실패, 다른 권한 오류는 계속 오류로 반환한다. `tests/process.cpp`는 즉시 종료 자식의 첫 출력에서 취소하는 사례를 64회 검증한다.
+
+## Owned native signal delivery
+
+`Process::send_signal(number, SignalTarget::child)` sends a positive native POSIX
+signal to the owned direct child; `SignalTarget::group` targets its original
+owned process group. The call checks that the child has not already been reaped
+while holding the same control lock as cancellation. The host must not reap the
+child independently. A successful return means the OS accepted the signal; it
+does not mean the child handled it or exited. Observe `poll`, `wait_for`, or
+`communicate` separately. A group signal reaches members still in that group;
+processes that moved to another group are outside that particular signal target.
+
+`ComputeRouter::route_process` returns a `RoutedProcess` whose `send_signal`
+uses the live owned child rather than its diagnostic PID. Before launch or
+after the child ceases to be live it reports an error. Arbitrary POSIX signals
+are unsupported on Windows and on targets without native process launch. The
+existing Windows `cancel()` still terminates the owned Job Object tree; Windows
+console control events do not provide a general equivalent to POSIX signals.
+
+The C bridge `<iiSDKCore/Process/ProcessC.h>` and Python
+`Library.start_process(arguments)` expose the same owned-child signal,
+wait and tree cancellation boundary. This narrow bridge closes stdin and
+discards stdout and stderr; applications requiring pipes, cwd, environment or
+streaming use the full C++ `Process` API. Python `send_signal(number,
+group=True)` selects the owned group. `wait(seconds)` returns `None` on timeout
+or a stable exit record; a concurrent signal is allowed while another thread
+waits. `close()` cancels the owned tree, wakes concurrent waiters and only then
+releases the owner. The diagnostic `id` is not a capability to signal any
+unowned process. An older native library without this bridge reports
+`unsupported` rather than opening an arbitrary PID.
+
+A stopped child remains owned and signalable. On macOS, `waitid` can return a
+stopped-child notification even when only exits were requested, so Core checks
+`si_code` before declaring an exit or reaping. Cancellation of a stopped child
+still sends the termination signal and waits for the owned tree to retire.
