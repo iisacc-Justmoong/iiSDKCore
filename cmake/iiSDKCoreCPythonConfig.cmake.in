@@ -1,4 +1,5 @@
 @PACKAGE_INIT@
+set(iiSDKCoreCPython_SPDX_LICENSE "Apache-2.0")
 include(CMakeFindDependencyMacro)
 find_dependency(iiSDKCore 0.20 CONFIG COMPONENTS Runtime)
 find_dependency(Python @Python_VERSION_MAJOR@.@Python_VERSION_MINOR@ EXACT COMPONENTS Development.Embed)

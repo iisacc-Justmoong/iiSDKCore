@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/README.md",
-    "sha256": "bb210a05ec8edc08cb1ec8745e746ebad65625cae16c97e0c9099368eb7726ea",
-    "bytes": 4634,
-    "line_count": 66,
+    "sha256": "3349da56709f3a17fd0b2866aa19aadecaf76f9df4258b0bc6886f2baa21ef47",
+    "bytes": 4699,
+    "line_count": 67,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -100,8 +100,8 @@
       "id": "b000010",
       "kind": "table",
       "start_line": 10,
-      "end_line": 65,
-      "raw": "| Document | Agent JSON |\n| --- | --- |\n| [`AGENT.md`](../AGENT.md) | [JSON](entrypoints/AGENT.agent.json) |\n| [`README.md`](../README.md) | [JSON](entrypoints/README.agent.json) |\n| [`docs/DynamicLinking.md`](DynamicLinking.md) | [JSON](DynamicLinking.agent.json) |\n| [`docs/FILE_PROVIDER.md`](FILE_PROVIDER.md) | [JSON](FILE_PROVIDER.agent.json) |\n| [`docs/Windows.md`](Windows.md) | [JSON](Windows.agent.json) |\n| [`docs/WindowsBuildAndRun.md`](WindowsBuildAndRun.md) | [JSON](WindowsBuildAndRun.agent.json) |\n| [`docs/application.md`](application.md) | [JSON](application.agent.json) |\n| [`docs/cleanup.md`](cleanup.md) | [JSON](cleanup.agent.json) |\n| [`docs/compute-router.md`](compute-router.md) | [JSON](compute-router.agent.json) |\n| [`docs/concurrent.md`](concurrent.md) | [JSON](concurrent.agent.json) |\n| [`docs/cpython-aot.md`](cpython-aot.md) | [JSON](cpython-aot.agent.json) |\n| [`docs/decimal.md`](decimal.md) | [JSON](decimal.agent.json) |\n| [`docs/device-extraction.md`](device-extraction.md) | [JSON](device-extraction.agent.json) |\n| [`docs/documentation-structure.md`](documentation-structure.md) | [JSON](documentation-structure.agent.json) |\n| [`docs/dynamic-value.md`](dynamic-value.md) | [JSON](dynamic-value.agent.json) |\n| [`docs/easing.md`](easing.md) | [JSON](easing.agent.json) |\n| [`docs/elastic-compute.md`](elastic-compute.md) | [JSON](elastic-compute.agent.json) |\n| [`docs/embedded.md`](embedded.md) | [JSON](embedded.agent.json) |\n| [`docs/foundation-architecture.md`](foundation-architecture.md) | [JSON](foundation-architecture.agent.json) |\n| [`docs/foundations.md`](foundations.md) | [JSON](foundations.agent.json) |\n| [`docs/frame-loop.md`](frame-loop.md) | [JSON](frame-loop.agent.json) |\n| [`docs/hardware.md`](hardware.md) | [JSON](hardware.agent.json) |\n| [`docs/host-loop.md`](host-loop.md) | [JSON](host-loop.agent.json) |\n| [`docs/implicit-sharing.md`](implicit-sharing.md) | [JSON](implicit-sharing.agent.json) |\n| [`docs/inheritance.md`](inheritance.md) | [JSON](inheritance.agent.json) |\n| [`docs/io.md`](io.md) | [JSON](io.agent.json) |\n| [`docs/load-balancer.md`](load-balancer.md) | [JSON](load-balancer.agent.json) |\n| [`docs/load-routing.md`](load-routing.md) | [JSON](load-routing.agent.json) |\n| [`docs/loop-io.md`](loop-io.md) | [JSON](loop-io.agent.json) |\n| [`docs/member-tree.md`](member-tree.md) | [JSON](member-tree.agent.json) |\n| [`docs/mobile-shared-runtime.md`](mobile-shared-runtime.md) | [JSON](mobile-shared-runtime.agent.json) |\n| [`docs/modern-core.md`](modern-core.md) | [JSON](modern-core.agent.json) |\n| [`docs/object-properties.md`](object-properties.md) | [JSON](object-properties.agent.json) |\n| [`docs/observable.md`](observable.md) | [JSON](observable.agent.json) |\n| [`docs/operation.md`](operation.md) | [JSON](operation.agent.json) |\n| [`docs/parallel-runtime.md`](parallel-runtime.md) | [JSON](parallel-runtime.agent.json) |\n| [`docs/performance.md`](performance.md) | [JSON](performance.agent.json) |\n| [`docs/process.md`](process.md) | [JSON](process.agent.json) |\n| [`docs/qt-migration-p0.md`](qt-migration-p0.md) | [JSON](qt-migration-p0.agent.json) |\n| [`docs/qtcore-assessment.md`](qtcore-assessment.md) | [JSON](qtcore-assessment.agent.json) |\n| [`docs/query-stream.md`](query-stream.md) | [JSON](query-stream.agent.json) |\n| [`docs/query-values.md`](query-values.md) | [JSON](query-values.agent.json) |\n| [`docs/query.md`](query.md) | [JSON](query.agent.json) |\n| [`docs/realtime.md`](realtime.md) | [JSON](realtime.agent.json) |\n| [`docs/resources.md`](resources.md) | [JSON](resources.agent.json) |\n| [`docs/runtime.md`](runtime.md) | [JSON](runtime.agent.json) |\n| [`docs/serialization.md`](serialization.md) | [JSON](serialization.agent.json) |\n| [`docs/session-lifetime.md`](session-lifetime.md) | [JSON](session-lifetime.agent.json) |\n| [`docs/static-plugins.md`](static-plugins.md) | [JSON](static-plugins.agent.json) |\n| [`docs/text.md`](text.md) | [JSON](text.agent.json) |\n| [`docs/thread.md`](thread.md) | [JSON](thread.agent.json) |\n| [`docs/validation.md`](validation.md) | [JSON](validation.agent.json) |\n| [`docs/windows-architecture-check.md`](windows-architecture-check.md) | [JSON](windows-architecture-check.agent.json) |\n| [`example/README.md`](../example/README.md) | [JSON](mirrors/example/README.agent.json) |\n",
+      "end_line": 66,
+      "raw": "| Document | Agent JSON |\n| --- | --- |\n| [`AGENT.md`](../AGENT.md) | [JSON](entrypoints/AGENT.agent.json) |\n| [`README.md`](../README.md) | [JSON](entrypoints/README.agent.json) |\n| [`docs/DynamicLinking.md`](DynamicLinking.md) | [JSON](DynamicLinking.agent.json) |\n| [`docs/FILE_PROVIDER.md`](FILE_PROVIDER.md) | [JSON](FILE_PROVIDER.agent.json) |\n| [`docs/License.md`](License.md) | [JSON](License.agent.json) |\n| [`docs/Windows.md`](Windows.md) | [JSON](Windows.agent.json) |\n| [`docs/WindowsBuildAndRun.md`](WindowsBuildAndRun.md) | [JSON](WindowsBuildAndRun.agent.json) |\n| [`docs/application.md`](application.md) | [JSON](application.agent.json) |\n| [`docs/cleanup.md`](cleanup.md) | [JSON](cleanup.agent.json) |\n| [`docs/compute-router.md`](compute-router.md) | [JSON](compute-router.agent.json) |\n| [`docs/concurrent.md`](concurrent.md) | [JSON](concurrent.agent.json) |\n| [`docs/cpython-aot.md`](cpython-aot.md) | [JSON](cpython-aot.agent.json) |\n| [`docs/decimal.md`](decimal.md) | [JSON](decimal.agent.json) |\n| [`docs/device-extraction.md`](device-extraction.md) | [JSON](device-extraction.agent.json) |\n| [`docs/documentation-structure.md`](documentation-structure.md) | [JSON](documentation-structure.agent.json) |\n| [`docs/dynamic-value.md`](dynamic-value.md) | [JSON](dynamic-value.agent.json) |\n| [`docs/easing.md`](easing.md) | [JSON](easing.agent.json) |\n| [`docs/elastic-compute.md`](elastic-compute.md) | [JSON](elastic-compute.agent.json) |\n| [`docs/embedded.md`](embedded.md) | [JSON](embedded.agent.json) |\n| [`docs/foundation-architecture.md`](foundation-architecture.md) | [JSON](foundation-architecture.agent.json) |\n| [`docs/foundations.md`](foundations.md) | [JSON](foundations.agent.json) |\n| [`docs/frame-loop.md`](frame-loop.md) | [JSON](frame-loop.agent.json) |\n| [`docs/hardware.md`](hardware.md) | [JSON](hardware.agent.json) |\n| [`docs/host-loop.md`](host-loop.md) | [JSON](host-loop.agent.json) |\n| [`docs/implicit-sharing.md`](implicit-sharing.md) | [JSON](implicit-sharing.agent.json) |\n| [`docs/inheritance.md`](inheritance.md) | [JSON](inheritance.agent.json) |\n| [`docs/io.md`](io.md) | [JSON](io.agent.json) |\n| [`docs/load-balancer.md`](load-balancer.md) | [JSON](load-balancer.agent.json) |\n| [`docs/load-routing.md`](load-routing.md) | [JSON](load-routing.agent.json) |\n| [`docs/loop-io.md`](loop-io.md) | [JSON](loop-io.agent.json) |\n| [`docs/member-tree.md`](member-tree.md) | [JSON](member-tree.agent.json) |\n| [`docs/mobile-shared-runtime.md`](mobile-shared-runtime.md) | [JSON](mobile-shared-runtime.agent.json) |\n| [`docs/modern-core.md`](modern-core.md) | [JSON](modern-core.agent.json) |\n| [`docs/object-properties.md`](object-properties.md) | [JSON](object-properties.agent.json) |\n| [`docs/observable.md`](observable.md) | [JSON](observable.agent.json) |\n| [`docs/operation.md`](operation.md) | [JSON](operation.agent.json) |\n| [`docs/parallel-runtime.md`](parallel-runtime.md) | [JSON](parallel-runtime.agent.json) |\n| [`docs/performance.md`](performance.md) | [JSON](performance.agent.json) |\n| [`docs/process.md`](process.md) | [JSON](process.agent.json) |\n| [`docs/qt-migration-p0.md`](qt-migration-p0.md) | [JSON](qt-migration-p0.agent.json) |\n| [`docs/qtcore-assessment.md`](qtcore-assessment.md) | [JSON](qtcore-assessment.agent.json) |\n| [`docs/query-stream.md`](query-stream.md) | [JSON](query-stream.agent.json) |\n| [`docs/query-values.md`](query-values.md) | [JSON](query-values.agent.json) |\n| [`docs/query.md`](query.md) | [JSON](query.agent.json) |\n| [`docs/realtime.md`](realtime.md) | [JSON](realtime.agent.json) |\n| [`docs/resources.md`](resources.md) | [JSON](resources.agent.json) |\n| [`docs/runtime.md`](runtime.md) | [JSON](runtime.agent.json) |\n| [`docs/serialization.md`](serialization.md) | [JSON](serialization.agent.json) |\n| [`docs/session-lifetime.md`](session-lifetime.md) | [JSON](session-lifetime.agent.json) |\n| [`docs/static-plugins.md`](static-plugins.md) | [JSON](static-plugins.agent.json) |\n| [`docs/text.md`](text.md) | [JSON](text.agent.json) |\n| [`docs/thread.md`](thread.md) | [JSON](thread.agent.json) |\n| [`docs/validation.md`](validation.md) | [JSON](validation.agent.json) |\n| [`docs/windows-architecture-check.md`](windows-architecture-check.md) | [JSON](windows-architecture-check.agent.json) |\n| [`example/README.md`](../example/README.md) | [JSON](mirrors/example/README.agent.json) |\n",
       "columns": [
         "Document",
         "Agent JSON"
@@ -122,6 +122,10 @@
         [
           "[`docs/FILE_PROVIDER.md`](FILE_PROVIDER.md)",
           "[JSON](FILE_PROVIDER.agent.json)"
+        ],
+        [
+          "[`docs/License.md`](License.md)",
+          "[JSON](License.agent.json)"
         ],
         [
           "[`docs/Windows.md`](Windows.md)",
@@ -328,8 +332,8 @@
     {
       "id": "b000011",
       "kind": "html",
-      "start_line": 66,
-      "end_line": 66,
+      "start_line": 67,
+      "end_line": 67,
       "raw": "<!-- workspace-docs:document-map:end -->\n"
     }
   ],
@@ -420,703 +424,717 @@
       },
       {
         "block_id": "b000010",
+        "label": "`docs/License.md`",
+        "target": "License.md",
+        "kind": "relative",
+        "line": 16
+      },
+      {
+        "block_id": "b000010",
+        "label": "JSON",
+        "target": "License.agent.json",
+        "kind": "relative",
+        "line": 16
+      },
+      {
+        "block_id": "b000010",
         "label": "`docs/Windows.md`",
         "target": "Windows.md",
         "kind": "relative",
-        "line": 16
+        "line": 17
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "Windows.agent.json",
         "kind": "relative",
-        "line": 16
+        "line": 17
       },
       {
         "block_id": "b000010",
         "label": "`docs/WindowsBuildAndRun.md`",
         "target": "WindowsBuildAndRun.md",
         "kind": "relative",
-        "line": 17
+        "line": 18
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "WindowsBuildAndRun.agent.json",
         "kind": "relative",
-        "line": 17
+        "line": 18
       },
       {
         "block_id": "b000010",
         "label": "`docs/application.md`",
         "target": "application.md",
         "kind": "relative",
-        "line": 18
+        "line": 19
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "application.agent.json",
         "kind": "relative",
-        "line": 18
+        "line": 19
       },
       {
         "block_id": "b000010",
         "label": "`docs/cleanup.md`",
         "target": "cleanup.md",
         "kind": "relative",
-        "line": 19
+        "line": 20
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "cleanup.agent.json",
         "kind": "relative",
-        "line": 19
+        "line": 20
       },
       {
         "block_id": "b000010",
         "label": "`docs/compute-router.md`",
         "target": "compute-router.md",
         "kind": "relative",
-        "line": 20
+        "line": 21
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "compute-router.agent.json",
         "kind": "relative",
-        "line": 20
+        "line": 21
       },
       {
         "block_id": "b000010",
         "label": "`docs/concurrent.md`",
         "target": "concurrent.md",
         "kind": "relative",
-        "line": 21
+        "line": 22
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "concurrent.agent.json",
         "kind": "relative",
-        "line": 21
+        "line": 22
       },
       {
         "block_id": "b000010",
         "label": "`docs/cpython-aot.md`",
         "target": "cpython-aot.md",
         "kind": "relative",
-        "line": 22
+        "line": 23
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "cpython-aot.agent.json",
         "kind": "relative",
-        "line": 22
+        "line": 23
       },
       {
         "block_id": "b000010",
         "label": "`docs/decimal.md`",
         "target": "decimal.md",
         "kind": "relative",
-        "line": 23
+        "line": 24
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "decimal.agent.json",
         "kind": "relative",
-        "line": 23
+        "line": 24
       },
       {
         "block_id": "b000010",
         "label": "`docs/device-extraction.md`",
         "target": "device-extraction.md",
         "kind": "relative",
-        "line": 24
+        "line": 25
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "device-extraction.agent.json",
         "kind": "relative",
-        "line": 24
+        "line": 25
       },
       {
         "block_id": "b000010",
         "label": "`docs/documentation-structure.md`",
         "target": "documentation-structure.md",
         "kind": "relative",
-        "line": 25
+        "line": 26
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "documentation-structure.agent.json",
         "kind": "relative",
-        "line": 25
+        "line": 26
       },
       {
         "block_id": "b000010",
         "label": "`docs/dynamic-value.md`",
         "target": "dynamic-value.md",
         "kind": "relative",
-        "line": 26
+        "line": 27
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "dynamic-value.agent.json",
         "kind": "relative",
-        "line": 26
+        "line": 27
       },
       {
         "block_id": "b000010",
         "label": "`docs/easing.md`",
         "target": "easing.md",
         "kind": "relative",
-        "line": 27
+        "line": 28
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "easing.agent.json",
         "kind": "relative",
-        "line": 27
+        "line": 28
       },
       {
         "block_id": "b000010",
         "label": "`docs/elastic-compute.md`",
         "target": "elastic-compute.md",
         "kind": "relative",
-        "line": 28
+        "line": 29
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "elastic-compute.agent.json",
         "kind": "relative",
-        "line": 28
+        "line": 29
       },
       {
         "block_id": "b000010",
         "label": "`docs/embedded.md`",
         "target": "embedded.md",
         "kind": "relative",
-        "line": 29
+        "line": 30
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "embedded.agent.json",
         "kind": "relative",
-        "line": 29
+        "line": 30
       },
       {
         "block_id": "b000010",
         "label": "`docs/foundation-architecture.md`",
         "target": "foundation-architecture.md",
         "kind": "relative",
-        "line": 30
+        "line": 31
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "foundation-architecture.agent.json",
         "kind": "relative",
-        "line": 30
+        "line": 31
       },
       {
         "block_id": "b000010",
         "label": "`docs/foundations.md`",
         "target": "foundations.md",
         "kind": "relative",
-        "line": 31
+        "line": 32
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "foundations.agent.json",
         "kind": "relative",
-        "line": 31
+        "line": 32
       },
       {
         "block_id": "b000010",
         "label": "`docs/frame-loop.md`",
         "target": "frame-loop.md",
         "kind": "relative",
-        "line": 32
+        "line": 33
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "frame-loop.agent.json",
         "kind": "relative",
-        "line": 32
+        "line": 33
       },
       {
         "block_id": "b000010",
         "label": "`docs/hardware.md`",
         "target": "hardware.md",
         "kind": "relative",
-        "line": 33
+        "line": 34
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "hardware.agent.json",
         "kind": "relative",
-        "line": 33
+        "line": 34
       },
       {
         "block_id": "b000010",
         "label": "`docs/host-loop.md`",
         "target": "host-loop.md",
         "kind": "relative",
-        "line": 34
+        "line": 35
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "host-loop.agent.json",
         "kind": "relative",
-        "line": 34
+        "line": 35
       },
       {
         "block_id": "b000010",
         "label": "`docs/implicit-sharing.md`",
         "target": "implicit-sharing.md",
         "kind": "relative",
-        "line": 35
+        "line": 36
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "implicit-sharing.agent.json",
         "kind": "relative",
-        "line": 35
+        "line": 36
       },
       {
         "block_id": "b000010",
         "label": "`docs/inheritance.md`",
         "target": "inheritance.md",
         "kind": "relative",
-        "line": 36
+        "line": 37
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "inheritance.agent.json",
         "kind": "relative",
-        "line": 36
+        "line": 37
       },
       {
         "block_id": "b000010",
         "label": "`docs/io.md`",
         "target": "io.md",
         "kind": "relative",
-        "line": 37
+        "line": 38
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "io.agent.json",
         "kind": "relative",
-        "line": 37
+        "line": 38
       },
       {
         "block_id": "b000010",
         "label": "`docs/load-balancer.md`",
         "target": "load-balancer.md",
         "kind": "relative",
-        "line": 38
+        "line": 39
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "load-balancer.agent.json",
         "kind": "relative",
-        "line": 38
+        "line": 39
       },
       {
         "block_id": "b000010",
         "label": "`docs/load-routing.md`",
         "target": "load-routing.md",
         "kind": "relative",
-        "line": 39
+        "line": 40
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "load-routing.agent.json",
         "kind": "relative",
-        "line": 39
+        "line": 40
       },
       {
         "block_id": "b000010",
         "label": "`docs/loop-io.md`",
         "target": "loop-io.md",
         "kind": "relative",
-        "line": 40
+        "line": 41
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "loop-io.agent.json",
         "kind": "relative",
-        "line": 40
+        "line": 41
       },
       {
         "block_id": "b000010",
         "label": "`docs/member-tree.md`",
         "target": "member-tree.md",
         "kind": "relative",
-        "line": 41
+        "line": 42
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "member-tree.agent.json",
         "kind": "relative",
-        "line": 41
+        "line": 42
       },
       {
         "block_id": "b000010",
         "label": "`docs/mobile-shared-runtime.md`",
         "target": "mobile-shared-runtime.md",
         "kind": "relative",
-        "line": 42
+        "line": 43
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "mobile-shared-runtime.agent.json",
         "kind": "relative",
-        "line": 42
+        "line": 43
       },
       {
         "block_id": "b000010",
         "label": "`docs/modern-core.md`",
         "target": "modern-core.md",
         "kind": "relative",
-        "line": 43
+        "line": 44
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "modern-core.agent.json",
         "kind": "relative",
-        "line": 43
+        "line": 44
       },
       {
         "block_id": "b000010",
         "label": "`docs/object-properties.md`",
         "target": "object-properties.md",
         "kind": "relative",
-        "line": 44
+        "line": 45
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "object-properties.agent.json",
         "kind": "relative",
-        "line": 44
+        "line": 45
       },
       {
         "block_id": "b000010",
         "label": "`docs/observable.md`",
         "target": "observable.md",
         "kind": "relative",
-        "line": 45
+        "line": 46
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "observable.agent.json",
         "kind": "relative",
-        "line": 45
+        "line": 46
       },
       {
         "block_id": "b000010",
         "label": "`docs/operation.md`",
         "target": "operation.md",
         "kind": "relative",
-        "line": 46
+        "line": 47
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "operation.agent.json",
         "kind": "relative",
-        "line": 46
+        "line": 47
       },
       {
         "block_id": "b000010",
         "label": "`docs/parallel-runtime.md`",
         "target": "parallel-runtime.md",
         "kind": "relative",
-        "line": 47
+        "line": 48
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "parallel-runtime.agent.json",
         "kind": "relative",
-        "line": 47
+        "line": 48
       },
       {
         "block_id": "b000010",
         "label": "`docs/performance.md`",
         "target": "performance.md",
         "kind": "relative",
-        "line": 48
+        "line": 49
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "performance.agent.json",
         "kind": "relative",
-        "line": 48
+        "line": 49
       },
       {
         "block_id": "b000010",
         "label": "`docs/process.md`",
         "target": "process.md",
         "kind": "relative",
-        "line": 49
+        "line": 50
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "process.agent.json",
         "kind": "relative",
-        "line": 49
+        "line": 50
       },
       {
         "block_id": "b000010",
         "label": "`docs/qt-migration-p0.md`",
         "target": "qt-migration-p0.md",
         "kind": "relative",
-        "line": 50
+        "line": 51
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "qt-migration-p0.agent.json",
         "kind": "relative",
-        "line": 50
+        "line": 51
       },
       {
         "block_id": "b000010",
         "label": "`docs/qtcore-assessment.md`",
         "target": "qtcore-assessment.md",
         "kind": "relative",
-        "line": 51
+        "line": 52
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "qtcore-assessment.agent.json",
         "kind": "relative",
-        "line": 51
+        "line": 52
       },
       {
         "block_id": "b000010",
         "label": "`docs/query-stream.md`",
         "target": "query-stream.md",
         "kind": "relative",
-        "line": 52
+        "line": 53
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "query-stream.agent.json",
         "kind": "relative",
-        "line": 52
+        "line": 53
       },
       {
         "block_id": "b000010",
         "label": "`docs/query-values.md`",
         "target": "query-values.md",
         "kind": "relative",
-        "line": 53
+        "line": 54
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "query-values.agent.json",
         "kind": "relative",
-        "line": 53
+        "line": 54
       },
       {
         "block_id": "b000010",
         "label": "`docs/query.md`",
         "target": "query.md",
         "kind": "relative",
-        "line": 54
+        "line": 55
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "query.agent.json",
         "kind": "relative",
-        "line": 54
+        "line": 55
       },
       {
         "block_id": "b000010",
         "label": "`docs/realtime.md`",
         "target": "realtime.md",
         "kind": "relative",
-        "line": 55
+        "line": 56
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "realtime.agent.json",
         "kind": "relative",
-        "line": 55
+        "line": 56
       },
       {
         "block_id": "b000010",
         "label": "`docs/resources.md`",
         "target": "resources.md",
         "kind": "relative",
-        "line": 56
+        "line": 57
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "resources.agent.json",
         "kind": "relative",
-        "line": 56
+        "line": 57
       },
       {
         "block_id": "b000010",
         "label": "`docs/runtime.md`",
         "target": "runtime.md",
         "kind": "relative",
-        "line": 57
+        "line": 58
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "runtime.agent.json",
         "kind": "relative",
-        "line": 57
+        "line": 58
       },
       {
         "block_id": "b000010",
         "label": "`docs/serialization.md`",
         "target": "serialization.md",
         "kind": "relative",
-        "line": 58
+        "line": 59
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "serialization.agent.json",
         "kind": "relative",
-        "line": 58
+        "line": 59
       },
       {
         "block_id": "b000010",
         "label": "`docs/session-lifetime.md`",
         "target": "session-lifetime.md",
         "kind": "relative",
-        "line": 59
+        "line": 60
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "session-lifetime.agent.json",
         "kind": "relative",
-        "line": 59
+        "line": 60
       },
       {
         "block_id": "b000010",
         "label": "`docs/static-plugins.md`",
         "target": "static-plugins.md",
         "kind": "relative",
-        "line": 60
+        "line": 61
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "static-plugins.agent.json",
         "kind": "relative",
-        "line": 60
+        "line": 61
       },
       {
         "block_id": "b000010",
         "label": "`docs/text.md`",
         "target": "text.md",
         "kind": "relative",
-        "line": 61
+        "line": 62
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "text.agent.json",
         "kind": "relative",
-        "line": 61
+        "line": 62
       },
       {
         "block_id": "b000010",
         "label": "`docs/thread.md`",
         "target": "thread.md",
         "kind": "relative",
-        "line": 62
+        "line": 63
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "thread.agent.json",
         "kind": "relative",
-        "line": 62
+        "line": 63
       },
       {
         "block_id": "b000010",
         "label": "`docs/validation.md`",
         "target": "validation.md",
         "kind": "relative",
-        "line": 63
+        "line": 64
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "validation.agent.json",
         "kind": "relative",
-        "line": 63
+        "line": 64
       },
       {
         "block_id": "b000010",
         "label": "`docs/windows-architecture-check.md`",
         "target": "windows-architecture-check.md",
         "kind": "relative",
-        "line": 64
+        "line": 65
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "windows-architecture-check.agent.json",
         "kind": "relative",
-        "line": 64
+        "line": 65
       },
       {
         "block_id": "b000010",
         "label": "`example/README.md`",
         "target": "../example/README.md",
         "kind": "relative",
-        "line": 65
+        "line": 66
       },
       {
         "block_id": "b000010",
         "label": "JSON",
         "target": "mirrors/example/README.agent.json",
         "kind": "relative",
-        "line": 65
+        "line": 66
       }
     ],
     "tables": [
@@ -1142,6 +1160,10 @@
           [
             "[`docs/FILE_PROVIDER.md`](FILE_PROVIDER.md)",
             "[JSON](FILE_PROVIDER.agent.json)"
+          ],
+          [
+            "[`docs/License.md`](License.md)",
+            "[JSON](License.agent.json)"
           ],
           [
             "[`docs/Windows.md`](Windows.md)",

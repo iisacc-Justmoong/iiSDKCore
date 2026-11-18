@@ -57,5 +57,18 @@ if(IISDKCORE_EMBEDDED_ONLY)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/iiSDKCoreConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/iiSDKCoreConfigVersion.cmake"
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSDKCore)
     install(FILES docs/embedded.md DESTINATION ${CMAKE_INSTALL_DATADIR}/iiSDKCore/docs)
+    install(FILES LICENSE NOTICE DESTINATION ${CMAKE_INSTALL_DATADIR}/iiSDKCore)
     iisdkcore_enforce_architecture()
+    if(BUILD_TESTING)
+        add_test(NAME iiSDKCore.LicenseText COMMAND "${Python3_EXECUTABLE}" -B
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/license_text.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}"
+            "${CMAKE_CURRENT_BINARY_DIR}/iiSDKCoreConfig.cmake")
+        if(NOT CMAKE_CROSSCOMPILING)
+            add_test(NAME iiSDKCore.LicenseInstalled COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/license_text.py" --install
+                "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_COMMAND}" "${CMAKE_INSTALL_DATADIR}" "$<CONFIG>")
+            set_tests_properties(iiSDKCore.LicenseInstalled PROPERTIES TIMEOUT 120)
+        endif()
+    endif()
 endif()

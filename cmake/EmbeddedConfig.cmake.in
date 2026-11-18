@@ -1,4 +1,5 @@
 @PACKAGE_INIT@
+set(iiSDKCore_SPDX_LICENSE "Apache-2.0")
 include("${CMAKE_CURRENT_LIST_DIR}/iiSDKCoreEmbeddedTargets.cmake")
 set(iiSDKCore_Embedded_FOUND TRUE)
 if(NOT iiSDKCore_FIND_COMPONENTS)
