@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.31)
 project(iiSDKCore VERSION 0.20.0 LANGUAGES CXX)
+include(./cmake/ModuleImports.cmake)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(EMSCRIPTEN AND NOT DEFINED CMAKE_CXX_SCAN_FOR_MODULES)

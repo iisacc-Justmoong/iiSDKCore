@@ -1,5 +1,4 @@
-#include <iiSDKCore/Runtime/LoadRouting.h>
-#include <iiSDKCore/Runtime/EventLoop.h>
+#include <iiSDKCore>
 #include <iostream>
 
 int main() {

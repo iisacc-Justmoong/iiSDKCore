@@ -1,0 +1,106 @@
+#pragma once
+
+// C++ public entry for iiSDKCore; the linked components select the API.
+
+#if defined(IISDK_IMPORT_IISDKCORE_CONTRACTS)
+#include <iiSDKCore/Core/Bytes/Bytes.h>
+#include <iiSDKCore/Core/Text/Utf8.h>
+#include <iiSDKCore/Core/Text/Number.h>
+#include <iiSDKCore/Core/Text/Text.h>
+#include <iiSDKCore/Core/Result/Result.h>
+#endif
+
+#if defined(IISDK_IMPORT_IISDKCORE_CPYTHON)
+#include <iiSDKCore/Scripting/CPythonHost.h>
+#endif
+
+#if defined(IISDK_IMPORT_IISDKCORE_EMBEDDED)
+#include <iiSDKCore/Embedded/Embedded.h>
+#endif
+
+#if defined(IISDK_IMPORT_IISDKCORE_OBSERVATION)
+#include <iiSDKCore/Core/Property/PropertyLens.h>
+#include <iiSDKCore/Core/Property/Observable.h>
+#include <iiSDKCore/Core/Property/ObservableSubscription.h>
+#include <iiSDKCore/Core/Property/ObservableRead.h>
+#include <iiSDKCore/Core/Property/ObservableReadScope.h>
+#include <iiSDKCore/Core/Property/ObservationExport.h>
+#endif
+
+#if defined(IISDK_IMPORT_IISDKCORE_RUNTIME)
+#include <iiSDKCore/library.h>
+#include <iiSDKCore/Runtime/Execution.h>
+#include <iiSDKCore/Runtime/EventLoop.h>
+#include <iiSDKCore/Runtime/Stream.h>
+#include <iiSDKCore/Runtime/LiveStream.h>
+#include <iiSDKCore/Runtime/BrowserLoop.h>
+#include <iiSDKCore/Runtime/Query.h>
+#include <iiSDKCore/Runtime/TaskScope.h>
+#include <iiSDKCore/Runtime/ObjectProperties.h>
+#include <iiSDKCore/Runtime/Thread.h>
+#include <iiSDKCore/Runtime/Runtime.h>
+#include <iiSDKCore/Runtime/Value.h>
+#include <iiSDKCore/Runtime/Serialization.h>
+#include <iiSDKCore/IO/Channel.h>
+#include <iiSDKCore/IO/Requests.h>
+#include <iiSDKCore/IO/AsyncIO.h>
+#include <iiSDKCore/Runtime/Animation.h>
+#include <iiSDKCore/IO/NativeFile.h>
+#include <iiSDKCore/Plugin/Plugin.h>
+#include <iiSDKCore/Runtime/FrameLoop.h>
+#include <iiSDKCore/Runtime/Operation.h>
+#include <iiSDKCore/IO/NativePipe.h>
+#include <iiSDKCore/Process/Process.h>
+#include <iiSDKCore/Process/ProcessC.h>
+#include <iiSDKCore/Runtime/HostLoop.h>
+#include <iiSDKCore/Runtime/Application.h>
+#include <iiSDKCore/IO/MemoryMap.h>
+#include <iiSDKCore/Resource/Pack.h>
+#include <iiSDKCore/Runtime/QueryStream.h>
+#include <iiSDKCore/Runtime/QueryPeer.h>
+#include <iiSDKCore/Runtime/QueryValue.h>
+#include <iiSDKCore/Runtime/LoadBalancer.h>
+#include <iiSDKCore/Runtime/LoadRouting.h>
+#include <iiSDKCore/Runtime/ComputeRouter.h>
+#include <iiSDKCore/Runtime/ChunkQueue.h>
+#include <iiSDKCore/Runtime/ChunkQueueC.h>
+#include <iiSDKCore/Runtime/ManagedMemory.h>
+#include <iiSDKCore/Runtime/MigratingWork.h>
+#include <iiSDKCore/Runtime/ResourceControlC.h>
+#include <iiSDKCore/Runtime/Future.h>
+#include <iiSDKCore/Runtime/FutureWatcher.h>
+#include <iiSDKCore/Runtime/FutureSynchronizer.h>
+#include <iiSDKCore/Runtime/Concurrent.h>
+#include <iiSDKCore/Runtime/ObjectOwner.h>
+#include <iiSDKCore/Runtime/Session.h>
+#include <iiSDKCore/Runtime/TouchInput.h>
+#include <iiSDKCore/Runtime/TouchMotion.h>
+#include <iiSDKCore/API/Services.h>
+#include <iiSDKCore/Core/Assert/Contract.h>
+#include <iiSDKCore/Core/Event/Event.h>
+#include <iiSDKCore/Core/Event/Receiver.h>
+#include <iiSDKCore/Core/Memory/SharedValue.h>
+#include <iiSDKCore/Core/Task/Parallel.h>
+#include <iiSDKCore/Animation/Timeline.h>
+#include <iiSDKCore/Core/File/File.h>
+#include <iiSDKCore/Core/IO/BinaryCursor.h>
+#include <iiSDKCore/Core/Serialization/CBOR.h>
+#include <iiSDKCore/Core/Serialization/Serialization.h>
+#include <iiSDKCore/Core/Serialization/SharedValue.h>
+#include <iiSDKCore/Core/Path/PathRoot.h>
+#include <iiSDKCore/Core/Platform/PlatformProfile.h>
+#include <iiSDKCore/Core/Task/TaskGroup.h>
+#include <iiSDKCore/Core/Time/Deadline.h>
+#include <iiSDKCore/Core/Time/Time.h>
+#include <iiSDKCore/Core/Version/Version.h>
+#include <iiSDKCore/Debug/Diagnostics.h>
+#include <iiSDKCore/Graph/DependencyGraph.h>
+#include <iiSDKCore/Scene/Scene.h>
+#include <iiSDKCore/Scripting/Bindings.h>
+#include <iiSDKCore/SDL/HostSession.h>
+#include <iiSDKCore/Vulkan/Timeline.h>
+#endif
+
+#if defined(IISDK_IMPORT_IISDKCORE_VALUES)
+#include <iiSDKCore/Core/Value/Value.h>
+#endif

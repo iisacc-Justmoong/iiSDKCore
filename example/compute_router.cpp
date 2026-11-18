@@ -1,4 +1,4 @@
-#include <iiSDKCore/Runtime/ComputeRouter.h>
+#include <iiSDKCore>
 #include <atomic>
 #include <iostream>
 
