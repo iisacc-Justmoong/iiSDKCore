@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.31)
 project(iiSDKCore VERSION 0.20.0 LANGUAGES CXX)
+set(iiSDKCore_SPDX_LICENSE "Apache-2.0")
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(EMSCRIPTEN AND NOT DEFINED CMAKE_CXX_SCAN_FOR_MODULES)
@@ -345,6 +346,7 @@ if(IISDKCORE_BUILD_CPYTHON)
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR})
     install(FILES src/Scripting/CPythonHost.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSDKCore/Scripting)
     set(_cpython_package_dir "${CMAKE_INSTALL_LIBDIR}/cmake/iiSDKCoreCPython")
+    set(iiSDKCoreCPython_SPDX_LICENSE "Apache-2.0")
     install(EXPORT iiSDKCoreCPythonTargets NAMESPACE iiSDKCore:: DESTINATION ${_cpython_package_dir})
     configure_package_config_file(cmake/iiSDKCoreCPythonConfig.cmake.in
         "${CMAKE_CURRENT_BINARY_DIR}/iiSDKCoreCPythonConfig.cmake" INSTALL_DESTINATION ${_cpython_package_dir})
@@ -882,6 +884,16 @@ if(BUILD_TESTING)
     add_test(NAME iiSDKCore.FoundationBoundary COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/core_boundary.py" --source "${CMAKE_CURRENT_SOURCE_DIR}" --build "${CMAKE_CURRENT_BINARY_DIR}")
     add_test(NAME iiSDKCore.FoundationBoundaryPolicy COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/core_boundary_policy.py")
+    add_test(NAME iiSDKCore.LicenseText COMMAND "${Python3_EXECUTABLE}" -B
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/license_text.py"
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_CURRENT_BINARY_DIR}/iiSDKCoreConfig.cmake")
+    if(NOT CMAKE_CROSSCOMPILING)
+        add_test(NAME iiSDKCore.LicenseInstalled COMMAND "${Python3_EXECUTABLE}" -B
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/license_text.py" --install
+            "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_COMMAND}" "${CMAKE_INSTALL_DATADIR}")
+        set_tests_properties(iiSDKCore.LicenseInstalled PROPERTIES TIMEOUT 120)
+    endif()
 endif()
-install(FILES README.md DESTINATION ${CMAKE_INSTALL_DATADIR}/iiSDKCore)
+install(FILES README.md LICENSE NOTICE DESTINATION ${CMAKE_INSTALL_DATADIR}/iiSDKCore)
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DATADIR}/iiSDKCore/docs)

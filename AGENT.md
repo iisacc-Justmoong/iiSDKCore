@@ -470,6 +470,14 @@ UTF-8 텍스트·소유 Bytes/차용 ByteView·구조화 Value의 정확한 타�
 
 OperationOwner·Operation은 기존 TaskScope·실행기를 조합한다. 접수 실패, 실행 실패, 협력적 취소, 단조 마감, 소유자/실행기 제거, 외부 부작용 상태를 구분하며 최종 결과는 한 번만 확정한다. 대기 시간 초과가 작업 중단을 뜻하지 않는다. TaskScope::Sender는 제거된 수신 객체를 되살리지 않는 약한 접수 경계이다. 완료 전달 위치를 명시하고 SerialQueue의 순서 보장과 Thread+EventLoop의 고정 스레드 보장을 구분한다. 기존 QueryPort의 저수준 전달 동작은 유지한다. 실제 소비자는 iiCSMIDI의 소유 바이트 비동기 디코더이다. 계약은 docs/text.md·docs/operation.md·docs/qt-migration-p0.md를 따른다.
 
+## 라이선스
+
+이 저장소의 iiSDKCore 모듈은 Apache License 2.0이다. 자사 코드, 문서, 도구, 테스트가 포함된다. 저작권 표시는 `Copyright (c) 2026 iisacc`이고 고지는 루트 `NOTICE`에 있다. 사람용 한국어 설명은 [docs/License.md](docs/License.md)이다.
+
+iisacc 제품은 GNU Affero General Public License(AGPL-3.0-or-later)이다.
+
+제3자와 벤더 코드는 원래 라이선스를 유지한다. 문서 재편 중에도 그 라이선스와 외부 원본은 보존한다.
+
 <!-- workspace-docs:agent:start -->
 ## 문서 구조와 에이전트 탐색
 

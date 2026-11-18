@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "README.md",
-    "sha256": "0e4eeb5bd7b5bd49568e0c8b5c87b9af19538d4a004d1f32983c6ab1efbc0aa0",
-    "bytes": 22339,
-    "line_count": 200,
+    "sha256": "8915d4c468398e0b2b78afe9d503b952ac9fa85f9db157570ebff465256064c1",
+    "bytes": 22654,
+    "line_count": 208,
     "encoding": "utf-8",
     "language": "ko"
   },
@@ -879,7 +879,7 @@
       "kind": "paragraph",
       "start_line": 181,
       "end_line": 181,
-      "raw": "SPDX-License-Identifier: MIT\n"
+      "raw": "SPDX-License-Identifier: Apache-2.0\n"
     },
     {
       "id": "b000090",
@@ -892,88 +892,116 @@
       "id": "b000091",
       "kind": "paragraph",
       "start_line": 183,
-      "end_line": 185,
-      "raw": "The original code and documentation in this repository are licensed under the\n[MIT License](LICENSE). Third-party code, libraries, fonts, tools, and model\nweights retain their respective licenses.\n"
+      "end_line": 187,
+      "raw": "iiSDKCore is an iiSDK module and is licensed under the\n[Apache License, Version 2.0](LICENSE) (SPDX `Apache-2.0`).\nThe copyright notice is `Copyright (c) 2026 iisacc`. Attribution for this\ndistribution is in [NOTICE](NOTICE). The Korean statement of the same policy\nis [docs/License.md](docs/License.md).\n"
     },
     {
       "id": "b000092",
-      "kind": "blank",
-      "start_line": 186,
-      "end_line": 186,
-      "raw": "\n"
-    },
-    {
-      "id": "b000093",
-      "kind": "heading",
-      "start_line": 187,
-      "end_line": 187,
-      "raw": "## Freestanding Embedded component\n",
-      "level": 2,
-      "title": "Freestanding Embedded component"
-    },
-    {
-      "id": "b000094",
       "kind": "blank",
       "start_line": 188,
       "end_line": 188,
       "raw": "\n"
     },
     {
-      "id": "b000095",
+      "id": "b000093",
       "kind": "paragraph",
       "start_line": 189,
-      "end_line": 189,
-      "raw": "`iiSDKCore::Embedded` provides bounded native C++23 callbacks, timers, cancellation and dispatch budgets without allocation, threads, OS services or an interpreter. `IISDKCORE_EMBEDDED_ONLY=ON` builds this component with the mandatory architecture policy check. See [the Embedded contract](docs/embedded.md).\n"
+      "end_line": 190,
+      "raw": "iisacc products are licensed under the GNU Affero General Public License\n(AGPL-3.0-or-later).\n"
+    },
+    {
+      "id": "b000094",
+      "kind": "blank",
+      "start_line": 191,
+      "end_line": 191,
+      "raw": "\n"
+    },
+    {
+      "id": "b000095",
+      "kind": "paragraph",
+      "start_line": 192,
+      "end_line": 193,
+      "raw": "Third-party and vendored code, libraries, fonts, tools, and model weights\nkeep their original licenses.\n"
     },
     {
       "id": "b000096",
       "kind": "blank",
-      "start_line": 190,
-      "end_line": 190,
+      "start_line": 194,
+      "end_line": 194,
       "raw": "\n"
     },
     {
       "id": "b000097",
-      "kind": "paragraph",
-      "start_line": 191,
-      "end_line": 191,
-      "raw": "Runtime examples are opt-in: configure with `-DIISDKCORE_BUILD_EXAMPLES=ON` to build them. The default build contains the module and enabled tests.\n"
+      "kind": "heading",
+      "start_line": 195,
+      "end_line": 195,
+      "raw": "## Freestanding Embedded component\n",
+      "level": 2,
+      "title": "Freestanding Embedded component"
     },
     {
       "id": "b000098",
       "kind": "blank",
-      "start_line": 192,
-      "end_line": 192,
+      "start_line": 196,
+      "end_line": 196,
       "raw": "\n"
     },
     {
       "id": "b000099",
-      "kind": "html",
-      "start_line": 193,
-      "end_line": 193,
-      "raw": "<!-- workspace-docs:readme:start -->\n"
+      "kind": "paragraph",
+      "start_line": 197,
+      "end_line": 197,
+      "raw": "`iiSDKCore::Embedded` provides bounded native C++23 callbacks, timers, cancellation and dispatch budgets without allocation, threads, OS services or an interpreter. `IISDKCORE_EMBEDDED_ONLY=ON` builds this component with the mandatory architecture policy check. See [the Embedded contract](docs/embedded.md).\n"
     },
     {
       "id": "b000100",
+      "kind": "blank",
+      "start_line": 198,
+      "end_line": 198,
+      "raw": "\n"
+    },
+    {
+      "id": "b000101",
+      "kind": "paragraph",
+      "start_line": 199,
+      "end_line": 199,
+      "raw": "Runtime examples are opt-in: configure with `-DIISDKCORE_BUILD_EXAMPLES=ON` to build them. The default build contains the module and enabled tests.\n"
+    },
+    {
+      "id": "b000102",
+      "kind": "blank",
+      "start_line": 200,
+      "end_line": 200,
+      "raw": "\n"
+    },
+    {
+      "id": "b000103",
+      "kind": "html",
+      "start_line": 201,
+      "end_line": 201,
+      "raw": "<!-- workspace-docs:readme:start -->\n"
+    },
+    {
+      "id": "b000104",
       "kind": "heading",
-      "start_line": 194,
-      "end_line": 194,
+      "start_line": 202,
+      "end_line": 202,
       "raw": "## Documentation entry points\n",
       "level": 2,
       "title": "Documentation entry points"
     },
     {
-      "id": "b000101",
+      "id": "b000105",
       "kind": "blank",
-      "start_line": 195,
-      "end_line": 195,
+      "start_line": 203,
+      "end_line": 203,
       "raw": "\n"
     },
     {
-      "id": "b000102",
+      "id": "b000106",
       "kind": "list",
-      "start_line": 196,
-      "end_line": 199,
+      "start_line": 204,
+      "end_line": 207,
       "raw": "- Human overview: this English `README.md`.\n- Agent instructions: [AGENT.md](AGENT.md).\n- Human documentation: [documentation index](docs/README.md).\n- Structured agent documentation: [agent index](docs/agent-index.json).\n",
       "items": [
         {
@@ -999,10 +1027,10 @@
       ]
     },
     {
-      "id": "b000103",
+      "id": "b000107",
       "kind": "html",
-      "start_line": 200,
-      "end_line": 200,
+      "start_line": 208,
+      "end_line": 208,
       "raw": "<!-- workspace-docs:readme:end -->\n"
     }
   ],
@@ -1064,20 +1092,20 @@
       "start_line": 179
     },
     {
-      "block_id": "b000093",
+      "block_id": "b000097",
       "parent_id": "b000001",
       "level": 2,
       "title": "Freestanding Embedded component",
       "anchor": "freestanding-embedded-component",
-      "start_line": 187
+      "start_line": 195
     },
     {
-      "block_id": "b000100",
+      "block_id": "b000104",
       "parent_id": "b000001",
       "level": 2,
       "title": "Documentation entry points",
       "anchor": "documentation-entry-points",
-      "start_line": 194
+      "start_line": 202
     }
   ],
   "indexes": {
@@ -1588,38 +1616,52 @@
       },
       {
         "block_id": "b000091",
-        "label": "MIT License",
+        "label": "Apache License, Version 2.0",
         "target": "LICENSE",
         "kind": "relative",
         "line": 184
       },
       {
-        "block_id": "b000095",
-        "label": "the Embedded contract",
-        "target": "docs/embedded.md",
+        "block_id": "b000091",
+        "label": "NOTICE",
+        "target": "NOTICE",
         "kind": "relative",
-        "line": 189
+        "line": 186
       },
       {
-        "block_id": "b000102",
-        "label": "AGENT.md",
-        "target": "AGENT.md",
+        "block_id": "b000091",
+        "label": "docs/License.md",
+        "target": "docs/License.md",
+        "kind": "relative",
+        "line": 187
+      },
+      {
+        "block_id": "b000099",
+        "label": "the Embedded contract",
+        "target": "docs/embedded.md",
         "kind": "relative",
         "line": 197
       },
       {
-        "block_id": "b000102",
+        "block_id": "b000106",
+        "label": "AGENT.md",
+        "target": "AGENT.md",
+        "kind": "relative",
+        "line": 205
+      },
+      {
+        "block_id": "b000106",
         "label": "documentation index",
         "target": "docs/README.md",
         "kind": "relative",
-        "line": 198
+        "line": 206
       },
       {
-        "block_id": "b000102",
+        "block_id": "b000106",
         "label": "agent index",
         "target": "docs/agent-index.json",
         "kind": "relative",
-        "line": 199
+        "line": 207
       }
     ],
     "tables": [
