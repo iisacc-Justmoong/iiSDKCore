@@ -24,8 +24,13 @@ def fail(message):
     raise SystemExit(message)
 
 
+def canonical_bytes(data):
+    # Windows checkouts may rewrite LF text as CRLF. The digest is the LF text.
+    return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
 def license_bytes(path):
-    data = Path(path).read_bytes()
+    data = canonical_bytes(Path(path).read_bytes())
     if hashlib.sha256(data).hexdigest() != EXPECTED_LICENSE_SHA256:
         fail("LICENSE is not the Apache-2.0 text: " + str(path))
     text = data.decode("utf-8")
@@ -71,15 +76,15 @@ def assert_sources(source, config):
         fail("generated package config does not export iiSDKCore_SPDX_LICENSE")
 
 
-def assert_install(build, cmake, datadir):
+def assert_install(build, cmake, datadir, configuration):
     source = Path(__file__).resolve().parents[1]
-    original = (source / "LICENSE").read_bytes()
+    original = canonical_bytes((source / "LICENSE").read_bytes())
     with tempfile.TemporaryDirectory(prefix="iisdkcore-license-") as temporary:
         stage = Path(temporary)
-        subprocess.run([cmake, "--install", build, "--prefix", str(stage)], check=True)
+        subprocess.run([cmake, "--install", build, "--prefix", str(stage), "--config", configuration], check=True)
         installed_license = stage / datadir / "iiSDKCore" / "LICENSE"
         installed_notice = stage / datadir / "iiSDKCore" / "NOTICE"
-        if installed_license.read_bytes() != original:
+        if canonical_bytes(installed_license.read_bytes()) != original:
             fail("installed LICENSE does not match the Apache-2.0 source file")
         license_bytes(installed_license)
         notice_text(installed_notice)
@@ -90,9 +95,9 @@ def assert_install(build, cmake, datadir):
 
 def main():
     if len(sys.argv) >= 2 and sys.argv[1] == "--install":
-        if len(sys.argv) != 5:
-            fail("usage: license_text.py --install BUILD CMAKE DATADIR")
-        assert_install(sys.argv[2], sys.argv[3], sys.argv[4])
+        if len(sys.argv) != 6:
+            fail("usage: license_text.py --install BUILD CMAKE DATADIR CONFIG")
+        assert_install(sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])
         return
     if len(sys.argv) != 3:
         fail("usage: license_text.py SOURCE GENERATED_CONFIG")

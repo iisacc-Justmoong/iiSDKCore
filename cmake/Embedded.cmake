@@ -67,7 +67,7 @@ if(IISDKCORE_EMBEDDED_ONLY)
         if(NOT CMAKE_CROSSCOMPILING)
             add_test(NAME iiSDKCore.LicenseInstalled COMMAND "${Python3_EXECUTABLE}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tests/license_text.py" --install
-                "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_COMMAND}" "${CMAKE_INSTALL_DATADIR}")
+                "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_COMMAND}" "${CMAKE_INSTALL_DATADIR}" "$<CONFIG>")
             set_tests_properties(iiSDKCore.LicenseInstalled PROPERTIES TIMEOUT 120)
         endif()
     endif()
